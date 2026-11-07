@@ -56,3 +56,7 @@ Para completar esta etapa, configure GEMINI_API_KEY no servidor, execute `npm ru
 ## Publicação: preparada, não executada
 
 Dockerfile, variáveis de exemplo, `.gitignore`, workflow GitHub Actions e instruções em português estão no projeto. Não foi criado repositório externo ou serviço de hospedagem. O endereço da prévia é temporário e não constitui publicação para uso no celular.
+
+## Atualização: hospedagem gratuita e convites
+
+A suíte foi ampliada: **17 testes aprovados, zero falhas**. Os quatro novos testes cobrem acesso bloqueado sem convite, convite do responsável, emissão de convites para testadores, restrição do painel administrativo, cancelamento imediato, cookies forjados, resgate cross-site, falha fechada sem segredos e validade da sessão do responsável após reinício. A configuração gratuita foi validada com o esquema oficial da Render, sem disco ou serviços pagos. A validação real com Gemini continua pendente da chave do usuário. Convites dos testadores usam armazenamento temporário e podem desaparecer em reinícios, assim como as campanhas. A referência anterior a ausência de controle de acesso foi superada por esta atualização; ainda não há contas com identidade verificada nem sincronização entre dispositivos.
