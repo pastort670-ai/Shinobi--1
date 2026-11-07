@@ -1,0 +1,26 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> shinobi-1@1.0.0 test
+> node --test
+
+✔ criação e validação de ficha (1.20837ms)
+✔ ações e falas combinadas, memória, relações e progressão gradual (0.744211ms)
+✔ calendário, meses, anos, idade, marcos e spoilers (0.620925ms)
+✔ divergência muda o resultado do marco ao cruzar sua data (0.250347ms)
+✔ memória antiga relevante é recuperada sem histórico completo (1.901965ms)
+✔ respostas inválidas, tempo e progressão abusiva são rejeitados (0.224618ms)
+✔ combate pode reduzir condições sem conceder evolução instantânea (0.218299ms)
+✔ adaptador envia chave apenas em cabeçalho e JSON com esquema (3.406361ms)
+✔ sem chave retorna instrução de configuração (0.449116ms)
+✔ erros 429, bloqueio, resposta inválida e rede são tratados (1.207599ms)
+✔ HTTP: criação, trava, isolamento, turnos, regeneração atômica, backup e reinício (57.972541ms)
+✔ CSRF e conteúdo público sem segredos (4.974643ms)
+✔ requisições concorrentes no mesmo turno não duplicam efeitos (25.38777ms)
+ℹ tests 13
+ℹ suites 0
+ℹ pass 13
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 174.649927

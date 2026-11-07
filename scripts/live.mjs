@@ -1,0 +1,3 @@
+import {provider} from '../src/gemini.js';
+import {create,input} from '../src/engine.js';
+if(!process.env.GEMINI_API_KEY){console.error('Não executado: configure GEMINI_API_KEY no ambiente do servidor.');process.exitCode=2;}else{try{const c=create('Teste real · Akira',{name:'Akira Hayama',age:6,village:'Konohagakure',history:'Adotado por Hiruzen Sarutobi',personality:'Independente, ambicioso e determinado.'});const r=await provider()(c,input({segments:[{type:'FALAR',text:'Hiruzen, estou com medo desse barulho. Posso ficar perto de você?'}]}));console.log('PASS: conexão real, JSON e limites de alteração validados.');console.log(r.narrative);}catch(e){console.error(e.message);process.exitCode=1;}}
