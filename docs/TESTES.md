@@ -66,3 +66,9 @@ A suíte foi ampliada: **17 testes aprovados, zero falhas**. Os quatro novos tes
 **Uma chamada real aprovada** na aplicação publicada em https://shinobi-testes.onrender.com. Modelo configurado: `gemini-3.5-flash-lite`, disponível na modalidade gratuita da API conforme a documentação consultada. Com Akira Hayama, seis anos, a fala “Hiruzen, posso ficar perto de você?” recebeu uma narrativa contextual de Hiruzen. O servidor retornou HTTP 200, validou a saída estruturada e confirmou revisão 1 da campanha. A requisição de turno demorou aproximadamente 8,5 segundos. A chave foi inserida pelo usuário diretamente na Render e não foi incluída no repositório.
 
 Antes da aprovação, a chave foi corrigida por conter caracteres indevidos. O antigo modelo 2.5 respondeu HTTP 404 e a tentativa com 3.8 excedeu 60 segundos. O Flash-Lite resolveu a chamada observada. Isso valida a integração e um turno narrativo, não garante latência ou fidelidade em todos os casos. A suíte local permanece com 18 testes aprovados após adicionar a validação da chave. As menções anteriores a teste real pendente descrevem a entrega original e foram superadas por esta seção. Hospedagem e campanhas continuam sujeitas às limitações gratuitas já documentadas.
+
+
+## Versão 1.1
+22 testes automatizados passaram: acesso por convite, isolamento, ficha imutável, memória, progressão, cronologia, combate, persistência após reabertura do banco, regeneração e concorrência; transporte Gemini com respostas controladas; referências externas, cache, limites e fallback offline. Na modalidade gratuita, armazenamento local continua efêmero.
+
+Verificação de interface 1.1 em navegador: criação de Akira, ação e fala em blocos preservados, bloqueio dos controles e indicador durante geração controlada de seis segundos, resposta única no chat e tema escuro preservado ao recarregar. Sem rolagem horizontal no viewport de teste. Teste em aparelho Android físico não realizado.

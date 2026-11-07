@@ -1,3 +1,4 @@
+try{document.documentElement.dataset.theme=localStorage.getItem('shinobi-theme')==='dark'?'dark':'light';}catch{}
 const token=new URLSearchParams(location.hash.slice(1)).get('invite');
 // Remove the invitation from the address before any authenticated navigation.
 if(token)history.replaceState(null,'',location.pathname);
