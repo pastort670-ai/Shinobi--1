@@ -18,6 +18,7 @@ export function app({dbPath=process.env.DB_PATH||resolve(root,'data/shinobi.sqli
  try{const url=new URL(req.url,'http://localhost');
  if(url.pathname==='/healthz'&&req.method==='GET')return json({ok:true});
  if(await gate.route(req,res,url,json))return;
+ if(req.method==='GET'&&['/entrar','/access.js'].includes(url.pathname)){const name=url.pathname==='/entrar'?'access.html':'access.js';res.writeHead(200,{'Content-Type':name.endsWith('.js')?'text/javascript; charset=utf-8':'text/html; charset=utf-8'});res.end(readFileSync(resolve(root,'public',name)));return;}
  const visitor=gate.identify(req);
  if(gate.required&&!visitor){
   if(req.method==='GET'&&['/','/access.js','/style.css'].includes(url.pathname)){const name=url.pathname==='/'?'access.html':url.pathname.slice(1);res.writeHead(200,{'Content-Type':name.endsWith('.js')?'text/javascript; charset=utf-8':name.endsWith('.css')?'text/css; charset=utf-8':'text/html; charset=utf-8'});res.end(readFileSync(resolve(root,'public',name)));return;}

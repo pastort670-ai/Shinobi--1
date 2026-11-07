@@ -72,3 +72,5 @@ Antes da aprovação, a chave foi corrigida por conter caracteres indevidos. O a
 22 testes automatizados passaram: acesso por convite, isolamento, ficha imutável, memória, progressão, cronologia, combate, persistência após reabertura do banco, regeneração e concorrência; transporte Gemini com respostas controladas; referências externas, cache, limites e fallback offline. Na modalidade gratuita, armazenamento local continua efêmero.
 
 Verificação de interface 1.1 em navegador: criação de Akira, ação e fala em blocos preservados, bloqueio dos controles e indicador durante geração controlada de seis segundos, resposta única no chat e tema escuro preservado ao recarregar. Sem rolagem horizontal no viewport de teste. Teste em aparelho Android físico não realizado.
+
+Correção de entrada: 26 testes passaram, incluindo retenção do convite após recarregar, convite colado, nova tentativa após falha e entrada dedicada mesmo com sessão existente.
