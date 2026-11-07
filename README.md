@@ -12,7 +12,7 @@ RPG narrativo em português, baseado no protótipo HTML fornecido. Frontend móv
 
 Não é necessário `npm install`: só são usadas bibliotecas nativas. `node:sqlite` pode emitir aviso de recurso experimental dependendo da versão do Node.
 
-O padrão é `gemini-2.5-flash`; altere `GEMINI_MODEL` para outro modelo compatível com generateContent e respostas estruturadas, conforme a disponibilidade da sua conta. O plano gratuito tem cotas variáveis por projeto/modelo. Este aplicativo não habilita faturamento nem garante gratuidade de uma conta já paga. Veja https://ai.google.dev/gemini-api/docs/pricing e https://ai.google.dev/gemini-api/docs/rate-limits. O uso gratuito pode ser usado pelo Google para melhoria dos produtos segundo seus termos.
+O padrão é `gemini-3.8-flash`; altere `GEMINI_MODEL` para outro modelo compatível com generateContent e respostas estruturadas, conforme a disponibilidade da sua conta. O plano gratuito tem cotas variáveis por projeto/modelo. Este aplicativo não habilita faturamento nem garante gratuidade de uma conta já paga. Veja https://ai.google.dev/gemini-api/docs/pricing e https://ai.google.dev/gemini-api/docs/rate-limits. O uso gratuito pode ser usado pelo Google para melhoria dos produtos segundo seus termos.
 
 ## Jogar
 
@@ -31,7 +31,7 @@ O padrão é `gemini-2.5-flash`; altere `GEMINI_MODEL` para outro modelo compat�
 1. Extraia o ZIP no gerenciador de arquivos do celular. No navegador, crie um repositório privado no GitHub. Use a visualização “Site para computador” se necessário para enviar os arquivos mantendo as pastas. Também é possível usar um GitHub Codespace no navegador para descompactar, revisar e enviar os arquivos.
 2. Não envie `.env`, a pasta `data` nem backups pessoais. A pasta do projeto já inclui `.gitignore` e testes automáticos para GitHub Actions.
 3. Em um provedor com aplicação Docker/Node e volume persistente, conecte o repositório. Com Docker, use o `Dockerfile` fornecido. Sem Docker, selecione Node 24, nenhum comando de build obrigatório, e início `npm start`.
-4. Cadastre `GEMINI_API_KEY` como segredo no painel da hospedagem, `GEMINI_MODEL=gemini-2.5-flash` e `COOKIE_SECURE=true` quando a URL for HTTPS. Use a porta fornecida pelo provedor via `PORT`.
+4. Cadastre `GEMINI_API_KEY` como segredo no painel da hospedagem, `GEMINI_MODEL=gemini-3.8-flash` e `COOKIE_SECURE=true` quando a URL for HTTPS. Use a porta fornecida pelo provedor via `PORT`.
 5. Monte o volume em `/app/data` para Docker e use `DB_PATH=/app/data/shinobi.sqlite`. Se o provedor montar outro caminho, ajuste `DB_PATH`. Execute apenas **uma instância** do aplicativo.
 6. Publique e abra a URL HTTPS no Chrome do celular. Crie Akira e faça a primeira conversa. Uma hospedagem sem volume pode perder todas as campanhas quando reiniciar ou atualizar; não a use para o salvamento definitivo.
 
