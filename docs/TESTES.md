@@ -74,3 +74,5 @@ Antes da aprovação, a chave foi corrigida por conter caracteres indevidos. O a
 Verificação de interface 1.1 em navegador: criação de Akira, ação e fala em blocos preservados, bloqueio dos controles e indicador durante geração controlada de seis segundos, resposta única no chat e tema escuro preservado ao recarregar. Sem rolagem horizontal no viewport de teste. Teste em aparelho Android físico não realizado.
 
 Correção de entrada: 26 testes passaram, incluindo retenção do convite após recarregar, convite colado, nova tentativa após falha e entrada dedicada mesmo com sessão existente.
+
+Diagnóstico de turno longo: falha reproduzida em produção com duas ações e duas falas (1.975 caracteres): HTTP 502, “Opções de tempo inválidas.” em 8,4 segundos. Correção: descartar sugestões opcionais inválidas, deduplicar e limitar a três durações válidas, sem avançar o calendário automaticamente nem relaxar a validação de progressão. Aviso duplicado junto ao campo de envio para facilitar leitura no celular. Testes de regressão cobrem o adaptador e a aplicação atômica do turno.
