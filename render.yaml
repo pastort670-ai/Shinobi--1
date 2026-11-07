@@ -1,0 +1,35 @@
+# Preparação para testes fechados. Aplicar somente após revisar o custo.
+# O tráfego público permanece bloqueado até concluir o controle de convites.
+services:
+  - type: web
+    name: shinobi-testes
+    runtime: node
+    plan: 0.5c-512mb
+    region: virginia
+    branch: main
+    numInstances: 1
+    buildCommand: npm test
+    startCommand: npm start
+    healthCheckPath: /api/status
+    autoDeployTrigger: 'off'
+    maintenanceMode:
+      enabled: true
+    disk:
+      name: shinobi-campanhas
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: NODE_VERSION
+        value: '24.22.1'
+      - key: NODE_ENV
+        value: production
+      - key: DB_PATH
+        value: /var/data/shinobi.sqlite
+      - key: COOKIE_SECURE
+        value: 'true'
+      - key: GEMINI_MODEL
+        value: gemini-2.5-flash
+      - key: DAILY_LIMIT
+        value: '100'
+      - key: GEMINI_API_KEY
+        sync: false
