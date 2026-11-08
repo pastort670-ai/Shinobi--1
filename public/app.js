@@ -14,7 +14,7 @@ async function run(fn,narrating=false){if(busy)return false;busy=true;notice();$
 function tab(name){['story','sheet','calendarpage','memory','timeline','library','admin'].forEach(t=>$(t).hidden=t!==name);document.querySelectorAll('[data-tab]').forEach(b=>b.classList.toggle('active',b.dataset.tab===name));if(matchMedia('(max-width:800px)').matches)drawer(false);$('more').open=false;}
 document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>tab(b.dataset.tab));
 async function list(select){const cs=await api('campaigns');$('campaigns').innerHTML=cs.map(c=>`<option value="${c.id}">${esc(c.title)} · ${esc(c.name)}</option>`).join('');if(cs.length){const id=select||saved('shinobi-active','');$('campaigns').value=cs.some(c=>c.id===id)?id:cs[0].id;await load($('campaigns').value);}else{$('campaigns').innerHTML='<option>Crie sua primeira campanha</option>';current=null;}}
-async function load(id){current=await api('campaigns/'+id);remember('shinobi-active',id);parts=[{type:'AGIR',text:''}];calendarCursor=null;render();}
+async function load(id){current=await api('campaigns/'+id);remember('shinobi-active',id);parts=[{type:'AGIR',text:''}];calendarCursor=null;calendarSelected=current.day;render();}
 $('campaigns').onchange=()=>run(()=>load($('campaigns').value));
 function openCreation(){if(busy)return;$('createform').reset();$('creation').showModal();drawer(false);}
 $('new').onclick=openCreation;$('start').onclick=openCreation;$('close').onclick=()=>$('creation').close();
@@ -110,13 +110,13 @@ function drawCalendar(){
  $('calgrid').innerHTML=headers+blanks+cells;
  $('calgrid').querySelectorAll('[data-calendar-day]').forEach(b=>b.onclick=()=>{calendarSelected=Number(b.dataset.calendarDay);drawCalendar();});
  const onDay=(c.calendarEvents||[]).filter(e=>e.dayIndex===calendarSelected);
- const at=calendarSelected,dt=new Date(Date.UTC(2000,0,1)+((at+282)*86400000));
+ const at=calendarSelected;
  const items=onDay.map(e=>'<div class="fact"><b>'+esc(e.title)+'</b><small>'+esc(e.confirmedDate?'Data documentada na lore':'Data estimada pelo SHINOBI')+'</small><p>'+esc(e.overridden||e.detail)+'</p></div>').join('');
  const era=(c.calendarEraEvents||[]).find(e=>e.start===at);
  const eraInfo=era?'<div class="fact"><b>◆ '+esc(era.name)+'</b><p>Começo aproximado desta era.</p></div>':'';
  $('caldayinfo').innerHTML=items+eraInfo||'<p class="caption">Selecione uma data marcada para ver o acontecimento.</p>';
  const future=(c.calendarEvents||[]).filter(e=>e.dayIndex>=c.day).slice(0,7);
- $('calupcoming').innerHTML=future.map(e=>'<div class="fact"><small>'+String(e.day).padStart(2,'0')+'/'+String(e.month).padStart(2,'0')+' · Ano '+e.year+' · '+(e.confirmedDate?'data oficial':'aproximada')+'</small><b>'+esc(e.title)+'</b><p>'+esc(e.overridden||e.detail)+'</p></div>').join('')||'<p class="caption">Nenhum evento previsto.</p>';
+ $('calupcoming').innerHTML=future.map(e=>'<div class="fact"><small>'+String(e.day).padStart(2,'0')+'/'+String(e.month).padStart(2,'0')+' · Ano '+e.year+' · '+(e.confirmedDate?'data confirmada':'aproximada')+' · '+(e.dayIndex===c.day?'Hoje': 'Em '+timeUntilEra(e.dayIndex-c.day))+'</small><b>'+esc(e.title)+'</b><p>'+esc(e.overridden||e.detail)+'</p></div>').join('')||'<p class="caption">Nenhum evento previsto.</p>';
 }
 $('calprev').onclick=()=>{if(!calendarCursor)return;calendarCursor.month--;if(calendarCursor.month===0){calendarCursor.month=12;calendarCursor.year--;}drawCalendar();};
 $('calnext').onclick=()=>{if(!calendarCursor)return;calendarCursor.month++;if(calendarCursor.month===13){calendarCursor.month=1;calendarCursor.year++;}drawCalendar();};
