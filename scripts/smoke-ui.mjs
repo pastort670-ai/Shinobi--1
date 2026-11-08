@@ -36,9 +36,11 @@ try{
  assert.match(await page.locator('#chat .bubble.user').last().innerText(),/NARRAR:/);
  assert.match(await page.locator('#chat .bubble.user').last().innerText(),/FALAR:/);
  await page.locator('[data-memory-save]').click();
+ await page.locator('#menutoggle').click();
  await page.locator('[data-tab="memory"]').click();
  await page.locator('#memorable').getByText('Defesa do portão').waitFor();
  await page.locator('#pendingTasks').getByText('Voltar ao portão amanhã.').waitFor();
+ await page.locator('#menutoggle').click();
  await page.locator('[data-tab="story"]').click();
  await page.locator('#time').click();
  await page.locator('#timeactivity').fill('Descanso por um dia.');
