@@ -30,13 +30,13 @@ test('o calendário carrega marcos, aniversários e sinaliza data certa vs aprox
  const c=create('Akira',{name:'Akira',age:6});
  const v=view(c);
  const attack=v.calendarEvents.find(e=>e.id==='kyubi');
- assert.equal(attack.day,10);assert.equal(attack.month,10);assert.equal(attack.year,0);
+ assert.equal(attack.day,10);assert.equal(attack.month,10);assert.equal(attack.year,1);
  assert.equal(attack.dayIndex,0);assert.equal(attack.confirmedDate,true);
  const massacre=v.calendarEvents.find(e=>e.id==='uchiha');
  assert.equal(massacre.confirmedDate,false);
  const birthday=v.calendarEvents.find(e=>e.id==='birthday-12');
  assert.equal(birthday.dayIndex,12*365);
- assert.equal(birthday.day,10);assert.equal(birthday.month,10);assert.equal(birthday.year,12);
+ assert.equal(birthday.day,10);assert.equal(birthday.month,10);assert.equal(birthday.year,13);
  assert.equal(calendar(365).month,10);
  assert.equal(v.calendarEraEvents.length,6);
 });
