@@ -132,3 +132,24 @@ html[data-theme=dark] .popover .selected{color:var(--accent)}
  #calendar{max-width:112px}
  #era-info>summary{max-width:82px;font-size:9px}
 }
+
+/* SHINOBI 1.2.0 — calendário mensal e evolução na própria ficha */
+.growth-item{border-left:3px solid var(--accent)}
+#growthsummary{line-height:1.65}
+.calendar-nav{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:14px 0}
+.calendar-nav strong{font-size:16px;text-align:center}
+.calendar-nav button{flex:none;min-width:44px;font-size:24px;padding:4px 10px}
+#callegend{font-size:11px;margin:5px 0 9px}
+.month-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:5px;margin-bottom:16px}
+.cal-weekday{display:grid;place-items:center;min-height:25px;color:var(--muted);font-size:11px;font-weight:850}
+.cal-blank{min-height:44px}
+.month-grid .cal-cell{position:relative;min-width:0;min-height:47px;padding:5px 0 11px;border:1px solid var(--line);background:var(--surface);border-radius:7px;font-size:13px}
+.month-grid .cal-cell.cal-today{border:2px solid var(--accent)}
+.month-grid .cal-cell.cal-selected{background:var(--soft);box-shadow:inset 0 0 0 1px var(--accent)}
+.month-grid .cal-cell.cal-event{font-weight:900}
+.cal-marker{position:absolute;bottom:1px;left:50%;transform:translateX(-50%);color:var(--accent);font-size:10px;line-height:1}
+#caldayinfo{margin:8px 0 18px}
+#caldayinfo .fact,#calupcoming .fact{margin-bottom:8px}
+#caldayinfo .fact b,#calupcoming .fact b{display:block}
+#caldayinfo .fact small,#calupcoming .fact small{display:block;font-size:11px}
+@media(max-width:800px){.month-grid{gap:3px}.month-grid .cal-cell{min-height:43px;font-size:12px}.cal-blank{min-height:43px}.calendar-nav strong{font-size:14px}}

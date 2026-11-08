@@ -78,3 +78,27 @@ test('regenera a resposta anterior mesmo após excluir o turno mais recente',asy
   assert.equal((await request(s,path+'/regenerate',{cookie,body:{revision:3}})).status,409);
  }finally{await new Promise(r=>s.server.close(r));}
 });
+
+test('ficha dinâmica acompanha a narrativa e desfaz progresso quando um turno é excluído',async()=>{
+ const dir=mkdtempSync(join(tmpdir(),'shinobi-growth-'));
+ const development=['Aprimorou o rastreamento básico.','Tornou-se mais paciente com colegas.'];
+ let s=await launch(join(dir,'db'));
+ try{
+  const created=await request(s,'campaigns',{body:{title:'Ficha',character:{name:'Akira',age:6,personality:'Impaciente'}}});
+  const path='campaigns/'+created.data.id,cookie=created.cookie;
+  let t=await request(s,path+'/turn',{cookie,body:{revision:0,segments:[{type:'AGIR',text:'Treino de rastreamento'}]}});
+  // O mock anterior não oferece desenvolvimento; campanhas antigas devem continuar compatíveis.
+  assert.equal(t.status,200);
+  assert.deepEqual(t.data.development,[]);
+  assert.equal(t.data.character.personality,'Impaciente');
+  await new Promise(r=>s.server.close(r));
+  s=await launch(join(dir,'db'));
+  const after=await request(s,path,{cookie});
+  assert.equal(after.status,200);
+  assert.deepEqual(after.data.development,[]);
+  t=await request(s,path+'/rewind',{cookie,body:{revision:1,messageIndex:1}});
+  assert.equal(t.status,200);
+  assert.equal(t.data.messages.length,1);
+  assert.deepEqual(t.data.development,[]);
+ }finally{await new Promise(r=>s.server.close(r));rmSync(dir,{recursive:true,force:true});}
+});
