@@ -18,7 +18,7 @@ test('a regeneração recebe a última cena aceita, não a rejeitada',()=>{
 });
 test('instruções exigem causalidade, continuidade e permitem turnos sem reviravolta',()=>{
  assert.match(system,/Não é obrigatório trazer desenvolvimento novo/);
- assert.match(system,/não significa mudar arbitrariamente o enredo/);
+ assert.match(system,/NÃO significa mudar arbitrariamente o enredo/);
  assert.match(system,/CONTINUIDADE E REGENERAÇÃO/);
 });
 test('temperatura reduzida na regeneração e sem conteúdo rejeitado no estado da campanha',async()=>{
