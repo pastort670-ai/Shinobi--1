@@ -11,18 +11,18 @@ test('TEMPO usa bloco de atividade no compositor, sem aba nem botão próprio',(
  assert.doesNotMatch(html,/id="timebox"/);
  assert.doesNotMatch(html,/id="advance"/);
  assert.match(js,/choose\('TEMPO'\)/);
- assert.match(js,/Qual atividade você vai realizar durante esse tempo\?/);
- assert.match(js,/class="time-inline"/);
+ assert.match(js,/ATIVIDADE DURANTE O TEMPO/);
+ assert.match(js,/class="time-inline-controls"/);
  assert.doesNotMatch(js,/\$\('timebox'\)/);
 });
 
 test('envia a atividade de TEMPO como AGIR e usa os dias escolhidos',()=>{
- assert.match(js,/const time=parts.find\(s=>s.type==='TEMPO'\)/);
- assert.match(js,/days=time\?Number\(timeAmount\)\*Number\(timeUnit\):0/);
- assert.match(js,/s.type==='TEMPO'\?'AGIR':s.type/);
- assert.match(js,/time&&!time.text.trim\(\)/);
+ assert.match(js,/if\(timeActive\)/);
+ assert.match(js,/days=timeActive\?Number\(timeAmount\)\*Number\(timeUnit\):0/);
+ assert.match(js,/segments.push\(\{type:'AGIR',text:timeText.trim\(\)\}\)/);
+ assert.match(js,/timeActive&&!timeText.trim\(\)/);
  assert.match(js,/\$\('send'\)\.onclick=\(\)=>send\(\)/);
- assert.match(js,/data-time-amount/);
+ assert.match(js,/id="timeamount"/);
 });
 
 test('o JavaScript do compositor tem sintaxe válida',()=>{
