@@ -33,7 +33,7 @@ $('act').onclick=()=>choose('AGIR');$('talk').onclick=()=>choose('FALAR');$('tim
 function renderDrafts(){
  $('drafts').innerHTML=parts.map((part,i)=>{
   const isTime=part.type==='TEMPO';
-  const label=isTime?'◷ TEMPO':part.type==='AGIR'?'✦ AÇÃO':'❝ FALA';
+  const label=isTime?'◷ TEMPO':part.type==='AGIR'?'✦ NARRAR':'❝ FALAR';
   const placeholder=isTime?'Qual atividade você vai realizar durante esse tempo?':part.type==='AGIR'?'Descreva o que seu personagem faz…':'Escreva o que seu personagem diz…';
   const controls=isTime?`<div class="time-inline"><label for="duration-${i}">DURAÇÃO</label><div class="time-inline-controls"><input id="duration-${i}" data-time-amount type="number" min="1" max="3650" value="${timeAmount}" aria-label="Quantidade de tempo"><select data-time-unit aria-label="Unidade de tempo"><option value="1" ${timeUnit===1?'selected':''}>dias</option><option value="30" ${timeUnit===30?'selected':''}>meses de 30 dias</option><option value="365" ${timeUnit===365?'selected':''}>anos de 365 dias</option></select></div><div class="time-suggestions">${(current?.timeOptions||[]).map(d=>`<button data-days="${d}" type="button">${d} ${d===1?'dia':'dias'}</button>`).join('')}</div><small>Escreva a atividade e toque em Enviar para avançar o tempo.</small></div>`:'';
   return `<div class="draft-block ${isTime?'time-draft':''}"><div class="draft-label"><label for="part-${i}">${label}</label>${parts.length>1?`<button data-remove="${i}" aria-label="Remover bloco ${i+1}">×</button>`:''}</div><textarea id="part-${i}" data-part="${i}" aria-label="${label} ${i+1}" maxlength="2000" rows="1" placeholder="${placeholder}">${esc(part.text)}</textarea>${controls}</div>`;
@@ -45,7 +45,7 @@ function renderDrafts(){
  $('savehint').textContent=parts.some(s=>s.type==='TEMPO')?'O botão Enviar narra a atividade e avança o calendário.':'Ações e falas seguem juntas em um turno.';
  document.querySelectorAll('[data-part]').forEach(el=>{
   el.style.height='auto';el.style.height=Math.min(180,el.scrollHeight)+'px';
-  el.addEventListener('input',()=>{if(busy)return;parts[Number(el.dataset.part)].text=el.value;el.style.height='auto';el.style.height=Math.min(180,el.scrollHeight)+'px';});
+  el.addEventListener('input',()=>{if(busy)return;parts[Number(el.dataset.part)].text=el.value;el.style.height='auto';el.style.height=Math.min(180,el.scrollHeight)+'px';const block=el.closest('.draft-block');const long=el.value.length>=1200;block.classList.toggle('review-warning',long);block.title=long?'Revise o texto longo antes de enviar.':'';});
  });
  document.querySelectorAll('[data-remove]').forEach(b=>b.onclick=()=>{if(busy)return;parts.splice(Number(b.dataset.remove),1);if(!parts.length)parts=[{type:'AGIR',text:''}];renderDrafts();});
  const amount=$('drafts').querySelector('[data-time-amount]'),unit=$('drafts').querySelector('[data-time-unit]');
