@@ -1,0 +1,21 @@
+name: SHINOBI quality checks
+on:
+  push:
+    branches: [main, feature/shinobi-1-2-1]
+  pull_request:
+    branches: [main]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: package.json
+      - run: node --check src/engine.js
+      - run: node --check src/server.js
+      - run: node --check src/gemini.js
+      - run: node --check public/app.js
+      - run: npm test
