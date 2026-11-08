@@ -61,11 +61,19 @@ export function app({dbPath=process.env.DB_PATH||resolve(root,'data/shinobi.sqli
  if(url.pathname==='/api/campaigns'){
  if(req.method==='GET')return json(db.prepare('SELECT state FROM campaigns WHERE owner=?').all(owner).map(r=>{let c=JSON.parse(r.state);return {id:c.id,title:c.title,name:c.character.name,day:c.day};}));
  if(req.method==='POST'){const raw=await read();if(db.prepare('SELECT 1 FROM campaigns WHERE owner=? LIMIT 1').get(owner))fail('Já existe uma campanha neste navegador. Exporte sua campanha antes de começar outra.',409);const c=create(raw.title,raw.character??{});db.prepare('INSERT INTO campaigns VALUES(?,?,?,NULL)').run(c.id,owner,JSON.stringify(c));return json(view(c),201);}}
- const m=url.pathname.match(/^\/api\/campaigns\/([a-f0-9-]+)(?:\/(turn|regenerate|export|rewind|intro|intro-confirm|memory))?$/);if(!m)fail('Rota não encontrada.',404);const [,id,action]=m;let row=get(id,owner),c=JSON.parse(row.state);
+ const m=url.pathname.match(/^\/api\/campaigns\/([a-f0-9-]+)(?:\/(turn|regenerate|export|rewind|intro|intro-confirm|memory|close))?$/);if(!m)fail('Rota não encontrada.',404);const [,id,action]=m;let row=get(id,owner),c=JSON.parse(row.state);
  if(req.method==='GET'&&!action)return json({...view(c),undoableMessages:canUndo(id,owner,c,row)});
  if(req.method==='GET'&&action==='export'){res.setHeader('Content-Disposition','attachment; filename="shinobi-campanha.json"');return json({format:'shinobi-backup-v1',campaign:c});}
- if(req.method!=='POST'||!['turn','regenerate','rewind','intro','intro-confirm','memory'].includes(action))fail('A ficha é imutável. Operação não permitida.',405);
+ if(req.method!=='POST'||!['turn','regenerate','rewind','intro','intro-confirm','memory','close'].includes(action))fail('A ficha é imutável. Operação não permitida.',405);
  if(busy.has(id))fail('Já existe um turno em andamento.',409);busy.add(id);lock=id;const raw=await read();if(raw.revision!==c.revision)fail('Campanha atualizada em outra aba. Recarregue antes de enviar.',409);
+ if(action==='close'){
+  if(raw.confirm!=='ENCERRAR')fail('Confirme o encerramento para proteger sua campanha.');
+  db.exec('BEGIN IMMEDIATE');
+  try{db.prepare('DELETE FROM checkpoints WHERE campaign=? AND owner=?').run(id,owner);
+      db.prepare('DELETE FROM campaigns WHERE id=? AND owner=?').run(id,owner);
+      db.exec('COMMIT');}catch(error){db.exec('ROLLBACK');throw error;}
+  return json({ok:true});
+ }
  if(action==='intro-confirm'){if(c.messages.length>1)fail('A campanha já foi iniciada.',409);c.introConfirmed=true;c.revision++;db.prepare('UPDATE campaigns SET state=? WHERE id=? AND owner=?').run(JSON.stringify(c),id,owner);return json({...view(c),undoableMessages:canUndo(id,owner,c,row)});}
  if(action==='memory'){
   const candidateId=String(raw.candidateId||'');
