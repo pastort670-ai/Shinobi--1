@@ -153,3 +153,8 @@ html[data-theme=dark] .popover .selected{color:var(--accent)}
 #caldayinfo .fact b,#calupcoming .fact b{display:block}
 #caldayinfo .fact small,#calupcoming .fact small{display:block;font-size:11px}
 @media(max-width:800px){.month-grid{gap:3px}.month-grid .cal-cell{min-height:43px;font-size:12px}.cal-blank{min-height:43px}.calendar-nav strong{font-size:14px}}
+
+/* 1.2.1: sinalização não bloqueante para rascunhos extensos. */
+.draft-block.review-warning{border-left:4px solid #d9a125;padding-left:10px;background:color-mix(in srgb,#f2c45b 12%,var(--surface))}
+.draft-block.review-warning .draft-label:after{content:'⚠ REVISAR TEXTO LONGO';color:#ad7608;font-size:10px;letter-spacing:.3px}
+html[data-theme=dark] .draft-block.review-warning .draft-label:after{color:#ffda78}
