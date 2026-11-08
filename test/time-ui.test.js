@@ -29,3 +29,21 @@ test('o JavaScript do compositor tem sintaxe válida',()=>{
  const p=spawnSync(process.execPath,['--check',new URL('../public/app.js',import.meta.url).pathname],{encoding:'utf8'});
  assert.equal(p.status,0,p.stderr);
 });
+
+test('TEMPO continua visível mesmo sem opções sugeridas pela IA',()=>{
+ assert.match(html,/id="time"/);
+ assert.match(js,/\$\('time'\)\.hidden=false/);
+ assert.doesNotMatch(js,/\$\('time'\)\.hidden\s*=\s*!timeActive/);
+ assert.match(js,/if\(type==='TEMPO'\)/);
+ assert.match(js,/\$\('time'\)\.onclick=\(\)=>choose\('TEMPO'\)/);
+});
+test('layout ninja inclui ícones vetoriais e tema de pergaminho',()=>{
+ const css=readFileSync(new URL('../public/style.css',import.meta.url),'utf8');
+ assert.match(html,/class="shinobi-leaf"/);
+ assert.match(html,/class="headband-plate"/);
+ assert.match(html,/id="act".*?<svg/);
+ assert.match(html,/id="time".*?<svg/);
+ assert.match(html,/id="send".*?<svg/);
+ assert.match(css,/\.composer:before,\.composer:after/);
+ assert.match(css,/\.commands #time/);
+});
