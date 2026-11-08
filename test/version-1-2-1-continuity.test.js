@@ -18,7 +18,7 @@ test('uma narrativa longa preserva anos, marcos, exames e eventos pendentes',()=
  assert.equal(first.consequences.length,1);
  const future=context(first,input({days:3650}));
  assert.ok(future.pending.some(e=>e.id.startsWith('chunin-exam-')));
- assert.equal(future.npcKnowledge.Hiruzen[0],'Akira prometeu voltar.');
+ assert.equal(future.npcKnowledge.Hiruzen,undefined);const focused=context(first,input({segments:[{type:'FALAR',text:'Hiruzen, lembra da promessa?'}]}));assert.equal(focused.npcKnowledge.Hiruzen[0],'Akira prometeu voltar.');
  const years=apply(first,input({days:3650}),base);
  assert.equal(years.day,3650);assert.equal(view(years).age,12);
  assert.ok(years.timeline.filter(e=>e.id.startsWith('chunin-exam-')).length>=9);
