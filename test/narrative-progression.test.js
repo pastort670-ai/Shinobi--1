@@ -5,7 +5,7 @@ import {create,input,apply} from '../src/engine.js';
 
 test('instruções exigem progressão causal e iniciativa dos NPCs sem controlar jogador',()=>{
   assert.match(system,/MOTOR DE PROGRESSÃO NARRATIVA/);
-  assert.match(system,/desenvolvimento novo e verificável/);
+  assert.match(system,/consequência direta e natural/);
   assert.match(system,/NPCs devem agir por iniciativa própria/);
   assert.match(system,/Não controle falas, pensamentos ou decisões do jogador/);
   assert.match(system,/Não introduza crises artificiais/);
