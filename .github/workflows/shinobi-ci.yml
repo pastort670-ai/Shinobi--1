@@ -19,3 +19,15 @@ jobs:
       - run: node --check src/gemini.js
       - run: node --check public/app.js
       - run: npm test
+
+  mobile-ui:
+    if: github.event_name == 'pull_request' && github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm install --no-save playwright
+      - run: npx playwright install chromium --with-deps
+      - run: node scripts/smoke-ui.mjs
