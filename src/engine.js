@@ -51,7 +51,7 @@ export function context(c,i){const q=i.segments.map(s=>s.text).join(' ');const w
  }).sort((a,b)=>b.score-a.score||b.index-a.index);
  const selected=relevant.filter(f=>f.score>0).slice(0,10);
  const remembered=new Set(selected.map(f=>f.index));
- for(let ix=c.facts.length-1;ix>=0&&selected.length<13;ix--){
+ for(let ix=c.facts.length-1;ix>=0&&selected.length<16;ix--){
   if(!remembered.has(ix)){selected.push({...c.facts[ix],index:ix});remembered.add(ix);}
  }
  const recentScene=c.messages.slice(-8);
