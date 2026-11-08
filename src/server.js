@@ -1,6 +1,6 @@
 import http from 'node:http';
 import {DatabaseSync} from 'node:sqlite';
-import {randomBytes,createHash} from 'node:crypto';
+import {randomBytes,createHash,randomUUID} from 'node:crypto';
 import {mkdirSync,readFileSync} from 'node:fs';
 import {resolve,dirname} from 'node:path';
 import {fileURLToPath} from 'node:url';
@@ -29,7 +29,31 @@ export function app({dbPath=process.env.DB_PATH||resolve(root,'data/shinobi.sqli
  if(req.headers.origin){const o=new URL(req.headers.origin);if(o.host!==req.headers.host)fail('Origem não permitida.',403);}if(req.headers['sec-fetch-site']==='cross-site')fail('Origem não permitida.',403);
  let token=req.headers.cookie?.match(/(?:^|; )shinobi=([a-f0-9]{64})(?:;|$)/)?.[1];if(!token){token=randomBytes(32).toString('hex');res.setHeader('Set-Cookie',`shinobi=${token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=31536000${secure?'; Secure':''}`);}const owner=hash(token);
  if(url.pathname==='/api/status'&&req.method==='GET')return json({configured,version:'1.2.1-dev',externalLore:process.env.EXTERNAL_LORE_ENABLED!=='false',admin:!!visitor?.admin,ephemeral:process.env.EPHEMERAL_STORAGE==='true'});
- const read=async()=>{let n=0,chunks=[];for await(const chunk of req){n+=chunk.length;if(n>25000)fail('Requisição muito grande.',413);chunks.push(chunk);}try{return JSON.parse(Buffer.concat(chunks).toString()||'{}');}catch{fail('JSON inválido.');}};
+ const read=async(maxBytes=25000)=>{let n=0,chunks=[];for await(const chunk of req){n+=chunk.length;if(n>maxBytes)fail('Requisição muito grande.',413);chunks.push(chunk);}try{return JSON.parse(Buffer.concat(chunks).toString()||'{}');}catch{fail('JSON inválido.');}};
+ if(url.pathname==='/api/import'){
+  if(req.method!=='POST')fail('Método não permitido.',405);
+  const existing=db.prepare('SELECT COUNT(*) AS n FROM campaigns WHERE owner=?').get(owner).n;
+  if(existing)fail('Já existe uma campanha neste navegador. Exporte ou finalize sua história antes de restaurar outro backup.',409);
+  const raw=await read(4000000),data=raw?.campaign;
+  if(!['shinobi-backup-v1','shinobi-backup-v2'].includes(raw?.format)||!data||typeof data!=='object')fail('Arquivo de campanha inválido.');
+  if(!data.character||typeof data.character.name!=='string'||!data.character.name.trim()||data.character.name.length>100||!Number.isInteger(data.character.age)||data.character.age<0||data.character.age>100)fail('Ficha inválida no backup.');
+  if(!Number.isInteger(data.day)||data.day<0||data.day>36500||!Array.isArray(data.messages)||!data.messages.length||data.messages.length>3500||data.messages.some(m=>!m||!['ai','user'].includes(m.role)||typeof m.text!=='string'||m.text.length>12000))fail('Histórico inválido no backup.');
+  if(!Array.isArray(data.facts)||!Array.isArray(data.timeline)||!Array.isArray(data.development)||data.facts.length>20000||data.timeline.length>1000||data.development.length>10000)fail('Registros inválidos no backup.');
+  const safeNum=x=>Number.isInteger(x)&&x>=0&&x<=100;
+  if(!safeNum(data.energy)||!safeNum(data.chakra)||!data.progress||!['taijutsu','ninjutsu','genjutsu'].every(k=>safeNum(data.progress[k])))fail('Condições inválidas no backup.');
+  const c={...data,id:randomUUID(),locked:true,revision:0,lastInput:null,regenerationHistory:[],
+   introConfirmed:data.messages.length>1?true:data.introConfirmed===true,
+   memories:Array.isArray(data.memories)?data.memories.slice(-1000):[],
+   pendingTasks:Array.isArray(data.pendingTasks)?data.pendingTasks.slice(-200):[],
+   personalityTraits:Array.isArray(data.personalityTraits)?data.personalityTraits.slice(-30):[],
+   consequences:Array.isArray(data.consequences)?data.consequences.slice(-200):[],
+   npcKnowledge:data.npcKnowledge&&typeof data.npcKnowledge==='object'&&!Array.isArray(data.npcKnowledge)?data.npcKnowledge:{},
+   relations:data.relations&&typeof data.relations==='object'&&!Array.isArray(data.relations)?data.relations:{},
+   overrides:data.overrides&&typeof data.overrides==='object'&&!Array.isArray(data.overrides)?data.overrides:{},
+   timeOptions:Array.isArray(data.timeOptions)?data.timeOptions.filter(n=>Number.isInteger(n)&&n>0&&n<=3650).slice(0,3):[]};
+  db.prepare('INSERT INTO campaigns VALUES(?,?,?,NULL)').run(c.id,owner,JSON.stringify(c));
+  return json(view(c),201);
+ }
  if(url.pathname==='/api/campaigns'){
  if(req.method==='GET')return json(db.prepare('SELECT state FROM campaigns WHERE owner=?').all(owner).map(r=>{let c=JSON.parse(r.state);return {id:c.id,title:c.title,name:c.character.name,day:c.day};}));
  if(req.method==='POST'){const raw=await read();const c=create(raw.title,raw.character??{});db.prepare('INSERT INTO campaigns VALUES(?,?,?,NULL)').run(c.id,owner,JSON.stringify(c));return json(view(c),201);}}
