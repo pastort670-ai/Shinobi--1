@@ -33,3 +33,7 @@ nav .active{border-left:4px solid var(--accent);border-radius:3px;font-weight:85
 .undo-message{background:transparent;border:1px solid var(--line);border-radius:8px;color:var(--muted);min-height:30px;padding:3px 8px;font-size:10px;font-weight:800;letter-spacing:0;text-transform:none}
 .undo-message:hover{background:var(--soft);color:var(--accent);border-color:var(--accent)}
 .undo-message:disabled{opacity:.45;cursor:wait}
+
+/* O modo TEMPO usa o mesmo botão Enviar de AGIR/FALAR. */
+.advance{grid-template-columns:minmax(72px,110px) minmax(0,1fr)}
+@media(max-width:800px){.advance{grid-template-columns:minmax(60px,90px) minmax(0,1fr)}}
