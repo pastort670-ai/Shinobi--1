@@ -1,4 +1,4 @@
-const $=id=>document.getElementById(id);let current=null,busy=false,parts=[{type:'AGIR',text:''}],timeAmount=1,timeUnit=1,calendarCursor=null,calendarSelected=0;
+const $=id=>document.getElementById(id);let current=null,busy=false,parts=[{type:'AGIR',text:''}],timeAmount=1,timeUnit=1,calendarCursor=null,calendarSelected=0,editorMode='AGIR',timeActive=false,timeText='',savedCaret=null;
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const saved=(key,fallback)=>{try{return localStorage.getItem(key)||fallback;}catch{return fallback;}};
 const remember=(key,value)=>{try{localStorage.setItem(key,value);}catch{}};
@@ -14,57 +14,92 @@ async function run(fn,narrating=false){if(busy)return false;busy=true;notice();$
 function tab(name){['story','sheet','calendarpage','memory','timeline','library','admin'].forEach(t=>$(t).hidden=t!==name);document.querySelectorAll('[data-tab]').forEach(b=>b.classList.toggle('active',b.dataset.tab===name));if(matchMedia('(max-width:800px)').matches)drawer(false);$('more').open=false;}
 document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>tab(b.dataset.tab));
 async function list(select){const cs=await api('campaigns');$('campaigns').innerHTML=cs.map(c=>`<option value="${c.id}">${esc(c.title)} · ${esc(c.name)}</option>`).join('');if(cs.length){const id=select||saved('shinobi-active','');$('campaigns').value=cs.some(c=>c.id===id)?id:cs[0].id;await load($('campaigns').value);}else{$('campaigns').innerHTML='<option>Crie sua primeira campanha</option>';current=null;}}
-async function load(id){current=await api('campaigns/'+id);remember('shinobi-active',id);parts=[{type:'AGIR',text:''}];calendarCursor=null;calendarSelected=current.day;render();}
+async function load(id){current=await api('campaigns/'+id);remember('shinobi-active',id);parts=[{type:'AGIR',text:''}];timeActive=false;timeText='';editorMode='AGIR';calendarCursor=null;calendarSelected=current.day;render();}
 $('campaigns').onchange=()=>run(()=>load($('campaigns').value));
 function openCreation(){if(busy)return;$('createform').reset();$('creation').showModal();drawer(false);}
 $('new').onclick=openCreation;$('start').onclick=openCreation;$('close').onclick=()=>$('creation').close();
-$('akira').onclick=()=>{const f=$('createform');const data={title:'Akira · O caminho de Hayama',name:'Akira Hayama',age:6,village:'Konohagakure',clan:'',appearance:'Criança de seis anos; aparência livre para definir antes de confirmar.',personality:'Independente, ambicioso e determinado.',skills:'Grande potencial ninja, treinamento inicial. Ainda sem domínio de técnicas avançadas.',history:'Criança adotada por Hiruzen Sarutobi, o Terceiro Hokage. Cresce sob sua proteção e orientação.'};for(const [k,v]of Object.entries(data))f.elements.namedItem(k).value=v;};
-$('createform').onsubmit=e=>{e.preventDefault();const raw=Object.fromEntries(new FormData(e.target));run(async()=>{const c=await api('campaigns',{title:raw.title,character:raw});$('creation').close();await list(c.id);tab('story');});};
-function focusPart(index){const input=$('drafts').querySelector(`[data-part="${index}"]`);input?.focus();if(input)input.scrollIntoView({block:'nearest'});}
+$('akira').onclick=()=>{const f=$('createform');const data={title:'Akira · O caminho de Sarutobi',name:'Akira Sarutobi',age:2,village:'Konohagakure',clan:'Sarutobi',affiliation:'Civil',appearance:'Olhos e cabelos castanhos.',personality:'Curioso, observador e muito talentoso.',skills:'Grande potencial ninja, mas ainda muito jovem.',history:'Órfão adotado por Hiruzen Sarutobi, o Terceiro Hokage, dois anos mais velho que Naruto.'};for(const [k,v]of Object.entries(data))f.elements.namedItem(k).value=v;};
+$('createform').onsubmit=e=>{e.preventDefault();const raw=Object.fromEntries(new FormData(e.target));const age=Number(raw.age),problem=['Genin','Chūnin','Jōnin','ANBU'].includes(raw.affiliation)&&age<5?'Afiliação incompatível com a idade inicial.':raw.affiliation==='Academia Ninja'&&age<4?'A Academia exige idade adequada.':raw.clan==='Uchiha'&&raw.village==='Sem vila'&&!/ex[ií]l|fug|viag|fora|refugi/i.test(raw.history)?'Explique na história como um Uchiha vive fora de sua vila.':'';const warning=$('character-warning');warning.textContent=problem;warning.hidden=!problem;if(problem)return;run(async()=>{const c=await api('campaigns',{title:raw.title,character:raw});$('creation').close();await list(c.id);tab('story');try{current=await api('campaigns/'+c.id+'/intro',{revision:current.revision});render();}catch(error){notice('Ficha criada. Introdução personalizada indisponível: '+error.message+' Use “Gerar outra introdução” para tentar novamente.');}},true);};
+function focusPart(){ $('editor')?.focus(); }
+function editorParts(){
+ const root=$('editor');if(!root)return parts;
+ const segments=[];for(const el of root.querySelectorAll(':scope > span[data-kind]')){
+  const text=(el.textContent||'').replace(/\u200b/g,'');
+  if(!text)continue;
+  const type=el.dataset.kind==='FALAR'?'FALAR':'AGIR';
+  const prev=segments.at(-1);
+  if(prev&&prev.type===type)prev.text+=text;else segments.push({type,text});
+ }
+ return segments;
+}
+function checkReview(){const el=$('reviewwarning');const length=$('editor')?.textContent?.replace(/\u200b/g,'').length||0;el.hidden=length<1200;}
+function saveCaret(){const root=$('editor'),sel=window.getSelection();if(root&&sel?.rangeCount&&root.contains(sel.anchorNode))savedCaret=sel.getRangeAt(0).cloneRange();}
+document.addEventListener('selectionchange',saveCaret);
+function placeCaret(node,position){const range=document.createRange(),sel=window.getSelection();range.setStart(node,position);range.collapse(true);sel.removeAllRanges();sel.addRange(range);saveCaret();}
 function choose(type){
  if(busy)return;
- if(type==='TEMPO'){const existing=parts.findIndex(s=>s.type==='TEMPO');if(existing!==-1){renderDrafts();focusPart(existing);return;}}
- const last=parts.at(-1);
- if(!last.text.trim())last.type=type;
- else{if(parts.length>=8){notice('Este turno já tem oito blocos. Envie ou remova um antes de adicionar outro.');return;}parts.push({type,text:''});}
- renderDrafts();focusPart(parts.length-1);
+ if(type==='TEMPO'){timeActive=!timeActive;renderTime();return;}
+ const root=$('editor');editorMode=type;
+ if(!root){renderDrafts();return;}
+ const sel=window.getSelection();
+ if(savedCaret&&root.contains(savedCaret.startContainer)){sel.removeAllRanges();sel.addRange(savedCaret);}
+ const range=sel.rangeCount?sel.getRangeAt(0):null;
+ let node=range?.startContainer,el=node?.nodeType===3?node.parentElement:node;
+ const span=el?.closest?.('span[data-kind]');
+ if(span&&root.contains(span)&&range&&node?.nodeType===3){
+  const at=range.startOffset,text=node.textContent||'',left=text.slice(0,at),right=text.slice(at);
+  span.textContent=left;
+  const next=document.createElement('span');next.dataset.kind=type;next.className=type==='FALAR'?'inline-talk':'inline-narrate';next.textContent='\u200b';
+  span.after(next);
+  if(right){const later=document.createElement('span');later.dataset.kind=span.dataset.kind;later.className=span.className;later.textContent=right;next.after(later);}
+  placeCaret(next.firstChild,1);
+ }else{
+  const next=document.createElement('span');next.dataset.kind=type;next.className=type==='FALAR'?'inline-talk':'inline-narrate';next.textContent='\u200b';root.appendChild(next);placeCaret(next.firstChild,1);
+ }
+ root.focus();updateMode();
+}
+function updateMode(){
+ $('act').classList.toggle('active',editorMode==='AGIR');
+ $('talk').classList.toggle('active',editorMode==='FALAR');
+ $('time').classList.toggle('active',timeActive);
 }
 $('act').onclick=()=>choose('AGIR');$('talk').onclick=()=>choose('FALAR');$('time').onclick=()=>choose('TEMPO');
+['act','talk','time'].forEach(id=>$(id).addEventListener('mousedown',e=>e.preventDefault()));
+function renderTime(){
+ const el=$('timearea');if(!el)return;
+ el.hidden=!timeActive;
+ if(!timeActive){updateMode();return;}
+ el.innerHTML='<label for="timeactivity">⌛ ATIVIDADE DURANTE O TEMPO</label><textarea id="timeactivity" rows="2" maxlength="2000" placeholder="O que seu personagem faz durante esse período?">'+esc(timeText)+'</textarea><div class="time-inline-controls"><input id="timeamount" aria-label="Quantidade" type="number" min="1" max="3650" value="'+esc(timeAmount)+'"><select id="timeunit" aria-label="Unidade"><option value="1">dias</option><option value="30">meses (30 dias)</option><option value="365">anos (365 dias)</option></select></div><div class="time-suggestions">'+(current?.timeOptions||[]).map(d=>'<button type="button" data-days="'+d+'">'+d+' dias</button>').join('')+'</div>';
+ $('timeunit').value=String(timeUnit);
+ $('timeactivity').oninput=e=>{timeText=e.target.value;};
+ $('timeamount').oninput=e=>{timeAmount=e.target.value;};
+ $('timeunit').onchange=e=>{timeUnit=Number(e.target.value);};
+ el.querySelectorAll('[data-days]').forEach(b=>b.onclick=()=>{timeAmount=Number(b.dataset.days);timeUnit=1;$('timeamount').value=timeAmount;$('timeunit').value='1';});
+ updateMode();
+}
 function renderDrafts(){
- $('drafts').innerHTML=parts.map((part,i)=>{
-  const isTime=part.type==='TEMPO';
-  const label=isTime?'◷ TEMPO':part.type==='AGIR'?'✦ NARRAR':'❝ FALAR';
-  const placeholder=isTime?'Qual atividade você vai realizar durante esse tempo?':part.type==='AGIR'?'Descreva o que seu personagem faz…':'Escreva o que seu personagem diz…';
-  const controls=isTime?`<div class="time-inline"><label for="duration-${i}">DURAÇÃO</label><div class="time-inline-controls"><input id="duration-${i}" data-time-amount type="number" min="1" max="3650" value="${timeAmount}" aria-label="Quantidade de tempo"><select data-time-unit aria-label="Unidade de tempo"><option value="1" ${timeUnit===1?'selected':''}>dias</option><option value="30" ${timeUnit===30?'selected':''}>meses de 30 dias</option><option value="365" ${timeUnit===365?'selected':''}>anos de 365 dias</option></select></div><div class="time-suggestions">${(current?.timeOptions||[]).map(d=>`<button data-days="${d}" type="button">${d} ${d===1?'dia':'dias'}</button>`).join('')}</div><small>Escreva a atividade e toque em Enviar para avançar o tempo.</small></div>`:'';
-  return `<div class="draft-block ${isTime?'time-draft':''}"><div class="draft-label"><label for="part-${i}">${label}</label>${parts.length>1?`<button data-remove="${i}" aria-label="Remover bloco ${i+1}">×</button>`:''}</div><textarea id="part-${i}" data-part="${i}" aria-label="${label} ${i+1}" maxlength="2000" rows="1" placeholder="${placeholder}">${esc(part.text)}</textarea>${controls}</div>`;
- }).join('');
- const last=parts.at(-1)?.type;
- $('act').classList.toggle('active',last==='AGIR');
- $('talk').classList.toggle('active',last==='FALAR');
- $('time').classList.toggle('active',last==='TEMPO');
- $('savehint').textContent=parts.some(s=>s.type==='TEMPO')?'O botão Enviar narra a atividade e avança o calendário.':'Ações e falas seguem juntas em um turno.';
- document.querySelectorAll('[data-part]').forEach(el=>{
-  el.style.height='auto';el.style.height=Math.min(180,el.scrollHeight)+'px';
-  el.addEventListener('input',()=>{if(busy)return;parts[Number(el.dataset.part)].text=el.value;el.style.height='auto';el.style.height=Math.min(180,el.scrollHeight)+'px';const block=el.closest('.draft-block');const long=el.value.length>=1200;block.classList.toggle('review-warning',long);block.title=long?'Revise o texto longo antes de enviar.':'';});
- });
- document.querySelectorAll('[data-remove]').forEach(b=>b.onclick=()=>{if(busy)return;parts.splice(Number(b.dataset.remove),1);if(!parts.length)parts=[{type:'AGIR',text:''}];renderDrafts();});
- const amount=$('drafts').querySelector('[data-time-amount]'),unit=$('drafts').querySelector('[data-time-unit]');
- if(amount)amount.addEventListener('input',()=>{timeAmount=amount.value;});
- if(unit)unit.addEventListener('change',()=>{timeUnit=Number(unit.value);});
- document.querySelectorAll('[data-days]').forEach(b=>b.onclick=()=>{if(busy)return;timeAmount=Number(b.dataset.days);timeUnit=1;if(amount)amount.value=String(timeAmount);if(unit)unit.value='1';});
- freeze();
+ $('drafts').innerHTML='<div id="editor" contenteditable="true" role="textbox" aria-label="Escrever narrativa e falas" aria-multiline="true" spellcheck="true" data-placeholder="Escreva aqui; use NARRAR e FALAR para alternar no cursor."></div><div id="timearea" class="time-area" hidden></div>';
+ const root=$('editor');
+ for(const part of parts){const el=document.createElement('span');el.dataset.kind=part.type==='FALAR'?'FALAR':'AGIR';el.className=part.type==='FALAR'?'inline-talk':'inline-narrate';el.textContent=part.text||'\u200b';root.appendChild(el);}
+ root.addEventListener('beforeinput',e=>{if(e.inputType==='insertParagraph'){e.preventDefault();document.execCommand('insertText',false,'\n');}});
+ root.addEventListener('paste',e=>{e.preventDefault();const plain=e.clipboardData.getData('text/plain');document.execCommand('insertText',false,plain);});
+ root.addEventListener('input',()=>{checkReview();saveCaret();});
+ root.addEventListener('focus',()=>{if(!root.querySelector('span')){const el=document.createElement('span');el.dataset.kind='AGIR';el.className='inline-narrate';el.textContent='\u200b';root.appendChild(el);}});
+ renderTime();checkReview();updateMode();freeze();
 }
 async function send(days=null){
  if(busy)return;
  if(!current){notice('Crie e confirme uma ficha primeiro.');return;}
- const time=parts.find(s=>s.type==='TEMPO');
- if(days===null)days=time?Number(timeAmount)*Number(timeUnit):0;
- if(!Number.isInteger(days)||days<0||days>3650||time&&days<1){notice('Escolha uma duração entre 1 e 3650 dias.');return;}
- if(time&&!time.text.trim()){notice('Descreva qual atividade seu personagem vai realizar durante esse tempo.');focusPart(parts.indexOf(time));return;}
- const segments=parts.filter(s=>s.text.trim()).map(s=>({type:s.type==='TEMPO'?'AGIR':s.type,text:s.text.trim()}));
- if(!segments.length&&!days){notice('Escreva uma ação ou fala para começar.');focusPart(0);return;}
+ if(current.introConfirmed===false&&current.messages.length===1){notice('Confirme a introdução antes de começar a jogar.');return;}
+ if(days===null)days=timeActive?Number(timeAmount)*Number(timeUnit):0;
+ if(!Number.isInteger(days)||days<0||days>3650||(timeActive&&days<1)){notice('Escolha uma duração entre 1 e 3650 dias.');return;}
+ if(timeActive&&!timeText.trim()){notice('Descreva a atividade durante a passagem de tempo.');$('timeactivity')?.focus();return;}
+ const segments=editorParts();
+ if(timeActive)segments.push({type:'AGIR',text:timeText.trim()});
+ if(segments.length>8||segments.some(s=>s.text.length>2000)){notice('Use até oito trechos com no máximo 2000 caracteres cada.');return;}
+ if(!segments.length&&!days){notice('Escreva uma ação ou fala para começar.');focusPart();return;}
  const payload={segments,days,revision:current.revision},id=current.id;
- await run(async()=>{current=await api(`campaigns/${id}/turn`,payload);parts=[{type:'AGIR',text:''}];timeAmount=1;timeUnit=1;render();},true);
+ await run(async()=>{current=await api('campaigns/'+id+'/turn',payload);parts=[{type:'AGIR',text:''}];timeActive=false;timeText='';timeAmount=1;timeUnit=1;editorMode='AGIR';savedCaret=null;render();},true);
 }
 $('send').onclick=()=>send();
 $('regen').onclick=()=>{if(current&&!busy){$('more').open=false;run(async()=>{current=await api(`campaigns/${current.id}/regenerate`,{revision:current.revision});render();},true);}};
