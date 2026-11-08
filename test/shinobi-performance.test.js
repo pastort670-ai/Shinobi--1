@@ -32,6 +32,9 @@ test('cenas longas mantêm o último diálogo e limite de informações por turn
  assert.equal(ctx.npcKnowledge.Hiruzen[0],'Sabe que Akira esteve presente.');
  assert.ok(ctx.sceneAnchor.lastAcceptedNarration.length<=3600);
  assert.deepEqual(c,original,'Apenas o contexto para a IA é reduzido; a campanha persiste integralmente');
+ const payload=JSON.stringify(ctx);
+ assert.ok(payload.length<70000,'Contexto precisa ser limitado mesmo após centenas de mensagens');
+ assert.equal(ctx.chronologyRules.some(rule=>ctx.lore.includes(rule)),false,'Lore temporal duplicada é enviada uma única vez');
 });
 test('regeneração e voltar mensagens continuam funcionando depois da otimização',async()=>{
  const server=app({dbPath:':memory:',generate:async()=>response,configured:true,rateMs:0,access:{required:false}});
@@ -47,4 +50,15 @@ test('regeneração e voltar mensagens continuam funcionando depois da otimizaç
   r=await request('campaigns/'+id+'/rewind',{revision:2,messageIndex:1});
   assert.equal(r.status,200);assert.equal(r.data.messages.length,1);
  }finally{await new Promise(r=>server.close(r));}
+});
+
+test('relações da cena são priorizadas sem apagar os relacionamentos do personagem',()=>{
+ const c=create('Relações',character);
+ for(let i=0;i<35;i++)c.relations['Ninja '+i]='Mora em Konoha e conhece os portões.';
+ c.relations.Hiruzen='Mentor e pai adotivo de Akira.';
+ const total=Object.keys(c.relations).length;
+ const ctx=context(c,input({segments:[{type:'FALAR',text:'Hiruzen, podemos conversar?'}]}));
+ assert.equal(ctx.relations.Hiruzen,c.relations.Hiruzen);
+ assert.ok(Object.keys(ctx.relations).length<=14);
+ assert.equal(Object.keys(c.relations).length,total);
 });
