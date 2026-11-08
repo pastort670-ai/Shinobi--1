@@ -59,7 +59,7 @@ try{
  await page.locator('#start').waitFor({timeout:15000});
  await page.locator('#more summary').click();
  await page.locator('#restorelocal').click();
- await page.locator('#hero').getByText('Akira Sarutobi').waitFor({timeout:15000});
+ await page.waitForFunction(()=>document.getElementById('hero')?.textContent==='Akira Sarutobi',null,{timeout:15000});
  assert.deepEqual(errors,[],'Nenhum erro JavaScript no navegador');
  console.log('Mobile UI smoke passed: creation, intro, mixed editing, combat, memory and time.');
 }finally{await browser.close();await new Promise(r=>srv.close(r));}
