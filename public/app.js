@@ -73,7 +73,7 @@ function updateMode(){
  $('act').classList.toggle('active',editorMode==='AGIR');
  $('talk').classList.toggle('active',editorMode==='FALAR');
  $('time').classList.toggle('active',timeActive);
- $('time').hidden=false; // TEMPO continua disponível mesmo sem sugestões da IA.
+ $('time').hidden=!timeActive&&!(current?.timeOptions?.length>0); // TEMPO aparece apenas quando a IA sugere opções, ou enquanto o painel está aberto.
 }
 $('act').onclick=()=>choose('AGIR');$('talk').onclick=()=>choose('FALAR');$('time').onclick=()=>choose('TEMPO');
 ['act','talk','time'].forEach(id=>$(id).addEventListener('mousedown',e=>e.preventDefault()));

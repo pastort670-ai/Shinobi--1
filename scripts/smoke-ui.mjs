@@ -16,7 +16,7 @@ try{
  const page=await browser.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true,deviceScaleFactor:1});
  const errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.goto('http://127.0.0.1:'+srv.address().port,{waitUntil:'networkidle'});
- assert.equal(await page.locator('#time').isVisible(),true,'TEMPO deve estar visível antes de qualquer sugestão da IA');
+ assert.equal(await page.locator('#time').isVisible(),false,'TEMPO deve ficar oculto antes das sugestões da IA');
  assert.equal(await page.locator('#time svg').count(),1,'TEMPO tem ícone temático');
  assert.equal(await page.locator('.headband-plate .shinobi-leaf').count(),1,'Cabeçalho usa emblema de bandana ninja');
  await page.locator('#start').click();
@@ -29,7 +29,7 @@ try{
  await page.locator('#acceptintro').waitFor({timeout:15000});
  assert.match(await page.locator('#calendar').innerText(),/13\/10.*Ano 1/s);
  await page.locator('#acceptintro').click();
- assert.equal(await page.locator('#time').isVisible(),true,'TEMPO deve continuar visível após a introdução');
+ assert.equal(await page.locator('#time').isVisible(),false,'TEMPO deve ficar oculto até a IA sugerir a passagem');
  await page.locator('#editor').fill('Akira observa os ninjas no portão. ');
  await page.locator('#talk').click();
  await page.keyboard.type('Hiruzen, posso ajudar?');
@@ -46,7 +46,7 @@ try{
  await page.locator('#pendingTasks').getByText('Voltar ao portão amanhã.').waitFor();
  await page.locator('#menutoggle').click();
  await page.locator('[data-tab="story"]').click();
- assert.equal(await page.locator('#time').isVisible(),true,'TEMPO deve continuar visível depois da resposta');
+ assert.equal(await page.locator('#time').isVisible(),true,'TEMPO aparece depois da sugestão de passagem da IA');
  await page.locator('#time').click();
  await page.locator('#timeactivity').fill('Descanso por um dia.');
  await page.locator('#timeamount').fill('1');
