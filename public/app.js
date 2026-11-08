@@ -1,4 +1,4 @@
-const $=id=>document.getElementById(id);let current=null,busy=false,parts=[{type:'AGIR',text:''}],timeAmount=1,timeUnit=1,calendarCursor=null,calendarSelected=0,editorMode='AGIR',timeActive=false,timeText='',savedCaret=null;
+const $=id=>document.getElementById(id);let current=null,busy=false,parts=[{type:'AGIR',text:''}],timeAmount=1,timeUnit=1,calendarCursor=null,calendarSelected=0,editorMode='AGIR',timeActive=false,timeText='',savedCaret=null,lastAction='inicialização';
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const saved=(key,fallback)=>{try{return localStorage.getItem(key)||fallback;}catch{return fallback;}};
 const remember=(key,value)=>{try{localStorage.setItem(key,value);}catch{}};
@@ -99,7 +99,7 @@ function renderDrafts(){
  renderTime();checkReview();updateMode();freeze();
 }
 async function send(days=null){
- if(busy)return;
+ if(busy)return;lastAction='Enviar turno';
  if(!current){notice('Crie e confirme uma ficha primeiro.');return;}
  if(current.introConfirmed===false&&current.messages.length===1){notice('Confirme a introdução antes de começar a jogar.');return;}
  if(days===null)days=timeActive?Number(timeAmount)*Number(timeUnit):0;
@@ -113,8 +113,8 @@ async function send(days=null){
  await run(async()=>{current=await api('campaigns/'+id+'/turn',payload);parts=[{type:'AGIR',text:''}];timeActive=false;timeText='';timeAmount=1;timeUnit=1;editorMode='AGIR';savedCaret=null;render();},true);
 }
 $('send').onclick=()=>send();
-$('regen').onclick=()=>{if(current&&!busy){$('more').open=false;run(async()=>{current=await api(`campaigns/${current.id}/regenerate`,{revision:current.revision});render();},true);}};
-$('copyerror').onclick=async()=>{const data={version:'1.2.1',page:location.pathname,issue:$('turnnotice').textContent||$('notice').textContent||'Sem erro recente',engine:$('connection').textContent};try{await navigator.clipboard.writeText(JSON.stringify(data,null,2));notice('Diagnóstico copiado. Compartilhe este texto para facilitar a correção.');}catch{notice('Não foi possível copiar o diagnóstico neste navegador.');}};
+$('regen').onclick=()=>{if(current&&!busy){lastAction='Regenerar resposta';$('more').open=false;run(async()=>{current=await api(`campaigns/${current.id}/regenerate`,{revision:current.revision});render();},true);}};
+$('copyerror').onclick=async()=>{const data={version:'1.2.1',page:location.pathname,operation:lastAction,issue:$('turnnotice').textContent||$('notice').textContent||'Sem erro recente',engine:$('connection').textContent};try{await navigator.clipboard.writeText(JSON.stringify(data,null,2));notice('Diagnóstico copiado. Compartilhe este texto para facilitar a correção.');}catch{notice('Não foi possível copiar o diagnóstico neste navegador.');}};
 $('export').onclick=()=>{if(current&&!busy)window.location.href=`/api/campaigns/${current.id}/export`;else if(!busy)notice('Crie uma campanha para exportar.');};
 async function rewindMessage(index){if(!current||busy)return;const shown=current.messages[index-(current.messageOffset||0)];if(!shown||shown.role!=='user')return;const later=current.messages.length+Number(current.messageOffset||0)-index-1;const question=later>1?'Excluir esta mensagem e voltar a narrativa até antes dela? Todas as respostas e turnos posteriores também serão desfeitos.':'Excluir sua última mensagem e a resposta do narrador, voltando ao estado anterior?';if(!window.confirm(question))return;const campaign=current.id,revision=current.revision;await run(async()=>{current=await api('campaigns/'+campaign+'/rewind',{revision,messageIndex:index});render();notice('Narrativa restaurada para antes da mensagem excluída.');});}
 function timeUntilEra(days){const years=Math.floor(days/365),months=Math.floor((days%365)/30),rest=(days%365)%30;return [years?years+' ano'+(years!==1?'s':''):'',months?months+' mês'+(months!==1?'es':''):'',!years&&!months?rest+' dia'+(rest!==1?'s':''):''].filter(Boolean).join(' e ');}
