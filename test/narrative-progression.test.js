@@ -30,7 +30,7 @@ test('turnos mistos preservam ações e falas na sequência original',async()=>{
   const next=apply(c,i,out);
   assert.deepEqual(sent.contents[0].parts[0].text&&JSON.parse(sent.contents[0].parts[0].text).input.segments,segments);
   assert.equal(next.messages.at(-1).text,result.narrative);
-  assert.equal(next.messages.at(-2).text,segments.map(s=>s.type+': '+s.text).join('\\n'));
+  assert.equal(next.messages.at(-2).text,segments.map(s=>s.type+': '+s.text).join(String.fromCharCode(10)));
   assert.equal(next.revision,1);
   assert.equal(c.revision,0);
 });
