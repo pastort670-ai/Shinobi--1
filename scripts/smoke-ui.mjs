@@ -52,6 +52,14 @@ try{
  await page.waitForTimeout(150);
  const box=await page.locator('#send').boundingBox();
  assert.ok(box&&box.y+box.height<=530,'O botão Enviar deve permanecer visível na tela móvel');
+ // Before ending a campaign, the interface must retain a recoverable local backup.
+ page.on('dialog',async dialog=>{if(dialog.type()==='prompt')await dialog.accept('ENCERRAR');else await dialog.accept();});
+ await page.locator('#more summary').click();
+ await page.locator('#closecampaign').click();
+ await page.locator('#start').waitFor({timeout:15000});
+ await page.locator('#more summary').click();
+ await page.locator('#restorelocal').click();
+ await page.locator('#hero').getByText('Akira Sarutobi').waitFor({timeout:15000});
  assert.deepEqual(errors,[],'Nenhum erro JavaScript no navegador');
  console.log('Mobile UI smoke passed: creation, intro, mixed editing, combat, memory and time.');
 }finally{await browser.close();await new Promise(r=>srv.close(r));}
