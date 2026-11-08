@@ -33,11 +33,35 @@ export function app({dbPath=process.env.DB_PATH||resolve(root,'data/shinobi.sqli
  if(url.pathname==='/api/campaigns'){
  if(req.method==='GET')return json(db.prepare('SELECT state FROM campaigns WHERE owner=?').all(owner).map(r=>{let c=JSON.parse(r.state);return {id:c.id,title:c.title,name:c.character.name,day:c.day};}));
  if(req.method==='POST'){const raw=await read();const c=create(raw.title,raw.character??{});db.prepare('INSERT INTO campaigns VALUES(?,?,?,NULL)').run(c.id,owner,JSON.stringify(c));return json(view(c),201);}}
- const m=url.pathname.match(/^\/api\/campaigns\/([a-f0-9-]+)(?:\/(turn|regenerate|export|rewind))?$/);if(!m)fail('Rota não encontrada.',404);const [,id,action]=m;let row=get(id,owner),c=JSON.parse(row.state);
+ const m=url.pathname.match(/^\/api\/campaigns\/([a-f0-9-]+)(?:\/(turn|regenerate|export|rewind|intro|intro-confirm|memory))?$/);if(!m)fail('Rota não encontrada.',404);const [,id,action]=m;let row=get(id,owner),c=JSON.parse(row.state);
  if(req.method==='GET'&&!action)return json({...view(c),undoableMessages:canUndo(id,owner,c,row)});
  if(req.method==='GET'&&action==='export'){res.setHeader('Content-Disposition','attachment; filename="shinobi-campanha.json"');return json({format:'shinobi-backup-v1',campaign:c});}
- if(req.method!=='POST'||!['turn','regenerate','rewind'].includes(action))fail('A ficha é imutável. Operação não permitida.',405);
+ if(req.method!=='POST'||!['turn','regenerate','rewind','intro','intro-confirm','memory'].includes(action))fail('A ficha é imutável. Operação não permitida.',405);
  if(busy.has(id))fail('Já existe um turno em andamento.',409);busy.add(id);lock=id;const raw=await read();if(raw.revision!==c.revision)fail('Campanha atualizada em outra aba. Recarregue antes de enviar.',409);
+ if(action==='intro-confirm'){if(c.messages.length>1)fail('A campanha já foi iniciada.',409);c.introConfirmed=true;c.revision++;db.prepare('UPDATE campaigns SET state=? WHERE id=? AND owner=?').run(JSON.stringify(c),id,owner);return json({...view(c),undoableMessages:canUndo(id,owner,c,row)});}
+ if(action==='memory'){
+  const candidateId=String(raw.candidateId||'');
+  const message=c.messages.find(m=>m.role==='ai'&&m.memoryCandidate?.id===candidateId);
+  if(!message)fail('Memória sugerida não encontrada.',404);
+  if(!['saved','dismissed'].includes(raw.decision))fail('Escolha salvar ou ignorar a memória.');
+  if(!c.memories)c.memories=[];
+  if(!c.memories.some(m=>m.id===candidateId)){
+   if(raw.decision==='saved'){const moment={...message.memoryCandidate,status:'saved',day:message.day,id:candidateId};c.memories.push(moment);c.development??=[];c.development.push({day:message.day,text:'Memória marcante: '+moment.title+' — '+moment.description});}
+  }
+  message.memoryCandidate=null;c.revision++;
+  db.prepare('UPDATE campaigns SET state=? WHERE id=? AND owner=?').run(JSON.stringify(c),id,owner);
+  return json({...view(c),undoableMessages:canUndo(id,owner,c,row)});
+ }
+ if(action==='intro'){
+  if(c.messages.length!==1||c.introConfirmed)fail('A introdução já foi confirmada ou a campanha começou.',409);
+  const introInput={segments:[],days:0,opening:true};
+  const result=await generate(c,introInput);
+  if(!result?.narrative||typeof result.narrative!=='string')fail('Introdução inválida. Tente novamente.',502);
+  c.messages[0]={role:'ai',text:result.narrative.slice(0,12000),day:0,sceneType:'normal'};
+  c.revision++;
+  db.prepare('UPDATE campaigns SET state=? WHERE id=? AND owner=?').run(JSON.stringify(c),id,owner);
+  return json({...view(c),undoableMessages:canUndo(id,owner,c,row)});
+ }
  if(action==='rewind'){
   const index=raw.messageIndex;
   if(!Number.isInteger(index)||index<1||index>=c.messages.length||c.messages[index]?.role!=='user')fail('Selecione uma mensagem sua para retornar.',400);
