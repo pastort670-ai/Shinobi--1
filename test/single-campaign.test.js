@@ -22,5 +22,11 @@ test('one campaign per browser: second creation rejected, original save remains'
   assert.equal(campaigns.data.length,1);
   assert.equal(campaigns.data[0].id,first.data.id);
   assert.equal((await api('campaigns/'+first.data.id)).status,200);
+  assert.equal((await api('campaigns/'+first.data.id+'/close',{revision:0,confirm:'ERRADO'})).status,400);
+  const closed=await api('campaigns/'+first.data.id+'/close',{revision:0,confirm:'ENCERRAR'});
+  assert.equal(closed.status,200);
+  assert.equal((await api('campaigns/'+first.data.id)).status,404);
+  const fresh=await api('campaigns',{title:'Nova',character});assert.equal(fresh.status,201);
+  assert.notEqual(fresh.data.id,first.data.id);
  }finally{await new Promise(resolve=>server.close(resolve));}
 });
