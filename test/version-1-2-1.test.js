@@ -82,3 +82,25 @@ test('HTTP: introdução personalizada e memória só são confirmadas pelo joga
   assert.equal(r.data.day,3);
  }finally{await new Promise(resolve=>srv.close(resolve));}
 });
+
+test('backup portátil restaura campanha após reinício com novo ID e sem expor segredos internos',async()=>{
+ const start=async()=>{const srv=app({dbPath:':memory:',generate:async()=>response,configured:true,rateMs:0,access:{required:false}});await new Promise(r=>srv.listen(0,'127.0.0.1',r));return srv;};
+ let srv=await start(),cookie='';
+ const request=async(path,body)=>{const r=await fetch('http://127.0.0.1:'+srv.address().port+'/api/'+path,{method:body?'POST':'GET',headers:{cookie,'Content-Type':'application/json'},body:body?JSON.stringify(body):undefined});if(!cookie&&r.headers.get('set-cookie'))cookie=r.headers.get('set-cookie').split(';')[0];return {status:r.status,data:await r.json()};};
+ try{
+  let r=await request('campaigns',{title:'Backup',character});assert.equal(r.status,201);
+  const original=r.data.id;
+  r=await request('campaigns/'+original+'/intro-confirm',{revision:0});assert.equal(r.status,200);
+  r=await request('campaigns/'+original+'/turn',{revision:1,segments:[{type:'AGIR',text:'Protejo o vilarejo.'}]});assert.equal(r.status,200);
+  const backup=await request('campaigns/'+original+'/export');
+  assert.equal(backup.status,200);assert.equal(backup.data.format,'shinobi-backup-v1');
+  await new Promise(resolve=>srv.close(resolve));srv=await start();
+  r=await request('import',backup.data);assert.equal(r.status,201);
+  assert.notEqual(r.data.id,original);assert.equal(r.data.messages.length,3);
+  assert.equal(r.data.npcKnowledge,undefined);
+  assert.equal(r.data.character.name,character.name);
+  assert.equal(r.data.introConfirmed,true);
+  const malformed=await request('import',{format:'shinobi-backup-v1',campaign:{name:'fake'}});
+  assert.equal(malformed.status,409);
+ }finally{await new Promise(resolve=>srv.close(resolve));}
+});
