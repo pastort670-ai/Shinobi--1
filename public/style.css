@@ -412,3 +412,88 @@ dialog#creation input,dialog#creation select,dialog#creation textarea{background
  .headband-plate>span{font-size:10px}
 }
 @media(prefers-reduced-motion:reduce){#send svg{transition:none;transform:none}}
+
+/* SHINOBI 1.2.3 — navegação livre pelo calendário */
+.calendar-jump{display:grid;grid-template-columns:minmax(0,1fr) 84px auto auto;align-items:end;gap:8px;margin:8px 0 13px}
+.calendar-jump label{margin:0;font-size:11px;color:var(--muted);font-weight:800}
+.calendar-jump input,.calendar-jump select{min-height:42px;margin-top:3px;font-size:13px;border:2px solid var(--line);background:var(--surface)}
+.calendar-jump button{min-height:42px;padding:7px 11px;white-space:nowrap;background:var(--raised);border:2px solid var(--line)}
+.calendar-jump #calgo{color:var(--accent);font-weight:900}
+.calendar-jump #caltoday{font-size:11px}
+.calendar-year-title{margin:5px 0;font-size:12px;font-weight:900;letter-spacing:.1px}
+.calendar-year-title small{font-size:10px;font-weight:500}
+.calendar-years{display:flex;gap:6px;overflow-x:auto;overscroll-behavior-x:contain;scroll-snap-type:x proximity;scrollbar-width:thin;scrollbar-color:var(--accent) var(--raised);padding:7px 3px 12px;margin:3px 0 11px;touch-action:pan-x}
+.calendar-years button{flex:0 0 auto;min-height:40px;min-width:64px;scroll-snap-align:center;background:var(--surface);border:1px solid var(--line);font-size:12px;padding:6px 10px;border-radius:6px}
+.calendar-years button.selected{background:var(--accent);color:#fff;border-color:var(--accent);box-shadow:0 3px 0 #27201644}
+.month-grid{touch-action:pan-y}
+#calupcoming{max-height:410px;overflow-y:auto;overscroll-behavior-y:contain;border-left:2px solid var(--line);padding:2px 7px 3px 11px}
+#calupcoming .fact{margin:0 0 9px}
+#calendarpage h2 small{color:var(--muted);font-size:12px;letter-spacing:0;font-weight:500}
+/* símbolos recuperados da imagem de referência da pessoa jogadora */
+.village-symbol{fill:currentColor;stroke:none;stroke-width:0;flex:none}
+.shinobi-wordmark .village-symbol{stroke:none;fill:currentColor}
+.headband-plate .village-symbol{stroke:none;fill:#2d3831}
+.welcome-seal .village-symbol{stroke:none;fill:var(--accent)}
+@media(max-width:610px){
+ .calendar-jump{grid-template-columns:minmax(0,1fr) 76px auto;gap:5px}
+ .calendar-jump #caltoday{grid-column:1/-1;width:100%}
+ .calendar-years button{min-width:59px}
+ .calendar-jump input,.calendar-jump select{font-size:16px}
+}
+/* Modo escuro: todo destaque laranja de navegação e moldura passa para roxo.
+   Os códigos semânticos de combate (vermelho), memória (verde) e alerta (amarelo)
+   permanecem nas respectivas cores. */
+html[data-theme=dark]{
+ --accent:#ad85ff;--ring:#b99aff;--blue:#c1a8ff;
+ --soft:#382b52;--user:#2c2740;--raised:#342f45;--line:#584e70;
+ --side:#151222;--bg:#14121c;--surface:#242030;--ink:#f5efff;--muted:#c0b4d8;
+}
+html[data-theme=dark] .primary{
+ background:linear-gradient(135deg,#9872e8,#6645b1);border-color:#4e3885;
+ box-shadow:2px 3px 0 #261a4c;color:#fff!important
+}
+html[data-theme=dark] .primary:hover{background:linear-gradient(135deg,#ad88ff,#7652c8)}
+html[data-theme=dark] #sidebar{
+ background-color:#151321;
+ background-image:repeating-linear-gradient(155deg,#ffffff05 0 2px,transparent 2px 22px),radial-gradient(circle at 25% 20%,#784ed02d,transparent 60%)
+}
+html[data-theme=dark] body.sidebar-open #sidebar{border-right-color:#7b60bc}
+html[data-theme=dark] .sidebar-brand{border-bottom-color:#7456ac}
+html[data-theme=dark] .shinobi-wordmark .village-symbol{color:#c1a3ff}
+html[data-theme=dark] .shinobi-wordmark small{color:#baa1ef}
+html[data-theme=dark] .new-campaign{background:#352b4b;border-color:#a685e5;color:#ddc9ff}
+html[data-theme=dark] .new-campaign:hover{background:#44365b}
+html[data-theme=dark] #sidebar nav .active{background:#49346d;border-left-color:#b693ff;box-shadow:inset 0 -1px #7854ab}
+html[data-theme=dark] #sidebar nav button:hover{background:#363047}
+html[data-theme=dark] .sidebar-bottom{border-top-color:#655080}
+html[data-theme=dark] .topbar{border-bottom-color:#7f5dba}
+html[data-theme=dark] .welcome-seal{border-color:#a080e8;box-shadow:3px 5px 0 #7651ad22}
+html[data-theme=dark] .welcome p{border-top-color:#a080e8}
+html[data-theme=dark] .bubble.ai{border-left-color:#9978df}
+html[data-theme=dark] .bubble.user{border-color:#69578b;box-shadow:3px 4px 0 #0c092744}
+html[data-theme=dark] .composer{
+ border-color:#7e66b1;background-image:repeating-linear-gradient(0deg,transparent 0 25px,#a78ced12 26px 27px);
+ box-shadow:0 5px 0 #231a3d88,0 12px 28px #110c2444
+}
+html[data-theme=dark] .composer:before,html[data-theme=dark] .composer:after{
+ background:linear-gradient(90deg,#514075,#9e89d2 35%,#c8b8ed 60%,#4f3b6d);
+ border-color:#6b5299
+}
+html[data-theme=dark] .commands button{border-color:#65527d}
+html[data-theme=dark] .commands #act.active{background:#7655bd;border-color:#4d3385;color:#fff}
+html[data-theme=dark] .commands #time{border-color:#8969bc}
+html[data-theme=dark] .commands #time.active{background:#7455b5;border-color:#432a7c;color:#fff}
+html[data-theme=dark] #editor .inline-narrate{border-bottom-color:#9b7be4}
+html[data-theme=dark] #timearea{border-top-color:#916fd0;background:#322849}
+html[data-theme=dark] .page h2{border-bottom-color:#8b6ebc}
+html[data-theme=dark] .fact{border-left-color:#916fd0}
+html[data-theme=dark] .month-grid .cal-cell.cal-today{outline-color:#aa86eb}
+html[data-theme=dark] dialog#creation{border-color:#7c63b2}
+html[data-theme=dark] .calendar-years button.selected{background:#8260c9;border-color:#8260c9}
+html[data-theme=dark] .headband-plate{
+ box-shadow:inset 0 2px #fff9,inset 0 -3px #7778,0 3px 0 #32204c
+}
+/* Campos com significado especial não devem adotar a paleta roxa. */
+html[data-theme=dark] .review-warning{color:#f2d073;border-color:#c59a30;background:rgba(247,195,52,.13)}
+html[data-theme=dark] .memory-proposal{border-color:var(--moment)}
+html[data-theme=dark] .bubble.has-memory .memory-proposal strong{color:var(--moment)}

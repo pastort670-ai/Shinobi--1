@@ -38,7 +38,7 @@ test('TEMPO aparece somente quando a IA sugere passagem ou quando painel está a
 });
 test('layout ninja inclui ícones vetoriais e tema de pergaminho',()=>{
  const css=readFileSync(new URL('../public/style.css',import.meta.url),'utf8');
- assert.match(html,/class="shinobi-leaf"/);
+ assert.match(html,/class="shinobi-leaf village-symbol"/);
  assert.match(html,/class="headband-plate"/);
  assert.match(html,/id="act".*?<svg/);
  assert.match(html,/id="time".*?<svg/);
