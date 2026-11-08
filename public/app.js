@@ -86,14 +86,14 @@ function updateEraUI(date){
 }
 const monthNames=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 const monthLengths=[31,28,31,30,31,30,31,31,30,31,30,31];
-function displayedDay(year,month,day){return year*365+monthLengths.slice(0,month-1).reduce((a,b)=>a+b,0)+day-1-282;}
+function displayedDay(year,month,day){return (year-1)*365+monthLengths.slice(0,month-1).reduce((a,b)=>a+b,0)+day-1-282;}
 function drawCalendar(){
  if(!current)return;
  const c=current,date=c.calendar;
  if(!calendarCursor)calendarCursor={year:date.year,month:date.month};
  const {year,month}=calendarCursor;
  $('calmonth').textContent=monthNames[month-1]+' · Ano '+year;
- $('calprev').disabled=year===0&&month<=10;
+ $('calprev').disabled=year===1&&month<=10;
  $('calnext').disabled=year>=100;
  const monthEvents=(c.calendarEvents||[]).filter(e=>e.year===year&&e.month===month);
  const monthEras=(c.calendarEraEvents||[]).filter(e=>e.year===year&&e.month===month);
@@ -104,8 +104,8 @@ function drawCalendar(){
  const cells=Array.from({length:days},(_,i)=>{
   const n=i+1,absolute=displayedDay(year,month,n);
   const event=monthEvents.some(e=>e.day===n),era=monthEras.some(e=>e.day===n);
-  const classes=['cal-cell',absolute===c.day?'cal-today':'',absolute===calendarSelected?'cal-selected':'',event?'cal-event':'',era?'cal-era':''].filter(Boolean).join(' ');
-  return '<button type="button" class="'+classes+'" data-calendar-day="'+absolute+'" aria-label="Dia '+n+(event?', evento previsto':'')+'">'+n+(event?'<span class="cal-marker">●</span>':era?'<span class="cal-marker">◆</span>':'')+'</button>';
+  const classes=['cal-cell',absolute<0?'cal-before-start':'',absolute===c.day?'cal-today':'',absolute===calendarSelected?'cal-selected':'',event?'cal-event':'',era?'cal-era':''].filter(Boolean).join(' ');
+  return '<button type="button" '+(absolute<0?'disabled ':'')+'class="'+classes+'" data-calendar-day="'+absolute+'" aria-label="Dia '+n+(event?', evento previsto':'')+'">'+n+(event?'<span class="cal-marker">●</span>':era?'<span class="cal-marker">◆</span>':'')+'</button>';
  }).join('');
  $('calgrid').innerHTML=headers+blanks+cells;
  $('calgrid').querySelectorAll('[data-calendar-day]').forEach(b=>b.onclick=()=>{calendarSelected=Number(b.dataset.calendarDay);drawCalendar();});
