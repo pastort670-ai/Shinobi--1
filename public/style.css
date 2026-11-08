@@ -27,3 +27,9 @@ nav .active{border-left:4px solid var(--accent);border-radius:3px;font-weight:85
 .page h1{border-bottom:3px solid var(--ink);padding-bottom:12px}
 .info-card,.panel{border:2px solid var(--ink);border-radius:5px}
 @media(max-width:800px){.welcome-seal{width:64px;height:64px}.composer{box-shadow:2px 2px 0 var(--line)}.bubble.ai{padding-left:11px}.topbar{border-bottom-width:2px}}
+
+/* Excluir uma mensagem do jogador e retornar ao ponto anterior da narrativa */
+.bubble.user .who{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.undo-message{background:transparent;border:1px solid var(--line);border-radius:8px;color:var(--muted);min-height:30px;padding:3px 8px;font-size:10px;font-weight:800;letter-spacing:0;text-transform:none}
+.undo-message:hover{background:var(--soft);color:var(--accent);border-color:var(--accent)}
+.undo-message:disabled{opacity:.45;cursor:wait}
