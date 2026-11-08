@@ -54,6 +54,6 @@ test('regeneração compara respostas rejeitadas e volta a mudar abordagem sem t
   assert.equal(r.data.messages.length,3);
   assert.equal(r.data.revision,3);
   r=await api('campaigns/'+id+'/turn',{revision:3,segments:[{type:'FALAR',text:'Obrigado.'}]});
-  assert.equal(r.status,200);assert.deepEqual(r.data.regenerationHistory,[]);
+  assert.equal(r.status,200);assert.equal(r.data.regenerationHistory,undefined);assert.equal(r.data.npcKnowledge,undefined);
  }finally{await new Promise(r=>srv.close(r));}
 });
