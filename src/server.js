@@ -39,6 +39,10 @@ export function app({dbPath=process.env.DB_PATH||resolve(root,'data/shinobi.sqli
   if(!data.character||typeof data.character.name!=='string'||!data.character.name.trim()||data.character.name.length>100||!Number.isInteger(data.character.age)||data.character.age<0||data.character.age>100)fail('Ficha inválida no backup.');
   if(!Number.isInteger(data.day)||data.day<0||data.day>36500||!Array.isArray(data.messages)||!data.messages.length||data.messages.length>3500||data.messages.some(m=>!m||!['ai','user'].includes(m.role)||typeof m.text!=='string'||m.text.length>12000))fail('Histórico inválido no backup.');
   if(!Array.isArray(data.facts)||!Array.isArray(data.timeline)||!Array.isArray(data.development)||data.facts.length>20000||data.timeline.length>1000||data.development.length>10000)fail('Registros inválidos no backup.');
+  if(!['village','clan','appearance','personality','skills','history','affiliation'].every(k=>data.character[k]===undefined||typeof data.character[k]==='string'&&data.character[k].length<=2000))fail('Campos de personagem inválidos no backup.');
+  if(data.title!==undefined&&(typeof data.title!=='string'||data.title.length>100))fail('Título inválido no backup.');
+  if(data.facts.some(x=>!x||typeof x.text!=='string'||x.text.length>1000)||data.development.some(x=>!x||typeof x.text!=='string'||x.text.length>500))fail('Dados narrativos inválidos no backup.');
+
   const safeNum=x=>Number.isInteger(x)&&x>=0&&x<=100;
   if(!safeNum(data.energy)||!safeNum(data.chakra)||!data.progress||!['taijutsu','ninjutsu','genjutsu'].every(k=>safeNum(data.progress[k])))fail('Condições inválidas no backup.');
   const c={...data,id:randomUUID(),locked:true,revision:0,lastInput:null,regenerationHistory:[],
