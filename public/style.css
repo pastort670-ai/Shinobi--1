@@ -37,3 +37,15 @@ nav .active{border-left:4px solid var(--accent);border-radius:3px;font-weight:85
 /* O modo TEMPO usa o mesmo botão Enviar de AGIR/FALAR. */
 .advance{grid-template-columns:minmax(72px,110px) minmax(0,1fr)}
 @media(max-width:800px){.advance{grid-template-columns:minmax(60px,90px) minmax(0,1fr)}}
+
+/* TEMPO agora é um bloco do compositor, como AGIR e FALAR */
+.time-draft{background:var(--soft);border:1px solid var(--line);border-radius:10px;padding:9px 12px 12px;margin-top:7px}
+.time-draft textarea{min-height:56px}
+.time-inline{border-top:1px solid var(--line);padding-top:9px}
+.time-inline>label{font-size:10px;letter-spacing:1px;margin:0 0 7px;color:var(--accent)}
+.time-inline-controls{display:grid;grid-template-columns:minmax(70px,100px) minmax(0,1fr);gap:8px}
+.time-inline-controls input,.time-inline-controls select{font-size:12px}
+.time-inline>small{display:block;margin-top:6px}
+.time-suggestions{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}
+.time-suggestions:empty{display:none}
+.time-suggestions button{min-height:30px;padding:4px 9px;font-size:11px;border-radius:7px}
