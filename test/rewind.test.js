@@ -55,3 +55,26 @@ test('regenerar mantém checkpoint do turno e permite desfazer',async()=>{
     assert.equal(t.status,200);assert.equal(t.data.day,0);assert.equal(t.data.messages.length,1);
   }finally{await new Promise(r=>s.server.close(r));}
 });
+
+test('regenera a resposta anterior mesmo após excluir o turno mais recente',async()=>{
+ const s=await launch(':memory:');
+ try{
+  const created=await request(s,'campaigns',{body:{title:'Regerar depois de voltar',character:{name:'Akira',age:6}}});
+  const path='campaigns/'+created.data.id,cookie=created.cookie;
+  let a=await request(s,path+'/turn',{cookie,body:{revision:0,days:7,segments:[{type:'FALAR',text:'Primeira escolha'}]}});
+  assert.equal(a.status,200);
+  a=await request(s,path+'/turn',{cookie,body:{revision:1,days:8,segments:[{type:'AGIR',text:'Segunda escolha'}]}});
+  assert.equal(a.status,200);
+  const undone=await request(s,path+'/rewind',{cookie,body:{revision:2,messageIndex:3}});
+  assert.equal(undone.status,200);
+  assert.equal(undone.data.day,7);
+  assert.equal(undone.data.messages.length,3);
+  const regenerated=await request(s,path+'/regenerate',{cookie,body:{revision:3}});
+  assert.equal(regenerated.status,200,JSON.stringify(regenerated.data));
+  assert.equal(regenerated.data.day,7);
+  assert.equal(regenerated.data.messages.length,3);
+  assert.equal(regenerated.data.revision,4);
+  assert.equal(regenerated.data.undoableMessages.includes(1),true);
+  assert.equal((await request(s,path+'/regenerate',{cookie,body:{revision:3}})).status,409);
+ }finally{await new Promise(r=>s.server.close(r));}
+});
