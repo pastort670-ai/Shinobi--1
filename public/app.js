@@ -25,12 +25,14 @@ $('createform').onsubmit=e=>{e.preventDefault();const raw=Object.fromEntries(new
 function focusPart(){ $('editor')?.focus(); }
 function editorParts(){
  const root=$('editor');if(!root)return parts;
- const segments=[];for(const el of root.querySelectorAll(':scope > span[data-kind]')){
-  const text=(el.textContent||'').replace(/\u200b/g,'');
-  if(!text)continue;
-  const type=el.dataset.kind==='FALAR'?'FALAR':'AGIR';
-  const prev=segments.at(-1);
-  if(prev&&prev.type===type)prev.text+=text;else segments.push({type,text});
+ const segments=[];
+ const add=(kind,text)=>{const clean=String(text||'').replace(/\u200b/g,'');if(!clean)return;const type=kind==='FALAR'?'FALAR':'AGIR';const prev=segments.at(-1);if(prev&&prev.type===type)prev.text+=clean;else segments.push({type,text:clean});};
+ for(const node of root.childNodes){
+  if(node.nodeType===3){add(editorMode,node.textContent);continue;}
+  if(node.nodeType!==1)continue;
+  if(node.matches('span[data-kind]'))add(node.dataset.kind,node.textContent);
+  else if(node.tagName==='BR')add(editorMode,'\n');
+  else add(editorMode,(node.innerText||node.textContent||'')+(node.tagName==='DIV'?'\n':''));
  }
  return segments;
 }
@@ -41,12 +43,18 @@ function placeCaret(node,position){const range=document.createRange(),sel=window
 function choose(type){
  if(busy)return;
  if(type==='TEMPO'){timeActive=!timeActive;renderTime();return;}
- const root=$('editor');editorMode=type;
+ const root=$('editor'),previousMode=editorMode;editorMode=type;
  if(!root){renderDrafts();return;}
  const sel=window.getSelection();
  if(savedCaret&&root.contains(savedCaret.startContainer)){sel.removeAllRanges();sel.addRange(savedCaret);}
- const range=sel.rangeCount?sel.getRangeAt(0):null;
- let node=range?.startContainer,el=node?.nodeType===3?node.parentElement:node;
+ let range=sel.rangeCount?sel.getRangeAt(0):null;
+ let node=range?.startContainer;
+ if(node?.nodeType===3&&node.parentNode===root){
+  const previous=document.createElement('span');previous.dataset.kind=previousMode;previous.className=previousMode==='FALAR'?'inline-talk':'inline-narrate';
+  const at=range.startOffset;previous.textContent=node.textContent||'\u200b';node.replaceWith(previous);placeCaret(previous.firstChild,Math.min(at,previous.firstChild.length));
+  range=sel.getRangeAt(0);node=range.startContainer;
+ }
+ const el=node?.nodeType===3?node.parentElement:node;
  const span=el?.closest?.('span[data-kind]');
  if(span&&root.contains(span)&&range&&node?.nodeType===3){
   const at=range.startOffset,text=node.textContent||'',left=text.slice(0,at),right=text.slice(at);
