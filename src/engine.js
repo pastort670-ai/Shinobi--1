@@ -44,7 +44,7 @@ export function view(c){
  };
 }
 export function input(raw){const segments=raw.segments??[];if(!Array.isArray(segments)||segments.length>8)fail('Até oito trechos por turno.');const ss=segments.map(s=>{if(!['AGIR','NARRAR','FALAR'].includes(s.type))fail('Comando inválido.');return {type:s.type==='NARRAR'?'AGIR':s.type,text:str(s.text,2000)};}).filter(s=>s.text);const days=raw.days??0;if(!Number.isInteger(days)||days<0||days>3650)fail('Avance entre 0 e 3650 dias por turno.');if(!days&&!ss.length)fail('Escreva uma ação ou fala.');return {segments:ss,days};}
-export function context(c,i){const q=i.segments.map(s=>s.text).join(' ');const words=[...new Set(q.toLocaleLowerCase('pt-BR').split(/[^\\p{L}\\p{N}]+/u).filter(w=>w.length>3))].slice(0,35);
+export function context(c,i){const q=i.segments.map(s=>s.text).join(' ');const words=[...new Set(q.toLocaleLowerCase('pt-BR').split(/[^\p{L}\p{N}]+/u).filter(w=>w.length>3))].slice(0,35);
  const relevant=c.facts.map((f,index)=>{
   const lower=f.text.toLocaleLowerCase('pt-BR');
   return {...f,score:words.reduce((score,w)=>score+(lower.includes(w)?1:0),0),index};
