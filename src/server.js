@@ -13,7 +13,10 @@ export function app({dbPath=process.env.DB_PATH||resolve(root,'data/shinobi.sqli
  const gate=accessControl(db,{...access,secure});
  const busy=new Set();const hash=t=>createHash('sha256').update(t).digest('hex');
  const get=(id,owner)=>{const r=db.prepare('SELECT * FROM campaigns WHERE id=? AND owner=?').get(id,owner);if(!r)fail('Campanha não encontrada.',404);return r;};
- const canUndo=(id,owner,c,row)=>c.messages.map((m,index)=>m.role==='user'&&(!!db.prepare('SELECT 1 FROM checkpoints WHERE campaign=? AND owner=? AND message_index=?').get(id,owner,index)||(index===c.messages.length-2&&!!row.previous))?index:null).filter(index=>index!==null);
+ const canUndo=(id,owner,c,row)=>{
+  const checkpoints=new Set(db.prepare('SELECT message_index FROM checkpoints WHERE campaign=? AND owner=?').all(id,owner).map(p=>p.message_index));
+  return c.messages.flatMap((m,index)=>m.role==='user'&&(checkpoints.has(index)||(index===c.messages.length-2&&!!row.previous))?[index]:[]);
+ };
  const server=http.createServer(async(req,res)=>{res.setHeader('X-Content-Type-Options','nosniff');res.setHeader('Referrer-Policy','no-referrer');res.setHeader('Content-Security-Policy',"default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'");res.setHeader('Cache-Control','no-store');
  const json=(data,status=200)=>{res.writeHead(status,{'Content-Type':'application/json; charset=utf-8'});res.end(JSON.stringify(data));};let lock;
  try{const url=new URL(req.url,'http://localhost');
