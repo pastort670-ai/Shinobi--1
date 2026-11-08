@@ -206,3 +206,14 @@ body,.workspace{height:var(--visible-height,100dvh)}
  #timearea{max-height:28dvh}
 }
 @media(prefers-reduced-motion:reduce){.review-warning,.bubble.combat-glow,.bubble.time-glow,.bubble.has-memory .memory-proposal{animation:none!important}}
+
+/* Efeitos ocorrem em sequência: ação primeiro, resposta do narrador depois. */
+#editor{position:relative}
+#editor.empty-editor:before{content:attr(data-placeholder);position:absolute;left:6px;top:12px;right:6px;color:var(--muted);font-size:13px;pointer-events:none;white-space:normal}
+.bubble.combat-glow.ai,.bubble.time-glow.ai{animation-delay:1.15s}
+.bubble.has-memory.combat-glow .memory-proposal{animation-delay:2.5s}
+.commands button,#send{transition:filter .12s ease,transform .12s ease}
+.commands button:active,#send:active{filter:brightness(1.13);transform:translateY(1px)}
+#send::before{content:'🗡';display:inline-block;margin-right:5px;transform:rotate(45deg)}
+html[data-theme=dark] .review-warning{color:#f2d073;background:rgba(246,198,54,.12)}
+@media(prefers-reduced-motion:reduce){.commands button,#send{transition:none!important}}
