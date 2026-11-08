@@ -13,7 +13,10 @@ export function app({dbPath=process.env.DB_PATH||resolve(root,'data/shinobi.sqli
  const gate=accessControl(db,{...access,secure});
  const busy=new Set();const hash=t=>createHash('sha256').update(t).digest('hex');
  const get=(id,owner)=>{const r=db.prepare('SELECT * FROM campaigns WHERE id=? AND owner=?').get(id,owner);if(!r)fail('Campanha não encontrada.',404);return r;};
- const canUndo=(id,owner,c,row)=>c.messages.map((m,index)=>m.role==='user'&&(!!db.prepare('SELECT 1 FROM checkpoints WHERE campaign=? AND owner=? AND message_index=?').get(id,owner,index)||(index===c.messages.length-2&&!!row.previous))?index:null).filter(index=>index!==null);
+ const canUndo=(id,owner,c,row)=>{
+  const checkpoints=new Set(db.prepare('SELECT message_index FROM checkpoints WHERE campaign=? AND owner=?').all(id,owner).map(p=>p.message_index));
+  return c.messages.flatMap((m,index)=>m.role==='user'&&(checkpoints.has(index)||(index===c.messages.length-2&&!!row.previous))?[index]:[]);
+ };
  const server=http.createServer(async(req,res)=>{res.setHeader('X-Content-Type-Options','nosniff');res.setHeader('Referrer-Policy','no-referrer');res.setHeader('Content-Security-Policy',"default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'");res.setHeader('Cache-Control','no-store');
  const json=(data,status=200)=>{res.writeHead(status,{'Content-Type':'application/json; charset=utf-8'});res.end(JSON.stringify(data));};let lock;
  try{const url=new URL(req.url,'http://localhost');
@@ -28,7 +31,7 @@ export function app({dbPath=process.env.DB_PATH||resolve(root,'data/shinobi.sqli
  if(!url.pathname.startsWith('/api/')){if(req.method!=='GET')fail('Método não permitido.',405);const assets={'/':['index.html','text/html'],'/app.js':['app.js','text/javascript'],'/style.css':['style.css','text/css'],'/village-icons.svg':['village-icons.svg','image/svg+xml']};const a=assets[url.pathname];if(!a)fail('Não encontrado.',404);res.writeHead(200,{'Content-Type':a[1]+'; charset=utf-8'});res.end(readFileSync(resolve(root,'public',a[0])));return;}
  if(req.headers.origin){const o=new URL(req.headers.origin);if(o.host!==req.headers.host)fail('Origem não permitida.',403);}if(req.headers['sec-fetch-site']==='cross-site')fail('Origem não permitida.',403);
  let token=req.headers.cookie?.match(/(?:^|; )shinobi=([a-f0-9]{64})(?:;|$)/)?.[1];if(!token){token=randomBytes(32).toString('hex');res.setHeader('Set-Cookie',`shinobi=${token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=31536000${secure?'; Secure':''}`);}const owner=hash(token);
- if(url.pathname==='/api/status'&&req.method==='GET')return json({configured,version:'1.2.3',externalLore:process.env.EXTERNAL_LORE_ENABLED!=='false',admin:!!visitor?.admin,ephemeral:process.env.EPHEMERAL_STORAGE==='true'});
+ if(url.pathname==='/api/status'&&req.method==='GET')return json({configured,version:'1.2.4',externalLore:process.env.EXTERNAL_LORE_ENABLED!=='false',admin:!!visitor?.admin,ephemeral:process.env.EPHEMERAL_STORAGE==='true'});
  const read=async(maxBytes=25000)=>{let n=0,chunks=[];for await(const chunk of req){n+=chunk.length;if(n>maxBytes)fail('Requisição muito grande.',413);chunks.push(chunk);}try{return JSON.parse(Buffer.concat(chunks).toString()||'{}');}catch{fail('JSON inválido.');}};
  if(url.pathname==='/api/import'){
   if(req.method!=='POST')fail('Método não permitido.',405);
