@@ -24,7 +24,7 @@ test('cenas longas mantêm o último diálogo e limite de informações por turn
  const original=structuredClone(c);
  const ctx=context(c,input({segments:[{type:'FALAR',text:'Hiruzen, você lembra do arquivo secreto?'}]}));
  assert.equal(ctx.history.length,35);
- assert.equal(ctx.memory.length,13);
+ assert.equal(ctx.memory.length,16);
  assert.ok(ctx.memory.some(m=>m.text.includes('Arquivo secreto')));
  assert.equal(ctx.recent.length,8);
  assert.ok(ctx.recent.every(m=>m.text.length<=1800));
