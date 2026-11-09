@@ -152,6 +152,7 @@ function calendarGo(year,month,{scroll=true}={}){
  yr=Math.max(1,Math.min(100,yr));
  if(yr===1&&mo<10)mo=10;
  calendarCursor={year:yr,month:mo};
+ calendarSelected=displayedDay(yr,mo,yr===1&&mo===10?10:1);
  drawCalendar(scroll);
 }
 function renderCalendarYears(year){
@@ -165,6 +166,9 @@ function renderCalendarYears(year){
   const active=Number(btn.dataset.year)===year;
   btn.classList.toggle('selected',active);
   btn.setAttribute('aria-current',active?'date':'false');
+  const todayYear=current?.calendar?.year;
+  btn.classList.toggle('year-current',Number(btn.dataset.year)===todayYear);
+  btn.title=Number(btn.dataset.year)===todayYear?'Ano atual da campanha':'Consultar ano '+btn.dataset.year;
  });
  const active=root.querySelector('button.selected');
  if(active){
@@ -178,6 +182,12 @@ function drawCalendar(repositionYears=true){
  if(!calendarCursor)calendarCursor={year:date.year,month:date.month};
  const {year,month}=calendarCursor;
  $('calmonth').textContent=monthNames[month-1]+' · Ano '+year;
+ const home=current.calendar;
+ $('calcurrent').textContent=home.day+' de '+monthNames[home.month-1].toLowerCase()+' · Ano '+home.year;
+ $('calcurrent-sub').textContent='O tempo da história só avança pelo narrador — navegar não muda a data.';
+ const isHomeMonth=year===home.year&&month===home.month;
+ $('calbrowsing').textContent=isHomeMonth?'Você está no mês atual do personagem.':'Consultando '+monthNames[month-1]+' do Ano '+year+'. Sua história continua em '+String(home.day).padStart(2,'0')+'/'+String(home.month).padStart(2,'0')+' · Ano '+home.year+'.';
+ $('calbrowsing').classList.toggle('away',!isHomeMonth);
  $('calprev').disabled=year===1&&month<=10;
  $('calnext').disabled=year>=100&&month===12;
  const monthSelect=$('calmonthselect');
@@ -195,10 +205,13 @@ function drawCalendar(repositionYears=true){
   const n=i+1,absolute=displayedDay(year,month,n);
   const event=monthEvents.some(e=>e.day===n),era=monthEras.some(e=>e.day===n);
   const classes=['cal-cell',absolute<0?'cal-before-start':'',absolute===c.day?'cal-today':'',absolute===calendarSelected?'cal-selected':'',event?'cal-event':'',era?'cal-era':''].filter(Boolean).join(' ');
-  return '<button type="button" '+(absolute<0?'disabled ':'')+'class="'+classes+'" data-calendar-day="'+absolute+'" aria-label="Dia '+n+(event?', '+monthEvents.filter(e=>e.day===n).length+' eventos':'')+'">'+n+(event?'<span class="cal-marker">●</span>':era?'<span class="cal-marker">◆</span>':'')+'</button>';
+  return '<button type="button" '+(absolute<0?'disabled ':'')+'class="'+classes+'" data-calendar-day="'+absolute+'" '+(absolute===c.day?'aria-current="date" ':'')+'aria-label="Dia '+n+(absolute===c.day?', data atual de '+esc(c.character?.name||'personagem'):'')+(event?', '+monthEvents.filter(e=>e.day===n).length+' eventos':'')+'">'+n+(absolute===c.day?'<span class="cal-player-marker" aria-hidden="true">◎</span>':'')+(event?'<span class="cal-marker">●</span>':era?'<span class="cal-marker">◆</span>':'')+'</button>';
  }).join('');
  $('calgrid').innerHTML=headers+blanks+cells;
  $('calgrid').querySelectorAll('[data-calendar-day]').forEach(btn=>btn.onclick=()=>{calendarSelected=Number(btn.dataset.calendarDay);drawCalendar(false);});
+ const chosenDay=calendarSelected;
+ const dayNumber=Array.from({length:days},(_,index)=>index+1).find(n=>displayedDay(year,month,n)===chosenDay);
+ $('calselectedheading').textContent=dayNumber?'Dia '+dayNumber+' de '+monthNames[month-1].toLowerCase()+' · Ano '+year+(chosenDay===c.day?' · Hoje na história':''):'Detalhes do dia selecionado';
  const onDay=(c.calendarEvents||[]).filter(e=>e.dayIndex===calendarSelected);
  const items=onDay.map(e=>'<div class="fact"><b>'+esc(e.title)+'</b><small>'+esc(e.confirmedDate?'Data documentada':'Período estimado; referência da obra')+'</small><p>'+esc(e.overridden||e.detail)+'</p></div>').join('');
  const era=(c.calendarEraEvents||[]).find(e=>e.start===calendarSelected);
@@ -213,6 +226,7 @@ $('calnext').onclick=()=>calendarGo(calendarCursor.year,calendarCursor.month+1);
 $('calmonthselect').onchange=e=>calendarGo(calendarCursor?.year||1,Number(e.target.value));
 $('calgo').onclick=()=>calendarGo(Number($('calyearinput').value),Number($('calmonthselect').value));
 $('calyearinput').onkeydown=e=>{if(e.key==='Enter'){$('calgo').click();e.target.blur();}};
+$('caljumpnow').onclick=()=>{$('caltoday').click();};
 $('caltoday').onclick=()=>{
  if(!current)return;
  const d=current.calendar;calendarSelected=current.day;calendarGo(d.year,d.month);
