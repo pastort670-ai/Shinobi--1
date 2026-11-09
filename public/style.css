@@ -528,3 +528,17 @@ html[data-theme=dark] .bubble.has-memory .memory-proposal strong{color:var(--mom
 .memory-proposal button[data-memory-save]:hover{background:#175a33}
 html[data-theme=dark] .memory-proposal button[data-memory-save]{color:#f0fff5;background:#226e4a;border-color:#399768}
 @media(prefers-reduced-motion:reduce){.bubble.has-memory .memory-proposal{animation:none}}
+
+/* SHINOBI 1.2.7: mês e ano usam o mesmo controle horizontal, com setas. */
+.calendar-strip{display:flex;align-items:stretch;gap:6px;min-width:0;margin:4px 0 15px}
+.calendar-strip .strip-arrow{flex:0 0 40px;display:grid;place-items:center;min-height:46px;font-size:24px;font-weight:900;line-height:1;background:var(--raised);border:1px solid var(--line);border-radius:7px;color:var(--accent)}
+.calendar-strip .strip-arrow:disabled{opacity:.32;cursor:not-allowed}
+.calendar-strip .calendar-years,.calendar-strip .calendar-months{display:flex;align-items:stretch;gap:6px;min-width:0;flex:1;overflow-x:auto;overscroll-behavior-x:contain;scroll-snap-type:x proximity;scrollbar-width:thin;scrollbar-color:var(--accent) var(--raised);padding:3px 3px 8px;margin:0;touch-action:pan-x}
+.calendar-strip .calendar-years button,.calendar-strip .calendar-months button{flex:0 0 auto;min-height:43px;min-width:66px;padding:7px 12px;scroll-snap-align:center;border:1px solid var(--line);border-radius:7px;background:var(--surface);font-size:12px;font-weight:750}
+.calendar-strip .calendar-months button{min-width:88px}
+.calendar-strip .calendar-years button.selected,.calendar-strip .calendar-months button.selected{background:var(--accent);color:#fff;border-color:var(--accent);box-shadow:0 2px 0 #27201644}
+.calendar-strip .calendar-months button.month-current:not(.selected){border:2px solid var(--accent);font-weight:900}
+.calendar-strip .calendar-months button:disabled{opacity:.28;cursor:not-allowed}
+.cal-month-label{margin:6px 0 10px;text-align:center;color:var(--ink);font-size:15px;font-weight:900}
+.calendar-year-title{margin:11px 0 5px}
+@media(max-width:610px){.calendar-strip{gap:4px}.calendar-strip .strip-arrow{flex-basis:34px;min-height:42px}.calendar-strip .calendar-years button{min-width:59px}.calendar-strip .calendar-months button{min-width:79px}}
