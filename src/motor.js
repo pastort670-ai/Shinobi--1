@@ -28,6 +28,7 @@ export function planNpcTurn(c,i){
   const knowledge=distinct([...(c.npcKnowledge?.[name]||[]),...(agent.knowledge||[])]).slice(-MAX_KNOWLEDGE);
   const task=dueTask(c,name,target);
   const relation=c.relations?.[name]||agent.relationship||'';
+  const goals=(agent.goals||[]).slice(-3);
   const choices=[
    {action:'continue',score:20,reason:'Preservar a rotina e a continuidade sem inventar acontecimentos.'},
    {action:'respond',score:48+(relation?8:0),reason:'Responder de forma coerente ao contato com o protagonista.'},
@@ -35,7 +36,7 @@ export function planNpcTurn(c,i){
    ...(relationPriority(relation)!==0?[{action:'relationship',score:51+Math.abs(relationPriority(relation))*8,reason:'Manter a relação já estabelecida.'}]:[])
   ];
   choices.sort((a,b)=>b.score-a.score||a.action.localeCompare(b.action));
-  return {name,action:choices[0].action,reason:choices[0].reason,task:choices[0].task||null,relationship:text(relation,160),knownFacts:knowledge.slice(-5).map(v=>text(v,180)),priority:choices[0].score};
+  return {name,action:choices[0].action,reason:choices[0].reason,task:choices[0].task||null,relationship:text(relation,160),goals,knownFacts:knowledge.slice(-5).map(v=>text(v,180)),priority:choices[0].score};
  });
  return {mode:'event-driven',day:target,intentions,
   instructions:'São intenções sugeridas, não acontecimentos realizados. Respeite a vontade do jogador, o cânone, a cena e a informação disponível. Nunca force ações, revelações ou decisões sem causa.'};
@@ -51,7 +52,8 @@ export function commitNpcTurn(previous,next,i,r){
   const additions=(r.npcKnowledge||[]).filter(k=>k.name===name).map(k=>text(k.fact));
   const knowledge=distinct([...(old.knowledge||[]),...additions]).slice(-MAX_KNOWLEDGE);
   const relationship=(r.relations||[]).find(v=>v.name===name)?.description||old.relationship||'';
-  agents[safeName]={name:safeName,knowledge,relationship:text(relationship,280),lastObservedDay:next.day};
+  const goals=(next.pendingTasks||[]).filter(t=>t.status==='open'&&t.description?.toLocaleLowerCase('pt-BR').includes(safeName.toLocaleLowerCase('pt-BR'))).slice(-4).map(t=>({description:text(t.description,240),dueDay:t.dueDay??null}));
+  agents[safeName]={name:safeName,knowledge,relationship:text(relationship,280),goals,lastObservedDay:next.day};
  }
  // Never update NPCs not mentioned by accepted results or delete the original NPC knowledge ledger.
  const entries=Object.values(agents).sort((a,b)=>(b.lastObservedDay??0)-(a.lastObservedDay??0)).slice(0,MAX_AGENTS);
