@@ -146,13 +146,14 @@ function updateEraUI(date){
 const monthNames=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 const monthLengths=[31,28,31,30,31,30,31,31,30,31,30,31];
 function displayedDay(year,month,day){return (year-1)*365+monthLengths.slice(0,month-1).reduce((a,b)=>a+b,0)+day-1-282;}
-function calendarGo(year,month,{scroll=true}={}){
+function calendarGo(year,month,{scroll=true,selectedDay=null}={}){
  let yr=Math.trunc(Number(year)||1),mo=Math.trunc(Number(month)||10);
  if(mo<1){yr--;mo=12;}else if(mo>12){yr++;mo=1;}
  yr=Math.max(1,Math.min(100,yr));
  if(yr===1&&mo<10)mo=10;
  calendarCursor={year:yr,month:mo};
  calendarSelected=displayedDay(yr,mo,yr===1&&mo===10?10:1);
+ if(Number.isInteger(selectedDay))calendarSelected=selectedDay;
  drawCalendar(scroll);
 }
 function renderCalendarYears(year){
@@ -229,7 +230,7 @@ $('calyearinput').onkeydown=e=>{if(e.key==='Enter'){$('calgo').click();e.target.
 $('caljumpnow').onclick=()=>{$('caltoday').click();};
 $('caltoday').onclick=()=>{
  if(!current)return;
- const d=current.calendar;calendarSelected=current.day;calendarGo(d.year,d.month);
+ const d=current.calendar;calendarGo(d.year,d.month,{selectedDay:current.day});
 };
 {
  let touchStart=null;
