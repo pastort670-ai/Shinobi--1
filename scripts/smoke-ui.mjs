@@ -17,6 +17,9 @@ try{
  const errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.goto('http://127.0.0.1:'+srv.address().port,{waitUntil:'networkidle'});
  assert.equal(await page.locator('#time').isVisible(),false,'TEMPO deve ficar oculto antes das sugestões da IA');
+ assert.equal(await page.locator('#regen').isDisabled(),true,'Regenerar fica indisponível antes do primeiro turno');
+ assert.equal(await page.locator('.quick-nav [data-tab="story"]').isVisible(),true,'Navegação rápida funciona no celular');
+ assert.equal(await page.locator('.composer-actions #regen').count(),1,'Regeneração aparece junto ao botão Enviar');
  assert.equal(await page.locator('#time svg').count(),1,'TEMPO tem ícone temático');
  assert.equal(await page.locator('.headband-plate .shinobi-leaf').count(),1,'Cabeçalho usa emblema de bandana ninja');
  await page.locator('#start').click();
@@ -30,8 +33,7 @@ try{
  assert.match(await page.locator('#calendar').innerText(),/13\/10.*Ano 1/s);
  await page.locator('#acceptintro').click();
  assert.equal(await page.locator('.headband-plate use').getAttribute('href'),'/village-icons.svg#konohagakure');
- await page.locator('#menutoggle').click();
- await page.locator('[data-tab="calendarpage"]').click();
+ await page.locator('.quick-nav [data-tab="calendarpage"]').click();
  await page.locator('#calyearinput').fill('35');
  await page.locator('#calgo').click();
  assert.match(await page.locator('#calmonth').innerText(),/Ano 35/);
@@ -46,8 +48,7 @@ try{
  assert.equal(await page.locator('#calgrid .cal-today').count(),0,'Data atual não deve se mover para o ano consultado');
  await page.locator('#caltoday').click();
  assert.match(await page.locator('#calmonth').innerText(),/Ano 1/);
- await page.locator('#menutoggle').click();
- await page.locator('[data-tab="story"]').click();
+ await page.locator('.quick-nav [data-tab="story"]').click();
  await page.locator('#more summary').click();
  await page.locator('#darktheme').click();
  const darkAccent=await page.evaluate(()=>getComputedStyle(document.documentElement).getPropertyValue('--accent').trim());
@@ -59,6 +60,10 @@ try{
  await page.keyboard.type('Hiruzen, posso ajudar?');
  await page.locator('#send').click();
  await page.locator('[data-memory-save]').waitFor({timeout:15000});
+ assert.equal(await page.locator('#regen').isEnabled(),true);
+ await page.locator('#regen').click();
+ await page.locator('[data-memory-save]').waitFor({timeout:15000});
+ assert.equal(await page.locator('#chat .bubble.user').count(),1,'Regenerar mantém a mesma ação do jogador');
  assert.equal(await page.locator('#chat .bubble.user.combat-glow').count(),1);
  assert.equal(await page.locator('#chat .bubble.ai.combat-glow').count(),1);
  assert.match(await page.locator('#chat .bubble.user').last().innerText(),/NARRAR:/);
