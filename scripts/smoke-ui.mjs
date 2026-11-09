@@ -36,6 +36,14 @@ try{
  await page.locator('#calgo').click();
  assert.match(await page.locator('#calmonth').innerText(),/Ano 35/);
  assert.equal(await page.locator('#calyears button.selected').innerText(),'Ano 35');
+ assert.match(await page.locator('#calcurrent').innerText(),/13 de outubro · Ano 1/);
+ assert.match(await page.locator('#calbrowsing').innerText(),/Sua história continua em 13\/10 · Ano 1/);
+ await page.locator('#caljumpnow').click();
+ assert.equal(await page.locator('#calgrid .cal-today[aria-current="date"]').count(),1);
+ assert.match(await page.locator('#calselectedheading').innerText(),/Hoje na história/);
+ await page.locator('#calyearinput').fill('35');
+ await page.locator('#calgo').click();
+ assert.equal(await page.locator('#calgrid .cal-today').count(),0,'Data atual não deve se mover para o ano consultado');
  await page.locator('#caltoday').click();
  assert.match(await page.locator('#calmonth').innerText(),/Ano 1/);
  await page.locator('#menutoggle').click();
@@ -55,6 +63,8 @@ try{
  assert.equal(await page.locator('#chat .bubble.ai.combat-glow').count(),1);
  assert.match(await page.locator('#chat .bubble.user').last().innerText(),/NARRAR:/);
  assert.match(await page.locator('#chat .bubble.user').last().innerText(),/FALAR:/);
+ assert.equal(await page.locator('#chat .bubble.ai.has-memory').count(),1);
+ assert.equal(await page.locator('.memory-proposal button[data-memory-save]').count(),1);
  await page.locator('[data-memory-save]').click();
  await page.locator('#menutoggle').click();
  await page.locator('[data-tab="memory"]').click();
