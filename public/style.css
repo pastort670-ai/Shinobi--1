@@ -520,3 +520,11 @@ html[data-theme=dark] .bubble.has-memory .memory-proposal strong{color:var(--mom
 .calendar-years button.year-current:after{content:' · ◎';color:var(--accent)}
 .calendar-years button.year-current.selected:after{color:#fff}
 @media(max-width:620px){.calendar-now{flex-wrap:wrap;gap:8px;padding:10px}.calendar-now button{flex:1 0 100%;width:100%}.calendar-now strong{font-size:13px}.month-grid .cal-cell.cal-today{border-width:2px}}
+
+/* Memórias sugeridas: sinal verde persistente até a escolha do jogador. */
+.bubble.ai.has-memory{border-left:4px solid var(--moment)!important}
+.bubble.has-memory .memory-proposal{border:2px solid var(--moment);background:color-mix(in srgb,var(--moment) 10%,var(--surface));box-shadow:0 0 0 2px color-mix(in srgb,var(--moment) 13%,transparent),0 2px 14px color-mix(in srgb,var(--moment) 18%,transparent)}
+.memory-proposal button[data-memory-save]{color:#fff;background:#227c47;border-color:#227c47}
+.memory-proposal button[data-memory-save]:hover{background:#175a33}
+html[data-theme=dark] .memory-proposal button[data-memory-save]{color:#f0fff5;background:#226e4a;border-color:#399768}
+@media(prefers-reduced-motion:reduce){.bubble.has-memory .memory-proposal{animation:none}}
