@@ -84,11 +84,11 @@ try{
  assert.equal(await page.locator('.memory-proposal button[data-memory-save]').count(),1);
  await page.locator('[data-memory-save]').click();
  await page.locator('#menutoggle').click();
- await page.locator('[data-tab="memory"]').click();
+ await page.locator('#sidebar [data-tab="memory"]').click();
  await page.locator('#memorable').getByText('Defesa do portão').waitFor();
  await page.locator('#pendingTasks').getByText('Voltar ao portão amanhã.').waitFor();
  await page.locator('#menutoggle').click();
- await page.locator('[data-tab="story"]').click();
+ await page.locator('#sidebar [data-tab="story"]').click();
  assert.equal(await page.locator('#time').isVisible(),true,'TEMPO aparece depois da sugestão de passagem da IA');
  await page.locator('#time').click();
  await page.locator('#timeactivity').fill('Descanso por um dia.');
