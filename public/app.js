@@ -244,8 +244,7 @@ $('calprev').onclick=()=>calendarGo(calendarCursor.year,calendarCursor.month-1);
 $('calnext').onclick=()=>calendarGo(calendarCursor.year,calendarCursor.month+1);
 $('calyearprev').onclick=()=>calendarGo(calendarCursor.year-1,calendarCursor.month);
 $('calyearnext').onclick=()=>calendarGo(calendarCursor.year+1,calendarCursor.month);
-$('caljumpnow').onclick=()=>{$('caltoday').click();};
-$('caltoday').onclick=()=>{
+$('caljumpnow').onclick=()=>{
  if(!current)return;
  const d=current.calendar;calendarGo(d.year,d.month,{selectedDay:current.day});
 };
