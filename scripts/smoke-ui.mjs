@@ -16,6 +16,7 @@ try{
  const page=await browser.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true,deviceScaleFactor:1});
  const errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.goto('http://127.0.0.1:'+srv.address().port,{waitUntil:'networkidle'});
+ assert.deepEqual(errors,[],'Não pode haver erro JavaScript na inicialização móvel');
  assert.equal(await page.locator('#time').isVisible(),false,'TEMPO deve ficar oculto antes das sugestões da IA');
  assert.equal(await page.locator('#regen').isDisabled(),true,'Regenerar fica indisponível antes do primeiro turno');
  assert.equal(await page.locator('.quick-nav [data-tab="story"]').isVisible(),true,'Navegação rápida funciona no celular');
