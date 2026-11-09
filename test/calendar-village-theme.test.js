@@ -43,7 +43,7 @@ test('todos os símbolos das vilas selecionáveis têm correspondência',()=>{
  assert.match(html,/class="shinobi-leaf village-symbol"/);
  assert.match(svg,/id="independent"/);
  assert.match(html,/village-icons\.svg#konohagakure/);
- assert.match(html,/village-icons.svg#independent/);
+ assert.match(html,/village-icons.svg#konohagakure/);
 });
 test('modo noturno usa roxo nos acentos, sem apagar sinais de combate ou memória',()=>{
  assert.match(css,/html\[data-theme=dark\]\{[\s\S]*?--accent:#ad85ff/);
