@@ -42,7 +42,7 @@ test('ações comuns não geram memórias automaticamente e memórias salvas nã
 });
 test('IA propõe momentos pessoais, confirmações continuam manuais',()=>{
  assert.match(system,/escala PESSOAL/);
- assert.match(system,/Nunca salve automaticamente/);
+ assert.match(system,/nunca salve automaticamente/i);
  assert.match(html,/id="memorable"/);
  assert.match(js,/data-memory-save/);
  assert.match(css,/\.bubble\.ai\.has-memory/);
