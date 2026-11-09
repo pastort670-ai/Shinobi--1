@@ -6,7 +6,7 @@ function theme(value){document.documentElement.dataset.theme=value;remember('shi
 theme(saved('shinobi-theme','light')==='dark'?'dark':'light');
 const villageSymbols={Konohagakure:'konohagakure',Sunagakure:'sunagakure',Kirigakure:'kirigakure',Kumogakure:'kumogakure',Iwagakure:'iwagakure',Amegakure:'amegakure',Takigakure:'takigakure',Kusagakure:'kusagakure',Otogakure:'otogakure',Hoshigakure:'hoshigakure'};
 function updateVillageSymbol(village){
- const symbol=villageSymbols[village]||'independent',label=village||'Sem vila';
+ const symbol=villageSymbols[village]||'konohagakure',label=village||'Konohagakure (padrão)';
  document.querySelectorAll('.village-symbol use').forEach(use=>use.setAttribute('href','/village-icons.svg#'+symbol));
  document.querySelectorAll('.village-symbol').forEach(el=>el.setAttribute('aria-label','Símbolo da vila: '+label));
  document.documentElement.dataset.village=symbol;
@@ -19,7 +19,7 @@ if(matchMedia('(min-width:1000px)').matches)drawer(true);
 function notice(s=''){for(const id of ['notice','turnnotice']){const el=$(id);if(el){el.textContent=s;el.hidden=!s;}}}
 async function api(path,body){const r=await fetch('/api/'+path,{method:body?'POST':'GET',headers:body?{'Content-Type':'application/json'}:{},body:body?JSON.stringify(body):undefined});let data;try{data=await r.json();}catch{throw Error('O servidor demorou ou está reiniciando. Aguarde e tente novamente.');}if(!r.ok)throw Error(data.error||'Falha na comunicação.');return data;}
 async function backupCurrent(){if(!current?.id)return;const id=current.id,revision=current.revision;try{const r=await fetch('/api/campaigns/'+id+'/export');if(!r.ok)return;const t=await r.text();if(t.length<2500000&&current?.id===id&&current.revision===revision)remember('shinobi-autobackup',t);}catch{}}
-function freeze(){if($('editor')){$('editor').contentEditable=busy?'false':'true';$('editor').setAttribute('aria-disabled',String(busy));}document.querySelectorAll('button,input,select,textarea').forEach(b=>{if(!b.hasAttribute('data-keep-enabled')&&!['menutoggle','closemenu','backdrop'].includes(b.id))b.disabled=busy;});$('chat').setAttribute('aria-busy',String(busy));}
+function freeze(){if($('editor')){$('editor').contentEditable=busy?'false':'true';$('editor').setAttribute('aria-disabled',String(busy));}document.querySelectorAll('button,input,select,textarea').forEach(b=>{if(!b.hasAttribute('data-keep-enabled')&&!['menutoggle','closemenu','backdrop'].includes(b.id))b.disabled=busy||(b.id==='regen'&&(!current||current.messages.length<3||current.introConfirmed===false));});$('chat').setAttribute('aria-busy',String(busy));}
 async function run(fn,narrating=false){if(busy)return false;busy=true;notice();$('processing').hidden=!narrating;$('savehint').textContent=narrating?'Aguarde a resposta para iniciar o próximo turno.':'Ações e falas seguem juntas em um turno.';freeze();let ok=false;try{await fn();ok=true;}catch(e){notice(e.message||'Falha no envio. Seu texto foi mantido.');}finally{busy=false;$('processing').hidden=true;$('savehint').textContent='Ações e falas seguem juntas em um turno.';freeze();}return ok;}
 function tab(name){['story','sheet','calendarpage','memory','timeline','library','admin'].forEach(t=>$(t).hidden=t!==name);document.querySelectorAll('[data-tab]').forEach(b=>b.classList.toggle('active',b.dataset.tab===name));if(matchMedia('(max-width:800px)').matches)drawer(false);$('more').open=false;}
 document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>tab(b.dataset.tab));
@@ -121,8 +121,8 @@ async function send(days=null){
  await run(async()=>{current=await api('campaigns/'+id+'/turn',payload);parts=[{type:'AGIR',text:''}];timeActive=false;timeText='';timeAmount=1;timeUnit=1;editorMode='AGIR';savedCaret=null;render();},true);
 }
 $('send').onclick=()=>send();
-$('regen').onclick=()=>{if(current&&!busy){lastAction='Regenerar resposta';$('more').open=false;run(async()=>{current=await api(`campaigns/${current.id}/regenerate`,{revision:current.revision});render();},true);}};
-$('copyerror').onclick=async()=>{const data={version:'1.2.4',page:location.pathname,operation:lastAction,issue:$('turnnotice').textContent||$('notice').textContent||'Sem erro recente',engine:$('connection').textContent};try{await navigator.clipboard.writeText(JSON.stringify(data,null,2));notice('Diagnóstico copiado. Compartilhe este texto para facilitar a correção.');}catch{notice('Não foi possível copiar o diagnóstico neste navegador.');}};
+$('regen').onclick=()=>{if(current&&!busy&&current.messages.length>=3&&current.introConfirmed!==false){lastAction='Regenerar última resposta';run(async()=>{current=await api(`campaigns/${current.id}/regenerate`,{revision:current.revision});render();},true);}};
+$('copyerror').onclick=async()=>{const data={version:'1.3.0',page:location.pathname,operation:lastAction,issue:$('turnnotice').textContent||$('notice').textContent||'Sem erro recente',engine:$('connection').textContent};try{await navigator.clipboard.writeText(JSON.stringify(data,null,2));notice('Diagnóstico copiado. Compartilhe este texto para facilitar a correção.');}catch{notice('Não foi possível copiar o diagnóstico neste navegador.');}};
 $('restorelocal').onclick=()=>{if(busy)return;lastAction='Recuperar backup local';run(async()=>{if(current)throw Error('Encerre a campanha atual antes de restaurar.');const content=saved('shinobi-autobackup','');if(!content)throw Error('Não há backup local neste aparelho. Tente importar um arquivo.');const data=JSON.parse(content);const restored=await api('import',data);await list(restored.id);tab('story');notice('Campanha recuperada do backup local.');});};
 $('closecampaign').onclick=()=>{if(!current||busy)return;lastAction='Encerrar campanha';run(async()=>{const original={id:current.id,revision:current.revision};const backup=await api('campaigns/'+original.id+'/export');const raw=JSON.stringify(backup);let copied=false;try{if(raw.length<=2500000){localStorage.setItem('shinobi-autobackup',raw);copied=true;}}catch{}if(!copied&&!window.confirm('Não foi possível salvar um backup local. Antes de continuar, você já exportou o arquivo JSON da campanha?'))return;if(!window.confirm('Encerrar a campanha atual? Ela será apagada do servidor, mas o backup local poderá recuperá-la.'))return;if(window.prompt('Digite ENCERRAR para confirmar a exclusão:')!=='ENCERRAR')return;await api('campaigns/'+original.id+'/close',{revision:original.revision,confirm:'ENCERRAR'});location.reload();});};
 $('restorebackup').onclick=()=>{if(!busy)$('backupfile').click();};
@@ -177,6 +177,25 @@ function renderCalendarYears(year){
   root.scrollTo({left:Math.max(0,left),behavior:'instant'});
  }
 }
+function renderCalendarMonths(year,month,scroll=true){
+ const root=$('calmonths');if(!root)return;
+ if(root.dataset.ready!=='yes'){
+  root.innerHTML=monthNames.map((name,i)=>'<button type="button" data-month="'+(i+1)+'" aria-label="Consultar '+name+'">'+name+'</button>').join('');
+  root.querySelectorAll('button').forEach(btn=>btn.onclick=()=>calendarGo(calendarCursor.year,Number(btn.dataset.month)));
+  root.dataset.ready='yes';
+ }
+ root.querySelectorAll('button').forEach(btn=>{
+  const n=Number(btn.dataset.month),active=n===month;
+  btn.disabled=year===1&&n<10;
+  btn.classList.toggle('selected',active);
+  btn.classList.toggle('month-current',year===current?.calendar?.year&&n===current?.calendar?.month);
+  btn.setAttribute('aria-current',active?'date':'false');
+ });
+ if(scroll){
+  const active=root.querySelector('button.selected');
+  if(active)root.scrollTo({left:Math.max(0,active.offsetLeft-(root.clientWidth-active.offsetWidth)/2),behavior:'instant'});
+ }
+}
 function drawCalendar(repositionYears=true){
  if(!current)return;
  const c=current,date=c.calendar;
@@ -191,11 +210,10 @@ function drawCalendar(repositionYears=true){
  $('calbrowsing').classList.toggle('away',!isHomeMonth);
  $('calprev').disabled=year===1&&month<=10;
  $('calnext').disabled=year>=100&&month===12;
- const monthSelect=$('calmonthselect');
- if(!monthSelect.options.length)monthSelect.innerHTML=monthNames.map((name,i)=>'<option value="'+(i+1)+'">'+name+'</option>').join('');
- monthSelect.value=String(month);
- $('calyearinput').value=String(year);
  if(repositionYears)renderCalendarYears(year);
+ renderCalendarMonths(year,month,repositionYears);
+ $('calyearprev').disabled=year<=1;
+ $('calyearnext').disabled=year>=100;
  const monthEvents=(c.calendarEvents||[]).filter(e=>e.year===year&&e.month===month);
  const monthEras=(c.calendarEraEvents||[]).filter(e=>e.year===year&&e.month===month);
  const days=monthLengths[month-1];
@@ -224,11 +242,9 @@ function drawCalendar(repositionYears=true){
 }
 $('calprev').onclick=()=>calendarGo(calendarCursor.year,calendarCursor.month-1);
 $('calnext').onclick=()=>calendarGo(calendarCursor.year,calendarCursor.month+1);
-$('calmonthselect').onchange=e=>calendarGo(calendarCursor?.year||1,Number(e.target.value));
-$('calgo').onclick=()=>calendarGo(Number($('calyearinput').value),Number($('calmonthselect').value));
-$('calyearinput').onkeydown=e=>{if(e.key==='Enter'){$('calgo').click();e.target.blur();}};
-$('caljumpnow').onclick=()=>{$('caltoday').click();};
-$('caltoday').onclick=()=>{
+$('calyearprev').onclick=()=>calendarGo(calendarCursor.year-1,calendarCursor.month);
+$('calyearnext').onclick=()=>calendarGo(calendarCursor.year+1,calendarCursor.month);
+$('caljumpnow').onclick=()=>{
  if(!current)return;
  const d=current.calendar;calendarGo(d.year,d.month,{selectedDay:current.day});
 };
