@@ -79,7 +79,7 @@ export function validate(r){if(!r||typeof r!=='object')fail('Resposta inválida 
 export function suggestMoment(c,i,r){
  if(r.moment)return r.moment;
  if(!(i.segments||[]).some(part=>part.text?.trim()))return null;
- const normalize=text=>String(text||'').toLocaleLowerCase('pt-BR').replace(/\\s+/g,' ').trim();
+ const normalize=text=>String(text||'').toLocaleLowerCase('pt-BR').replace(/\s+/g,' ').trim();
  const isDuplicate=description=>(c.memories||[]).some(m=>m.status==='saved'&&normalize(m.description)===normalize(description));
  const found=r.consequences?.find(effect=>effect.description?.trim()&&!isDuplicate(effect.description));
  if(found){
@@ -99,7 +99,7 @@ export function suggestMoment(c,i,r){
  if(relation)return {title:'Vínculo com '+relation.name.slice(0,65),description:relation.description.trim()};
  return null;
 }
-export function apply(c,i,r){r=validate(r);const n=structuredClone(c);n.day+=i.days;n.revision++;n.lastInput=i;n.messages.push({role:'user',text:i.segments.map(s=>s.type+': '+s.text).join('\n')+(i.days?`\nTEMPO: ${i.days} dias`:''),day:n.day,sceneType:i.days?'time':r.sceneType},{role:'ai',text:r.narrative,day:n.day,sceneType:i.days?'time':r.sceneType,memoryCandidate:suggestMoment(c,i,r)?{...suggestMoment(c,i,r),id:randomUUID()}:null});for(const f of r.facts)n.facts.push({text:f,day:n.day}); // Commit player decisions verbatim, even when the model omits them.
+export function apply(c,i,r){r=validate(r);const moment=suggestMoment(c,i,r);const n=structuredClone(c);n.day+=i.days;n.revision++;n.lastInput=i;n.messages.push({role:'user',text:i.segments.map(s=>s.type+': '+s.text).join('\n')+(i.days?`\nTEMPO: ${i.days} dias`:''),day:n.day,sceneType:i.days?'time':r.sceneType},{role:'ai',text:r.narrative,day:n.day,sceneType:i.days?'time':r.sceneType,memoryCandidate:moment?{...moment,id:randomUUID()}:null});for(const f of r.facts)n.facts.push({text:f,day:n.day}); // Commit player decisions verbatim, even when the model omits them.
 for(const s of i.segments)n.facts.push({text:s.type+': '+s.text,day:n.day});
  n.development??=[];for(const note of r.development)if(!n.development.some(g=>g.text===note))n.development.push({text:note,day:n.day});
 n.memories??=[];n.pendingTasks??=[];n.npcKnowledge??={};n.personalityTraits??=[];n.consequences??=[];for(const trait of r.personalityTraits){const old=n.personalityTraits.find(x=>x.name.toLowerCase()===trait.name.toLowerCase());if(old){old.explanation=trait.explanation;old.day=n.day;}else n.personalityTraits.push({...trait,day:n.day});}n.personalityTraits=n.personalityTraits.slice(-12);for(const effect of r.consequences){const old=n.consequences.find(x=>x.description===effect.description);if(old)old.status=effect.status;else n.consequences.push({...effect,day:n.day});}n.consequences=n.consequences.slice(-70);for(const t of r.pendingTasks){const old=n.pendingTasks.find(p=>(t.id&&p.id===t.id)||p.description===t.description);if(old){old.status=t.status;if(t.dueDay!==null)old.dueDay=t.dueDay;}else if(t.status==='open')n.pendingTasks.push({...t,id:randomUUID(),day:n.day});}n.pendingTasks=n.pendingTasks.slice(-80);for(const k of r.npcKnowledge){n.npcKnowledge[k.name]??=[];if(!n.npcKnowledge[k.name].includes(k.fact))n.npcKnowledge[k.name].push(k.fact);n.npcKnowledge[k.name]=n.npcKnowledge[k.name].slice(-20);}if(Object.keys(n.npcKnowledge).length>70)for(const key of Object.keys(n.npcKnowledge).slice(0,Object.keys(n.npcKnowledge).length-70))delete n.npcKnowledge[key];for(const d of r.divergences)n.overrides[d.id]=d.reason;
