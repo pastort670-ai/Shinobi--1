@@ -6,7 +6,7 @@ function theme(value){document.documentElement.dataset.theme=value;remember('shi
 theme(saved('shinobi-theme','light')==='dark'?'dark':'light');
 const villageSymbols={Konohagakure:'konohagakure',Sunagakure:'sunagakure',Kirigakure:'kirigakure',Kumogakure:'kumogakure',Iwagakure:'iwagakure',Amegakure:'amegakure',Takigakure:'takigakure',Kusagakure:'kusagakure',Otogakure:'otogakure',Hoshigakure:'hoshigakure'};
 function updateVillageSymbol(village){
- const symbol=villageSymbols[village]||'independent',label=village||'Sem vila';
+ const symbol=villageSymbols[village]||'konohagakure',label=village||'Konohagakure (padrão)';
  document.querySelectorAll('.village-symbol use').forEach(use=>use.setAttribute('href','/village-icons.svg#'+symbol));
  document.querySelectorAll('.village-symbol').forEach(el=>el.setAttribute('aria-label','Símbolo da vila: '+label));
  document.documentElement.dataset.village=symbol;
@@ -177,6 +177,25 @@ function renderCalendarYears(year){
   root.scrollTo({left:Math.max(0,left),behavior:'instant'});
  }
 }
+function renderCalendarMonths(year,month,scroll=true){
+ const root=$('calmonths');if(!root)return;
+ if(root.dataset.ready!=='yes'){
+  root.innerHTML=monthNames.map((name,i)=>'<button type="button" data-month="'+(i+1)+'" aria-label="Consultar '+name+'">'+name+'</button>').join('');
+  root.querySelectorAll('button').forEach(btn=>btn.onclick=()=>calendarGo(calendarCursor.year,Number(btn.dataset.month)));
+  root.dataset.ready='yes';
+ }
+ root.querySelectorAll('button').forEach(btn=>{
+  const n=Number(btn.dataset.month),active=n===month;
+  btn.disabled=year===1&&n<10;
+  btn.classList.toggle('selected',active);
+  btn.classList.toggle('month-current',year===current?.calendar?.year&&n===current?.calendar?.month);
+  btn.setAttribute('aria-current',active?'date':'false');
+ });
+ if(scroll){
+  const active=root.querySelector('button.selected');
+  if(active)root.scrollTo({left:Math.max(0,active.offsetLeft-(root.clientWidth-active.offsetWidth)/2),behavior:'instant'});
+ }
+}
 function drawCalendar(repositionYears=true){
  if(!current)return;
  const c=current,date=c.calendar;
@@ -191,11 +210,10 @@ function drawCalendar(repositionYears=true){
  $('calbrowsing').classList.toggle('away',!isHomeMonth);
  $('calprev').disabled=year===1&&month<=10;
  $('calnext').disabled=year>=100&&month===12;
- const monthSelect=$('calmonthselect');
- if(!monthSelect.options.length)monthSelect.innerHTML=monthNames.map((name,i)=>'<option value="'+(i+1)+'">'+name+'</option>').join('');
- monthSelect.value=String(month);
- $('calyearinput').value=String(year);
  if(repositionYears)renderCalendarYears(year);
+ renderCalendarMonths(year,month,repositionYears);
+ $('calyearprev').disabled=year<=1;
+ $('calyearnext').disabled=year>=100;
  const monthEvents=(c.calendarEvents||[]).filter(e=>e.year===year&&e.month===month);
  const monthEras=(c.calendarEraEvents||[]).filter(e=>e.year===year&&e.month===month);
  const days=monthLengths[month-1];
@@ -224,9 +242,8 @@ function drawCalendar(repositionYears=true){
 }
 $('calprev').onclick=()=>calendarGo(calendarCursor.year,calendarCursor.month-1);
 $('calnext').onclick=()=>calendarGo(calendarCursor.year,calendarCursor.month+1);
-$('calmonthselect').onchange=e=>calendarGo(calendarCursor?.year||1,Number(e.target.value));
-$('calgo').onclick=()=>calendarGo(Number($('calyearinput').value),Number($('calmonthselect').value));
-$('calyearinput').onkeydown=e=>{if(e.key==='Enter'){$('calgo').click();e.target.blur();}};
+$('calyearprev').onclick=()=>calendarGo(calendarCursor.year-1,calendarCursor.month);
+$('calyearnext').onclick=()=>calendarGo(calendarCursor.year+1,calendarCursor.month);
 $('caljumpnow').onclick=()=>{$('caltoday').click();};
 $('caltoday').onclick=()=>{
  if(!current)return;
