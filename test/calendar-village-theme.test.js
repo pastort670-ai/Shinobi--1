@@ -21,10 +21,13 @@ test('eventos próximos limitados aos dois anos seguintes e cronologia total ace
  assert.match(js,/const horizon=c.day\+730/);
  assert.match(js,/e.dayIndex>=c.day&&e.dayIndex<=horizon/);
  assert.match(js,/length:100/);
- assert.match(html,/id="calmonthselect"/);
- assert.match(html,/id="calyearinput"/);
+ assert.doesNotMatch(html,/id="calmonthselect"/);
+ assert.doesNotMatch(html,/id="calyearinput"/);
+ assert.match(html,/id="calmonths"/);
  assert.match(html,/id="calyears"/);
- assert.match(html,/id="caltoday"/);
+ assert.match(html,/id="calyearprev"/);
+ assert.match(html,/id="calyearnext"/);
+ assert.match(html,/id="caljumpnow"/);
  assert.match(js,/touchstart/);
  assert.match(js,/touchend/);
  assert.equal(view(c).calendarEvents.some(e=>e.dayIndex>730),true);
@@ -39,6 +42,7 @@ test('todos os símbolos das vilas selecionáveis têm correspondência',()=>{
  }
  assert.match(html,/class="shinobi-leaf village-symbol"/);
  assert.match(svg,/id="independent"/);
+ assert.match(html,/village-icons\.svg#konohagakure/);
  assert.match(html,/village-icons.svg#independent/);
 });
 test('modo noturno usa roxo nos acentos, sem apagar sinais de combate ou memória',()=>{
