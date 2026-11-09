@@ -67,18 +67,18 @@ export const calendarMilestones=[
   },
   {
     "id": "milestone-chunin-finals",
-    "day": 4558,
+    "day": 4560,
     "title": "Finais dos Exames Chūnin",
-    "detail": "Confrontos das fases finais; o desfecho pode mudar na campanha.",
+    "detail": "Fase final dos Exames Chūnin, durante a qual ocorre a invasão de Konoha; mesma data de referência.",
     "confirmedDate": false,
     "category": "history",
     "approximate": true
   },
   {
     "id": "milestone-gaara",
-    "day": 4562,
+    "day": 4560,
     "title": "Confronto de Naruto e Gaara",
-    "detail": "Desdobramento da invasão de Konoha; posição temporal aproximada.",
+    "detail": "Confronto de Naruto e Gaara durante a invasão de Konoha; mesma sequência histórica.",
     "confirmedDate": false,
     "category": "history",
     "approximate": true
@@ -94,9 +94,9 @@ export const calendarMilestones=[
   },
   {
     "id": "milestone-sasuke-rescue",
-    "day": 4755,
+    "day": 4726,
     "title": "Missão de recuperação de Sasuke",
-    "detail": "Expedição para trazer Sasuke de volta; duração e data aproximadas.",
+    "detail": "Tsunade envia Shikamaru e seu grupo na manhã seguinte à saída de Sasuke; datas internas aproximadas.",
     "confirmedDate": false,
     "category": "history",
     "approximate": true
@@ -175,9 +175,9 @@ export const calendarMilestones=[
   },
   {
     "id": "milestone-naruto-pain",
-    "day": 6032,
+    "day": 6020,
     "title": "Naruto enfrenta Pain",
-    "detail": "Ponto decisivo do ataque a Konoha e de sua reconstrução.",
+    "detail": "Naruto enfrenta Pain durante o ataque a Konoha; o confronto integra o mesmo episódio histórico, sem intervalo artificial de semanas.",
     "confirmedDate": false,
     "category": "history",
     "approximate": true
@@ -211,45 +211,45 @@ export const calendarMilestones=[
   },
   {
     "id": "milestone-war-battles",
-    "day": 6223,
+    "day": 6203,
     "title": "Batalhas da Quarta Guerra Ninja",
-    "detail": "Aliança Shinobi entra em confrontos de grande escala.",
+    "detail": "Aliança Shinobi entra em combate no início da Quarta Guerra; a campanha retrata a guerra em poucos dias, não meses.",
     "confirmedDate": false,
     "category": "history",
     "approximate": true
   },
   {
     "id": "milestone-ten-tails",
-    "day": 6288,
+    "day": 6204,
     "title": "Dez-Caudas e forças aliadas",
-    "detail": "Conflito contra o Dez-Caudas durante a guerra; período aproximado.",
+    "detail": "Confrontos envolvendo o Dez-Caudas durante os dias decisivos da Quarta Guerra Ninja.",
     "confirmedDate": false,
     "category": "history",
     "approximate": true
   },
   {
     "id": "milestone-kaguya",
-    "day": 6310,
+    "day": 6205,
     "title": "Confronto com Kaguya",
-    "detail": "A fase final da guerra revela um novo desafio.",
+    "detail": "Etapa final dos combates da Quarta Guerra Ninja; data interna aproximada, imediatamente anterior ao Vale do Fim.",
     "confirmedDate": false,
     "category": "history",
     "approximate": true
   },
   {
     "id": "milestone-valley-end",
-    "day": 6320,
+    "day": 6205,
     "title": "Vale do Fim",
-    "detail": "Confronto decisivo entre Naruto e Sasuke após a guerra.",
+    "detail": "Confronto final de Naruto e Sasuke logo após a resolução da guerra; faz parte do mesmo desfecho histórico.",
     "confirmedDate": false,
     "category": "history",
     "approximate": true
   },
   {
     "id": "milestone-peace",
-    "day": 6375,
+    "day": 6225,
     "title": "Reconstrução do mundo ninja",
-    "detail": "Período de recuperação e transformações das vilas.",
+    "detail": "Início da reconstrução nas semanas seguintes ao fim da Quarta Guerra Ninja.",
     "confirmedDate": false,
     "category": "history",
     "approximate": true

@@ -18,10 +18,10 @@ export const events=[
  {id:'exams',day:12*YEAR+130,title:'Exames Chūnin',detail:'A nova geração participa dos exames em Konoha. Época estimada, não data oficial.'},
  {id:'invasion',day:12*YEAR+180,title:'Invasão de Konoha',detail:'Orochimaru invade Konoha durante os exames; Hiruzen morre, salvo divergência estabelecida.'},
  {id:'tsunade',day:12*YEAR+240,title:'Busca por Tsunade',detail:'Naruto e Jiraiya buscam Tsunade, após os eventos da invasão. Data interna aproximada.'},
- {id:'sasukeDeparture',day:13*YEAR-20,title:'Partida de Sasuke',detail:'Sasuke deixa Konoha na história de referência. A campanha pode mudar o resultado; período aproximado.'},
+ {id:'sasukeDeparture',day:13*YEAR-20,title:'Partida de Sasuke',detail:'Sasuke deixa Konoha durante a noite. No dia seguinte, Tsunade mobiliza Shikamaru e a equipe de recuperação; período aproximado e sujeito às decisões da campanha.'},
  {id:'return',day:15*YEAR,title:'Retorno de Naruto',detail:'Naruto retorna após treinar com Jiraiya; a ameaça da Akatsuki cresce.'},
  {id:'pain',day:16*YEAR+180,title:'Ataque de Pain a Konoha',detail:'A Akatsuki ameaça Konoha; o confronto com Pain acontece antes da Quarta Guerra. Momento aproximado.'},
- {id:'war',day:17*YEAR,title:'Quarta Guerra Ninja',detail:'Conflito decisivo e começo da reconstrução. Data aproximada.'},
+ {id:'war',day:17*YEAR-2,title:'Quarta Guerra Ninja',detail:'Início das batalhas da Aliança Shinobi, dois dias antes do desfecho da guerra, em 10 de outubro. A posição no ano é referência aproximada do SHINOBI.'},
  {id:'last',day:19*YEAR,title:'Época de The Last',detail:'Cerca de dois anos após a guerra; nova fase pessoal de Naruto. Data aproximada.'},
  {id:'nextgen',day:33*YEAR,title:'Nova geração de Boruto',detail:'Naruto já é adulto e a nova geração está ativa. Aproximadamente dezesseis anos após a guerra.'}
 ];
