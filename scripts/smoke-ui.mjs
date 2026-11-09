@@ -19,7 +19,9 @@ try{
  assert.deepEqual(errors,[],'Não pode haver erro JavaScript na inicialização móvel');
  assert.equal(await page.locator('#time').isVisible(),false,'TEMPO deve ficar oculto antes das sugestões da IA');
  assert.equal(await page.locator('#regen').isDisabled(),true,'Regenerar fica indisponível antes do primeiro turno');
- assert.equal(await page.locator('.quick-nav [data-tab="story"]').isVisible(),true,'Navegação rápida funciona no celular');
+ assert.equal(await page.locator('.quick-nav').count(),0,'A barra extra de atalhos foi removida');
+ const initialComposer=await page.locator('.composer').boundingBox();
+ assert.ok(initialComposer&&initialComposer.height<180,'O compositor móvel deve ocupar menos de 180 px antes de escrever');
  assert.equal(await page.locator('.composer-actions #regen').count(),1,'Regeneração aparece junto ao botão Enviar');
  assert.equal(await page.locator('#time svg').count(),1,'TEMPO tem ícone temático');
  assert.equal(await page.locator('.headband-plate .shinobi-leaf').count(),1,'Cabeçalho usa emblema de bandana ninja');
@@ -35,7 +37,8 @@ try{
  assert.match(await page.locator('#calendar').innerText(),/13\/10.*Ano 1/s);
  await page.locator('#acceptintro').click();
  assert.equal(await page.locator('.headband-plate use').getAttribute('href'),'/village-icons.svg#konohagakure');
- await page.locator('.quick-nav [data-tab="calendarpage"]').click();
+ await page.locator('#menutoggle').click();
+ await page.locator('#sidebar [data-tab="calendarpage"]').click();
  assert.equal(await page.locator('#calmonthselect').count(),0,'Calendário não usa seleção de mês escondida');
  assert.equal(await page.locator('#calyearinput').count(),0,'Calendário não usa entrada de ano');
  assert.equal(await page.locator('#calmonths [data-month]').count(),12);
@@ -60,7 +63,8 @@ try{
  assert.equal(await page.locator('#calgrid .cal-today').count(),0,'Data atual não deve se mover para o ano consultado');
  await page.locator('#caljumpnow').click();
  assert.match(await page.locator('#calmonth').innerText(),/Ano 1/);
- await page.locator('.quick-nav [data-tab="story"]').click();
+ await page.locator('#menutoggle').click();
+ await page.locator('#sidebar [data-tab="story"]').click();
  await page.locator('#more summary').click();
  await page.locator('#darktheme').click();
  const darkAccent=await page.evaluate(()=>getComputedStyle(document.documentElement).getPropertyValue('--accent').trim());
