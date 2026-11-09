@@ -497,3 +497,26 @@ html[data-theme=dark] .headband-plate{
 html[data-theme=dark] .review-warning{color:#f2d073;border-color:#c59a30;background:rgba(247,195,52,.13)}
 html[data-theme=dark] .memory-proposal{border-color:var(--moment)}
 html[data-theme=dark] .bubble.has-memory .memory-proposal strong{color:var(--moment)}
+
+/* 1.2.5 — player date stays visible while exploring distant years */
+.calendar-now{position:relative;display:flex;align-items:center;gap:12px;margin:16px 0;padding:12px 14px;border:2px solid var(--accent);border-radius:9px;background:var(--soft);box-shadow:0 3px 0 #33221720}
+.calendar-now-icon{width:39px;height:39px;flex:none;display:grid;place-items:center;border:2px solid var(--accent);border-radius:50%;color:var(--accent);font-size:25px;font-weight:1000;background:var(--surface)}
+.calendar-now>div:nth-child(2){flex:1;min-width:0;display:flex;flex-direction:column;line-height:1.4}
+.calendar-now small{color:var(--accent);font-size:10px;font-weight:900;letter-spacing:1px}
+.calendar-now strong{font-size:14px;color:var(--ink)}
+.calendar-now span{font-size:10px;color:var(--muted)}
+.calendar-now button{flex:none;background:var(--surface);border-color:var(--accent);font-size:11px;font-weight:900;min-height:39px}
+#callegend{display:flex;flex-wrap:wrap;gap:7px 12px;margin:11px 0}
+#callegend span{font-size:11px;font-weight:700}
+.legend-current{color:var(--accent)}
+.legend-selected{color:var(--ink)}
+.cal-browsing{margin:6px 0 11px;padding:8px 11px;border-radius:5px;background:var(--raised);border-left:3px solid var(--accent);font-size:11px}
+.cal-browsing.away{border-left-style:dashed}
+.calendar-selected-title{font-size:13px;font-weight:900;border-bottom:1px solid var(--line);padding-bottom:6px;margin:14px 0 9px}
+.month-grid .cal-cell.cal-today{background:var(--soft);border:3px solid var(--accent);color:var(--ink);font-weight:1000;outline:2px solid color-mix(in srgb,var(--accent) 55%,transparent);outline-offset:1px;z-index:1}
+.month-grid .cal-cell.cal-selected{box-shadow:inset 0 0 0 2px var(--accent)}
+.cal-player-marker{position:absolute;top:-7px;right:-5px;border:1px solid var(--accent);border-radius:100%;color:var(--accent);background:var(--surface);width:16px;height:16px;line-height:13px;text-align:center;font-size:16px;font-weight:900}
+.calendar-years button.year-current:not(.selected){border:2px solid var(--accent);font-weight:900}
+.calendar-years button.year-current:after{content:' · ◎';color:var(--accent)}
+.calendar-years button.year-current.selected:after{color:#fff}
+@media(max-width:620px){.calendar-now{flex-wrap:wrap;gap:8px;padding:10px}.calendar-now button{flex:1 0 100%;width:100%}.calendar-now strong{font-size:13px}.month-grid .cal-cell.cal-today{border-width:2px}}
