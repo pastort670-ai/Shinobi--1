@@ -97,7 +97,7 @@ export function app({dbPath=process.env.DB_PATH||resolve(root,'data/shinobi.sqli
   const now=Date.now(),today=new Date().toISOString().slice(0,10);const usage=db.prepare('SELECT * FROM usage WHERE owner=?').get(owner);if(usage&&now-usage.last<rateMs)fail('Aguarde alguns segundos antes de gerar outra introdução.',429);if(usage?.day===today&&usage.count>=Number(process.env.DAILY_LIMIT||100))fail('Limite diário local atingido.',429);db.prepare('INSERT OR REPLACE INTO usage VALUES(?,?,?,?)').run(owner,now,today,usage?.day===today?usage.count+1:1);
   const result=await generate(c,introInput);
   if(!result?.narrative||typeof result.narrative!=='string')fail('Introdução inválida. Tente novamente.',502);
-  c.introHistory=oldIntros;c.day=Number.isInteger(result.openingDay)&&result.openingDay>=0&&result.openingDay<=6?result.openingDay:0;c.messages[0]={role:'ai',text:result.narrative.slice(0,12000),day:c.day,sceneType:'normal'};
+  c.introHistory=oldIntros;c.day=Number.isInteger(result.openingDay)&&result.openingDay>=0&&result.openingDay<=6?result.openingDay:0;c.clockMinutes=c.day>0?8*60:20*60;c.messages[0]={role:'ai',text:result.narrative.slice(0,12000),day:c.day,sceneType:'normal'};
   c.revision++;
   db.prepare('UPDATE campaigns SET state=? WHERE id=? AND owner=?').run(JSON.stringify(c),id,owner);
   return json({...view(c),undoableMessages:canUndo(id,owner,c,row)});
