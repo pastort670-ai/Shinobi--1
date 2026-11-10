@@ -1,5 +1,5 @@
 import {randomUUID} from 'node:crypto';
-import {CLOCK_DEFAULT,clockOf,formatClock,timePlan,canUseTime,actualTime,HOURS_LIMIT} from './time-engine.js';
+import {CLOCK_DEFAULT,clockOf,formatClock,timePlan,canUseTime,actualTime,timeMaxHours,HOURS_LIMIT} from './time-engine.js';
 import {planNpcTurn,commitNpcTurn} from './motor.js';
 import {events,retrieveLore,eraAt,eras,temporalLore} from './lore.js';
 import {calendarMilestones} from './calendar-milestones.js';
@@ -36,7 +36,7 @@ export function view(c){
   return {id:'pending-'+index,dayIndex:t.dueDay,day:d.day,month:d.month,year:d.year,title:'Compromisso pendente',detail:t.description,confirmedDate:false,isPast:t.dueDay<=c.day,overridden:null};
  });
  const calendarEvents=[...fixedCalendarEvents.map(e=>({...e,isPast:e.dayIndex<=c.day,overridden:e.id in (overrides||{})?overrides[e.id]:e.overridden||null})),...pendingEvents].sort((a,b)=>a.dayIndex-b.dayIndex);
- return {...v,clockTime:formatClock(clockOf(c)),timeAvailable:canUseTime(c),timeChoices:c.timeChoices||[],calendar:calendar(c.day),age:c.character.age+Math.floor(c.day/365),
+ return {...v,clockTime:formatClock(clockOf(c)),timeAvailable:canUseTime(c),timeMaxHours:timeMaxHours(c),timeChoices:c.timeChoices||[],calendar:calendar(c.day),age:c.character.age+Math.floor(c.day/365),
   conditions:{energy:describe(energy,['exausto','cansado','bem-disposto','descansado']),chakra:describe(chakra,['esgotado','quase esgotado','reserva reduzida','reserva completa'])},
   abilities:Object.fromEntries(Object.entries(progress).map(([k,v])=>[k,describe(v,['iniciante','básico','mediano','bom','avançado','excepcional'])])),
   messages:c.messages.slice(-100),messageOffset:Math.max(0,c.messages.length-100),facts:c.facts.slice(-150),
