@@ -105,11 +105,11 @@ export function suggestMoment(c,i,r){
 export function resolveElapsedDays(i,r){
  if(i.days>0)return i.days; // TEMPO explícito sempre prevalece.
  const narrative=String(r.narrative||'').toLocaleLowerCase('pt-BR');
- const occurred=/(?:na manhã seguinte|no dia seguinte|na noite seguinte|amanhec(?:eu|e)|o sol nasceu|o dia amanhec(?:eu|e)|pass(?:ou|aram|a)[- ]se? (?:a noite|o dia|[\\wçãéêíôú ]+ dias)|(?:a noite|o dia) (?:se passou|passou)|ao acordar (?:na manhã seguinte|no outro dia)|acord(?:ou|a) (?:no dia seguinte|na manhã seguinte)|depois de [\\w]+ dias|após [\\w]+ dias|horas depois,? já era (?:o )?dia seguinte)/iu.test(narrative);
+ const occurred=/(?:(?:na|a) manhã seguinte|no dia seguinte|na noite seguinte|amanhec(?:eu|e)|o sol nasceu|o dia amanhec(?:eu|e)|pass(?:ou|aram|a)[- ]se? (?:a noite|o dia|[\\wçãéêíôú ]+ dias)|(?:a noite|o dia) (?:se passou|passou)|ao acordar (?:na manhã seguinte|no outro dia)|acord(?:ou|a) (?:no dia seguinte|na manhã seguinte)|depois de [\\w]+ dias|após [\\w]+ dias|horas depois,? já era (?:o )?dia seguinte)/iu.test(narrative);
  if(!occurred)return 0;
  if(r.elapsedDays>0)return r.elapsedDays;
  // Fallback conservador: uma noite efetivamente concluída equivale a um dia.
- if(/(?:na manhã seguinte|no dia seguinte|amanhec(?:eu|e)|o sol nasceu|a noite (?:se passou|passou)|passou a noite)/iu.test(narrative))return 1;
+ if(/(?:(?:na|a) manhã seguinte|no dia seguinte|amanhec(?:eu|e)|o sol nasceu|a noite (?:se passou|passou)|passou a noite)/iu.test(narrative))return 1;
  return 0;
 }
 export function apply(c,i,r){r=validate(r);const moment=suggestMoment(c,i,r);const elapsedDays=resolveElapsedDays(i,r);const n=structuredClone(c);n.day+=elapsedDays;n.revision++;n.lastInput=i;n.messages.push({role:'user',text:i.segments.map(s=>s.type+': '+s.text).join('\n')+(i.days?`\nTEMPO: ${i.days} dias`:''),day:n.day,sceneType:elapsedDays?'time':r.sceneType},{role:'ai',text:r.narrative,day:n.day,sceneType:elapsedDays?'time':r.sceneType,memoryCandidate:moment?{...moment,id:randomUUID()}:null});for(const f of r.facts)n.facts.push({text:f,day:n.day}); // Commit player decisions verbatim, even when the model omits them.
