@@ -45,7 +45,7 @@ export function view(c){
   calendarEvents,calendarEraEvents:fixedEraEvents
  };
 }
-export function input(raw){const segments=raw.segments??[];if(!Array.isArray(segments)||segments.length>8)fail('Até oito trechos por turno.');const ss=segments.map(s=>{if(!['AGIR','NARRAR','FALAR'].includes(s.type))fail('Comando inválido.');return {type:s.type==='NARRAR'?'AGIR':s.type,text:str(s.text,2000)};}).filter(s=>s.text);const days=raw.days??0,hours=raw.hours??0;if(!Number.isInteger(days)||days<0||days>3650||!Number.isInteger(hours)||hours<0||hours>HOURS_LIMIT||days&&hours)fail('Escolha um intervalo válido de TEMPO.');if(!days&&!hours&&!ss.length)fail('Escreva uma ação ou fala.');return {segments:ss,days,hours};}
+export function input(raw){const segments=raw.segments??[];if(!Array.isArray(segments)||segments.length>8)fail('Até oito trechos por turno.');const ss=segments.map(s=>{if(!['AGIR','NARRAR','FALAR'].includes(s.type))fail('Comando inválido.');return {type:s.type==='NARRAR'?'AGIR':s.type,text:str(s.text,2000)};}).filter(s=>s.text);const days=raw.days??0,hours=raw.hours??0;if(!Number.isInteger(days)||days<0||days>3650||!Number.isInteger(hours)||hours<0||hours>HOURS_LIMIT||days&&hours)fail('Avance por um intervalo válido de TEMPO.');if(!days&&!hours&&!ss.length)fail('Escreva uma ação ou fala.');return {segments:ss,days,hours};}
 export function context(c,i){const q=i.segments.map(s=>s.text).join(' ');const words=[...new Set(q.toLocaleLowerCase('pt-BR').split(/[^\p{L}\p{N}]+/u).filter(w=>w.length>3))].slice(0,35);
  const relevant=c.facts.map((f,index)=>{
   const lower=f.text.toLocaleLowerCase('pt-BR');
