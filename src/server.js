@@ -5,6 +5,7 @@ import {mkdirSync,readFileSync} from 'node:fs';
 import {resolve,dirname} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {create,input,apply,view,fail} from './engine.js';
+import {timeMaxHours} from './time-engine.js';
 import {provider} from './gemini.js';
 import {accessControl} from './access.js';
 const root=resolve(dirname(fileURLToPath(import.meta.url)),'..');
@@ -31,7 +32,7 @@ export function app({dbPath=process.env.DB_PATH||resolve(root,'data/shinobi.sqli
  if(!url.pathname.startsWith('/api/')){if(req.method!=='GET')fail('Método não permitido.',405);const assets={'/':['index.html','text/html'],'/app.js':['app.js','text/javascript'],'/style.css':['style.css','text/css'],'/village-icons.svg':['village-icons.svg','image/svg+xml']};const a=assets[url.pathname];if(!a)fail('Não encontrado.',404);res.writeHead(200,{'Content-Type':a[1]+'; charset=utf-8'});res.end(readFileSync(resolve(root,'public',a[0])));return;}
  if(req.headers.origin){const o=new URL(req.headers.origin);if(o.host!==req.headers.host)fail('Origem não permitida.',403);}if(req.headers['sec-fetch-site']==='cross-site')fail('Origem não permitida.',403);
  let token=req.headers.cookie?.match(/(?:^|; )shinobi=([a-f0-9]{64})(?:;|$)/)?.[1];if(!token){token=randomBytes(32).toString('hex');res.setHeader('Set-Cookie',`shinobi=${token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=31536000${secure?'; Secure':''}`);}const owner=hash(token);
- if(url.pathname==='/api/status'&&req.method==='GET')return json({configured,version:'1.3.2',externalLore:process.env.EXTERNAL_LORE_ENABLED!=='false',admin:!!visitor?.admin,ephemeral:process.env.EPHEMERAL_STORAGE==='true'});
+ if(url.pathname==='/api/status'&&req.method==='GET')return json({configured,version:'1.4.0',externalLore:process.env.EXTERNAL_LORE_ENABLED!=='false',admin:!!visitor?.admin,ephemeral:process.env.EPHEMERAL_STORAGE==='true'});
  const read=async(maxBytes=25000)=>{let n=0,chunks=[];for await(const chunk of req){n+=chunk.length;if(n>maxBytes)fail('Requisição muito grande.',413);chunks.push(chunk);}try{return JSON.parse(Buffer.concat(chunks).toString()||'{}');}catch{fail('JSON inválido.');}};
  if(url.pathname==='/api/import'){
   if(req.method!=='POST')fail('Método não permitido.',405);
@@ -97,7 +98,7 @@ export function app({dbPath=process.env.DB_PATH||resolve(root,'data/shinobi.sqli
   const now=Date.now(),today=new Date().toISOString().slice(0,10);const usage=db.prepare('SELECT * FROM usage WHERE owner=?').get(owner);if(usage&&now-usage.last<rateMs)fail('Aguarde alguns segundos antes de gerar outra introdução.',429);if(usage?.day===today&&usage.count>=Number(process.env.DAILY_LIMIT||100))fail('Limite diário local atingido.',429);db.prepare('INSERT OR REPLACE INTO usage VALUES(?,?,?,?)').run(owner,now,today,usage?.day===today?usage.count+1:1);
   const result=await generate(c,introInput);
   if(!result?.narrative||typeof result.narrative!=='string')fail('Introdução inválida. Tente novamente.',502);
-  c.introHistory=oldIntros;c.day=Number.isInteger(result.openingDay)&&result.openingDay>=0&&result.openingDay<=6?result.openingDay:0;c.messages[0]={role:'ai',text:result.narrative.slice(0,12000),day:c.day,sceneType:'normal'};
+  c.introHistory=oldIntros;c.day=Number.isInteger(result.openingDay)&&result.openingDay>=0&&result.openingDay<=6?result.openingDay:0;c.clockMinutes=c.day>0?8*60:20*60;c.messages[0]={role:'ai',text:result.narrative.slice(0,12000),day:c.day,sceneType:'normal'};
   c.revision++;
   db.prepare('UPDATE campaigns SET state=? WHERE id=? AND owner=?').run(JSON.stringify(c),id,owner);
   return json({...view(c),undoableMessages:canUndo(id,owner,c,row)});
@@ -122,7 +123,7 @@ export function app({dbPath=process.env.DB_PATH||resolve(root,'data/shinobi.sqli
  const a=words(rejected.at(-1)||''),b=words(rejected.at(-2)||'');
  const similarity=a.size&&b.size?[...a].filter(w=>b.has(w)).length/new Set([...a,...b]).size:0;
  i={...i,regeneration:{rejected:rejected.slice(-2).map(v=>v.slice(0,1000)),attempt:rejected.length,requireDifferentApproach:rejected.length>=2&&(similarity>=0.4||rejected.length>=3),constraint:'Mudar a narração dentro da mesma cena, sem adicionar acontecimentos aleatórios nem transformar respostas descartadas em fatos.'}};
- }else{base=c;i=input(raw);}
+ }else{base=c;i=input(raw);if(i.hours>0&&base.timeAvailable!==true)fail('TEMPO indisponível nesta cena. Aguarde uma oportunidade segura para avançar.',409);if(i.hours>timeMaxHours(base))fail('A duração excede o intervalo seguro disponível nesta cena.',409);}
  const now=Date.now(),day=new Date().toISOString().slice(0,10);let u=db.prepare('SELECT * FROM usage WHERE owner=?').get(owner);if(u&&now-u.last<rateMs)fail('Aguarde alguns segundos antes de enviar outro turno.',429);if(u?.day===day&&u.count>=Number(process.env.DAILY_LIMIT||100))fail('Limite diário local atingido.',429);db.prepare('INSERT OR REPLACE INTO usage VALUES(?,?,?,?)').run(owner,now,day,u?.day===day?u.count+1:1);
  const r=await generate(base,i);const next=apply(base,i,r);next.revision=c.revision+1;next.regenerationHistory=action==='regenerate'?i.regeneration.rejected:[];if(Array.isArray(r.sources)){next.messages.at(-1).sources=r.sources.filter(s=>typeof s.title==='string'&&typeof s.url==='string'&&/^https:\/\/(pt\.wikipedia\.org|naruto\.fandom\.com)\/wiki\//.test(s.url)).slice(0,2).map(s=>({title:s.title.slice(0,120),url:s.url.slice(0,500)}));}next.messages.at(-1).lookupStatus=['consulted','filtered','unavailable','not-needed','disabled'].includes(r.lookupStatus)?r.lookupStatus:'not-needed';db.exec('BEGIN IMMEDIATE');try{db.prepare('UPDATE campaigns SET state=?,previous=? WHERE id=? AND owner=?').run(JSON.stringify(next),JSON.stringify(base),id,owner);
   db.prepare('INSERT OR REPLACE INTO checkpoints(campaign,owner,message_index,state) VALUES(?,?,?,?)').run(id,owner,base.messages.length,JSON.stringify(base));
