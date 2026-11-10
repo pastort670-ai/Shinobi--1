@@ -105,7 +105,7 @@ export function suggestMoment(c,i,r){
 export function resolveElapsedDays(i,r){
  if(i.days>0)return i.days; // TEMPO explícito sempre prevalece.
  const narrative=String(r.narrative||'').toLocaleLowerCase('pt-BR');
- const occurred=/(?:(?:na|a) manhã seguinte|no dia seguinte|na noite seguinte|amanhec(?:eu|e)|o sol nasceu|o dia amanhec(?:eu|e)|pass(?:ou|aram|a)[- ]se? (?:a noite|o dia|[\\wçãéêíôú ]+ dias)|(?:a noite|o dia) (?:se passou|passou)|ao acordar (?:na manhã seguinte|no outro dia)|acord(?:ou|a) (?:no dia seguinte|na manhã seguinte)|depois de [\\w]+ dias|após [\\w]+ dias|horas depois,? já era (?:o )?dia seguinte)/iu.test(narrative);
+ const occurred=/(?:na|a) manhã seguinte|no (?:dia|outro dia) seguinte|na noite seguinte|amanhec(?:eu|e)|o sol nasceu|passou a noite|passaram-se [\p{L}\d]+ dias|(?:a noite|o dia) (?:se passou|passou)|acord(?:ou|a) (?:no dia seguinte|na manhã seguinte)|depois de [\p{L}\d]+ dias|após [\p{L}\d]+ dias|horas depois,? já era (?:o )?dia seguinte/iu.test(narrative);
  if(!occurred)return 0;
  if(r.elapsedDays>0)return r.elapsedDays;
  // Fallback conservador: uma noite efetivamente concluída equivale a um dia.
