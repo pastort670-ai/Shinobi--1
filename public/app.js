@@ -77,6 +77,7 @@ function choose(type){
  root.focus();updateMode();
 }
 function updateMode(){
+ if(timeActive&&current?.timeAvailable!==true){timeActive=false;timeText='';if($('timearea'))$('timearea').hidden=true;}
  $('act').classList.toggle('active',editorMode==='AGIR');
  $('talk').classList.toggle('active',editorMode==='FALAR');
  $('time').classList.toggle('active',timeActive);
@@ -88,7 +89,7 @@ function renderTime(){
  const el=$('timearea');if(!el)return;
  el.hidden=!timeActive;
  if(!timeActive){updateMode();return;}
- el.innerHTML='<p class="time-preflight">O avanço acontece no próximo envio; eventos e compromissos podem interrompê-lo.</p><label for="timeactivity">⌛ ATIVIDADE DURANTE O TEMPO</label><textarea id="timeactivity" rows="2" maxlength="2000" placeholder="O que seu personagem faz durante esse período?">'+esc(timeText)+'</textarea><div class="time-inline-controls"><input id="timeamount" aria-label="Quantidade" type="number" min="1" max="3650" value="'+esc(timeAmount)+'"><select id="timeunit" aria-label="Unidade"><option value="1">horas</option><option value="24">dias</option><option value="168">semanas</option><option value="720">meses (30 dias)</option><option value="8760">anos (365 dias)</option></select></div><div class="time-suggestions">'+(current?.timeChoices?.length?current.timeChoices:(current?.timeOptions||[]).map(d=>({hours:d*24,label:d+' dias'}))).map(opt=>'<button type="button" data-hours="'+opt.hours+'">'+esc(opt.label)+'</button>').join('')+'</div>';
+ el.innerHTML='<p class="time-preflight">O avanço acontece no próximo envio; eventos e compromissos podem interrompê-lo. Limite desta cena: '+(current?.timeMaxHours||24)+' horas.</p><label for="timeactivity">⌛ ATIVIDADE DURANTE O TEMPO</label><textarea id="timeactivity" rows="2" maxlength="2000" placeholder="O que seu personagem faz durante esse período?">'+esc(timeText)+'</textarea><div class="time-inline-controls"><input id="timeamount" aria-label="Quantidade" type="number" min="1" max="3650" value="'+esc(timeAmount)+'"><select id="timeunit" aria-label="Unidade"><option value="1">horas</option><option value="24">dias</option><option value="168">semanas</option><option value="720">meses (30 dias)</option><option value="8760">anos (365 dias)</option></select></div><div class="time-suggestions">'+(current?.timeChoices?.length?current.timeChoices:(current?.timeOptions||[]).map(d=>({hours:d*24,label:d+' dias'}))).map(opt=>'<button type="button" data-hours="'+opt.hours+'">'+esc(opt.label)+'</button>').join('')+'</div>';
  $('timeunit').value=String(timeUnit);
  $('timeactivity').oninput=e=>{timeText=e.target.value;};
  $('timeamount').oninput=e=>{timeAmount=e.target.value;};
@@ -112,6 +113,7 @@ async function send(days=null){
  if(current.introConfirmed===false&&current.messages.length===1){notice('Confirme a introdução antes de começar a jogar.');return;}
  const hours=timeActive?Number(timeAmount)*Number(timeUnit):0;
  if(!Number.isInteger(hours)||hours<0||hours>87600||(timeActive&&hours<1)){notice('Escolha uma duração válida entre 1 hora e 3650 dias.');return;}
+ if(timeActive&&hours>(current.timeMaxHours||24)){notice('Nesta cena, o TEMPO permite até '+(current.timeMaxHours||24)+' horas. Escolha uma duração menor.');return;}
  if(timeActive&&!timeText.trim()){notice('Descreva a atividade durante a passagem de tempo.');$('timeactivity')?.focus();return;}
  const segments=editorParts();
  if(timeActive)segments.push({type:'AGIR',text:timeText.trim()});
@@ -122,7 +124,7 @@ async function send(days=null){
 }
 $('send').onclick=()=>send();
 $('regen').onclick=()=>{if(current&&!busy&&current.messages.length>=3&&current.introConfirmed!==false){lastAction='Regenerar última resposta';run(async()=>{current=await api(`campaigns/${current.id}/regenerate`,{revision:current.revision});render();},true);}};
-$('copyerror').onclick=async()=>{const data={version:'1.3.2',page:location.pathname,operation:lastAction,issue:$('turnnotice').textContent||$('notice').textContent||'Sem erro recente',engine:$('connection').textContent};try{await navigator.clipboard.writeText(JSON.stringify(data,null,2));notice('Diagnóstico copiado. Compartilhe este texto para facilitar a correção.');}catch{notice('Não foi possível copiar o diagnóstico neste navegador.');}};
+$('copyerror').onclick=async()=>{const data={version:'1.4.0',page:location.pathname,operation:lastAction,issue:$('turnnotice').textContent||$('notice').textContent||'Sem erro recente',engine:$('connection').textContent};try{await navigator.clipboard.writeText(JSON.stringify(data,null,2));notice('Diagnóstico copiado. Compartilhe este texto para facilitar a correção.');}catch{notice('Não foi possível copiar o diagnóstico neste navegador.');}};
 $('restorelocal').onclick=()=>{if(busy)return;lastAction='Recuperar backup local';run(async()=>{if(current)throw Error('Encerre a campanha atual antes de restaurar.');const content=saved('shinobi-autobackup','');if(!content)throw Error('Não há backup local neste aparelho. Tente importar um arquivo.');const data=JSON.parse(content);const restored=await api('import',data);await list(restored.id);tab('story');notice('Campanha recuperada do backup local.');});};
 $('closecampaign').onclick=()=>{if(!current||busy)return;lastAction='Encerrar campanha';run(async()=>{const original={id:current.id,revision:current.revision};const backup=await api('campaigns/'+original.id+'/export');const raw=JSON.stringify(backup);let copied=false;try{if(raw.length<=2500000){localStorage.setItem('shinobi-autobackup',raw);copied=true;}}catch{}if(!copied&&!window.confirm('Não foi possível salvar um backup local. Antes de continuar, você já exportou o arquivo JSON da campanha?'))return;if(!window.confirm('Encerrar a campanha atual? Ela será apagada do servidor, mas o backup local poderá recuperá-la.'))return;if(window.prompt('Digite ENCERRAR para confirmar a exclusão:')!=='ENCERRAR')return;await api('campaigns/'+original.id+'/close',{revision:original.revision,confirm:'ENCERRAR'});location.reload();});};
 $('restorebackup').onclick=()=>{if(!busy)$('backupfile').click();};
