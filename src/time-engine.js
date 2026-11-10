@@ -20,6 +20,11 @@ export function timePlan(c,i){
 export function canUseTime(c){
  return c.timeAvailable===true&&c.timeScene!=='combat';
 }
+export function timeMaxHours(c){
+ if(!canUseTime(c))return 0;
+ const allowed=(c.timeChoices||[]).map(x=>x.hours).filter(n=>Number.isInteger(n)&&n>0&&n<=HOURS_LIMIT);
+ return allowed.length?Math.max(...allowed):24;
+}
 export function actualTime(c,i,r,resolvedDays){
  // Legacy saved turns used days directly. Preserve them exactly on regeneration.
  if(i.days>0){const absolute=clockOf(c)+i.days*1440;return {dayDelta:i.days,clockMinutes:absolute%1440,hours:i.days*24,interruption:null};}
