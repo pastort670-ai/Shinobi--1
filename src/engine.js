@@ -58,7 +58,8 @@ export function context(c,i){const q=i.segments.map(s=>s.text).join(' ');const w
  }
  const recentScene=c.messages.slice(-8);
  const referencedNames=(q+' '+recentScene.map(m=>m.text.slice(-600)).join(' ')).toLocaleLowerCase('pt-BR');
-const target=c.day+Math.floor((clockOf(c)+(i.hours||i.days*24)*60)/1440);
+const proposedHours=i.hours?timePlan(c,i).allowedHours:i.days*24;
+ const target=c.day+Math.floor((clockOf(c)+proposedHours*60)/1440);
  const chronologyRules=temporalLore(target);
  const lore=retrieveLore(target,q).filter(item=>!chronologyRules.includes(item));
  const selectedRelations=Object.entries(c.relations||{}).filter(([name])=>referencedNames.includes(name.toLocaleLowerCase('pt-BR')));
