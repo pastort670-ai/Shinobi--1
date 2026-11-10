@@ -30,9 +30,9 @@ test('o JavaScript do compositor tem sintaxe válida',()=>{
  assert.equal(p.status,0,p.stderr);
 });
 
-test('TEMPO aparece somente quando a IA sugere passagem ou quando painel está aberto',()=>{
+test('TEMPO está sempre disponível para o jogador antes do envio',()=>{
  assert.match(html,/id="time"/);
- assert.match(js,/\$\('time'\)\.hidden=!timeActive&&\!\(current\?\.timeOptions\?\.length>0\)/);
+ assert.match(js,/\$\('time'\)\.hidden=false/);
  assert.match(js,/if\(type==='TEMPO'\)/);
  assert.match(js,/\$\('time'\)\.onclick=\(\)=>choose\('TEMPO'\)/);
 });

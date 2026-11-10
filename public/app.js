@@ -80,7 +80,7 @@ function updateMode(){
  $('act').classList.toggle('active',editorMode==='AGIR');
  $('talk').classList.toggle('active',editorMode==='FALAR');
  $('time').classList.toggle('active',timeActive);
- $('time').hidden=!timeActive&&!(current?.timeOptions?.length>0); // TEMPO aparece apenas quando a IA sugere opções, ou enquanto o painel está aberto.
+ $('time').hidden=false; // TEMPO permanece disponível antes de qualquer turno.
 }
 $('act').onclick=()=>choose('AGIR');$('talk').onclick=()=>choose('FALAR');$('time').onclick=()=>choose('TEMPO');
 ['act','talk','time'].forEach(id=>$(id).addEventListener('mousedown',e=>e.preventDefault()));
@@ -88,7 +88,7 @@ function renderTime(){
  const el=$('timearea');if(!el)return;
  el.hidden=!timeActive;
  if(!timeActive){updateMode();return;}
- el.innerHTML='<label for="timeactivity">⌛ ATIVIDADE DURANTE O TEMPO</label><textarea id="timeactivity" rows="2" maxlength="2000" placeholder="O que seu personagem faz durante esse período?">'+esc(timeText)+'</textarea><div class="time-inline-controls"><input id="timeamount" aria-label="Quantidade" type="number" min="1" max="3650" value="'+esc(timeAmount)+'"><select id="timeunit" aria-label="Unidade"><option value="1">dias</option><option value="30">meses (30 dias)</option><option value="365">anos (365 dias)</option></select></div><div class="time-suggestions">'+(current?.timeOptions||[]).map(d=>'<button type="button" data-days="'+d+'">'+d+' dias</button>').join('')+'</div>';
+ el.innerHTML='<p class="time-preflight">Avance o calendário no próximo envio. Escolha a duração e descreva o que seu personagem faz.</p><label for="timeactivity">⌛ ATIVIDADE DURANTE O TEMPO</label><textarea id="timeactivity" rows="2" maxlength="2000" placeholder="O que seu personagem faz durante esse período?">'+esc(timeText)+'</textarea><div class="time-inline-controls"><input id="timeamount" aria-label="Quantidade" type="number" min="1" max="3650" value="'+esc(timeAmount)+'"><select id="timeunit" aria-label="Unidade"><option value="1">dias</option><option value="30">meses (30 dias)</option><option value="365">anos (365 dias)</option></select></div><div class="time-suggestions">'+(current?.timeOptions||[]).map(d=>'<button type="button" data-days="'+d+'">'+d+' dias</button>').join('')+'</div>';
  $('timeunit').value=String(timeUnit);
  $('timeactivity').oninput=e=>{timeText=e.target.value;};
  $('timeamount').oninput=e=>{timeAmount=e.target.value;};
@@ -122,7 +122,7 @@ async function send(days=null){
 }
 $('send').onclick=()=>send();
 $('regen').onclick=()=>{if(current&&!busy&&current.messages.length>=3&&current.introConfirmed!==false){lastAction='Regenerar última resposta';run(async()=>{current=await api(`campaigns/${current.id}/regenerate`,{revision:current.revision});render();},true);}};
-$('copyerror').onclick=async()=>{const data={version:'1.3.0',page:location.pathname,operation:lastAction,issue:$('turnnotice').textContent||$('notice').textContent||'Sem erro recente',engine:$('connection').textContent};try{await navigator.clipboard.writeText(JSON.stringify(data,null,2));notice('Diagnóstico copiado. Compartilhe este texto para facilitar a correção.');}catch{notice('Não foi possível copiar o diagnóstico neste navegador.');}};
+$('copyerror').onclick=async()=>{const data={version:'1.3.2',page:location.pathname,operation:lastAction,issue:$('turnnotice').textContent||$('notice').textContent||'Sem erro recente',engine:$('connection').textContent};try{await navigator.clipboard.writeText(JSON.stringify(data,null,2));notice('Diagnóstico copiado. Compartilhe este texto para facilitar a correção.');}catch{notice('Não foi possível copiar o diagnóstico neste navegador.');}};
 $('restorelocal').onclick=()=>{if(busy)return;lastAction='Recuperar backup local';run(async()=>{if(current)throw Error('Encerre a campanha atual antes de restaurar.');const content=saved('shinobi-autobackup','');if(!content)throw Error('Não há backup local neste aparelho. Tente importar um arquivo.');const data=JSON.parse(content);const restored=await api('import',data);await list(restored.id);tab('story');notice('Campanha recuperada do backup local.');});};
 $('closecampaign').onclick=()=>{if(!current||busy)return;lastAction='Encerrar campanha';run(async()=>{const original={id:current.id,revision:current.revision};const backup=await api('campaigns/'+original.id+'/export');const raw=JSON.stringify(backup);let copied=false;try{if(raw.length<=2500000){localStorage.setItem('shinobi-autobackup',raw);copied=true;}}catch{}if(!copied&&!window.confirm('Não foi possível salvar um backup local. Antes de continuar, você já exportou o arquivo JSON da campanha?'))return;if(!window.confirm('Encerrar a campanha atual? Ela será apagada do servidor, mas o backup local poderá recuperá-la.'))return;if(window.prompt('Digite ENCERRAR para confirmar a exclusão:')!=='ENCERRAR')return;await api('campaigns/'+original.id+'/close',{revision:original.revision,confirm:'ENCERRAR'});location.reload();});};
 $('restorebackup').onclick=()=>{if(!busy)$('backupfile').click();};
