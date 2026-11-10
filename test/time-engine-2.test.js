@@ -90,3 +90,35 @@ test('contrato do Gemini inclui contexto, autonomia e relógio em horas',()=>{
  assert.match(system,/SISTEMA TEMPORAL 2\.0/);
  assert.throws(()=>validate({...r,elapsedHours:24}),/inválida/);
 });
+
+test('API impede salto de horas sem janela segura e permite ao confirmar uma cena livre',async()=>{
+ const {app}=await import('../src/server.js');
+ const srv=app({dbPath:':memory:',access:{required:false},rateMs:0,configured:true,generate:async(_c,i)=>({
+  ...r,narrative:i.segments.some(s=>/segura/i.test(s.text))?'A conversa terminou e todos descansam.':'A espera foi concluída.',
+  timeAvailable:true,sceneType:'normal'
+ })});
+ await new Promise(resolve=>srv.listen(0,'127.0.0.1',resolve));
+ let cookie='';
+ async function call(path,data){
+  const res=await fetch('http://127.0.0.1:'+srv.address().port+'/api/'+path,{
+   method:data?'POST':'GET',headers:{cookie,'Content-Type':'application/json'},body:data?JSON.stringify(data):undefined});
+  if(res.headers.get('set-cookie'))cookie=res.headers.get('set-cookie').split(';')[0];
+  return {status:res.status,data:await res.json()};
+ }
+ try{
+  const created=await call('campaigns',{title:'Controle',character:ch});
+  assert.equal(created.status,201);
+  const id=created.data.id;
+  const denied=await call('campaigns/'+id+'/turn',{revision:0,hours:2,segments:[{type:'AGIR',text:'Espero.'}]});
+  assert.equal(denied.status,409);
+  const unlocked=await call('campaigns/'+id+'/turn',{revision:0,segments:[{type:'AGIR',text:'A cena está segura.'}]});
+  assert.equal(unlocked.status,200);
+  assert.equal(unlocked.data.timeAvailable,true);
+  const advanced=await call('campaigns/'+id+'/turn',{revision:1,hours:2,segments:[{type:'AGIR',text:'Descanso por duas horas.'}]});
+  assert.equal(advanced.status,200);
+  assert.equal(advanced.data.clockTime,'22:00');
+  const regenerated=await call('campaigns/'+id+'/regenerate',{revision:2});
+  assert.equal(regenerated.status,200);
+  assert.equal(regenerated.data.clockTime,'22:00','Regeneração usa a mesma duração sem dobrar o relógio');
+ }finally{await new Promise(resolve=>srv.close(resolve));}
+});
