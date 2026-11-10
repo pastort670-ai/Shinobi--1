@@ -9,7 +9,7 @@ const response={narrative:'Hiruzen observa o movimento e pede ao mensageiro que 
  pendingTasks:[{description:'Voltar ao portão amanhã.',status:'open',dueDay:4}],
  npcKnowledge:[{name:'Hiruzen',fact:'Akira ajudou no portão.'}],openingDay:3};
 const srv=app({dbPath:':memory:',access:{required:false},rateMs:0,configured:true,
- generate:async(_c,i)=>i.opening?{...response,narrative:'Em 13 de outubro do Ano 1, Akira está junto aos portões de Konoha, enquanto a vila se reorganiza após a Kyūbi.',sceneType:'normal',moment:null}:i.segments?.some(s=>/dorm/i.test(s.text))?{...response,narrative:'Akira dormiu tranquilamente; na manhã seguinte, o sol nasceu sobre Konoha.',sceneType:'time',elapsedDays:1,moment:null}:response});
+ generate:async(_c,i)=>i.opening?{...response,narrative:'Em 13 de outubro do Ano 1, Akira está junto aos portões de Konoha, enquanto a vila se reorganiza após a Kyūbi.',sceneType:'normal',moment:null}:i.segments?.some(s=>/dorm/i.test(s.text))?{...response,narrative:'Akira dormiu tranquilamente; na manhã seguinte, o sol nasceu sobre Konoha.',sceneType:'normal',elapsedDays:1,moment:null,timeAvailable:false}:i.segments?.some(s=>/encerr/i.test(s.text))?{...response,narrative:'Hiruzen terminou suas instruções. A conversa se encerrou e Akira ficou livre.',sceneType:'normal',moment:null,timeAvailable:true,timeChoices:[{hours:3,label:'Esperar três horas'},{hours:24,label:'Descansar um dia'}]}:{...response,timeAvailable:false}});
 await new Promise(r=>srv.listen(0,'127.0.0.1',r));
 const browser=await chromium.launch({headless:true});
 try{
@@ -17,7 +17,7 @@ try{
  const errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.goto('http://127.0.0.1:'+srv.address().port,{waitUntil:'networkidle'});
  assert.deepEqual(errors,[],'Não pode haver erro JavaScript na inicialização móvel');
- assert.equal(await page.locator('#time').isVisible(),true,'TEMPO fica disponível antes de qualquer narração');
+ assert.equal(await page.locator('#time').isVisible(),false,'TEMPO não aparece antes de uma janela segura');
  assert.equal(await page.locator('#regen').isDisabled(),true,'Regenerar fica indisponível antes do primeiro turno');
  assert.equal(await page.locator('.quick-nav').count(),0,'A barra extra de atalhos foi removida');
  const initialComposer=await page.locator('.composer').boundingBox();
@@ -36,10 +36,7 @@ try{
  await page.locator('#acceptintro').waitFor({timeout:15000});
  assert.match(await page.locator('#calendar').innerText(),/13\/10.*Ano 1/s);
  await page.locator('#acceptintro').click();
- await page.locator('#time').click();
- assert.equal(await page.locator('#timearea').isVisible(),true,'É possível programar TEMPO antes do primeiro turno');
- await page.locator('#time').click();
- assert.equal(await page.locator('#timearea').isVisible(),false);
+ assert.equal(await page.locator('#time').isVisible(),false,'TEMPO permanece oculto após a introdução');
  assert.equal(await page.locator('.headband-plate use').getAttribute('href'),'/village-icons.svg#konohagakure');
  await page.locator('#menutoggle').click();
  await page.locator('#sidebar [data-tab="calendarpage"]').click();
@@ -74,7 +71,7 @@ try{
  const darkAccent=await page.evaluate(()=>getComputedStyle(document.documentElement).getPropertyValue('--accent').trim());
  assert.equal(darkAccent,'#ad85ff','Destaques ficam roxos no modo escuro');
  await page.locator('#more summary').click();
- assert.equal(await page.locator('#time').isVisible(),true,'TEMPO continua disponível sem sugestão da IA');
+ assert.equal(await page.locator('#time').isVisible(),false,'TEMPO fica contextual em diálogos');
  await page.locator('#editor').fill('Akira observa os ninjas no portão. ');
  await page.locator('#talk').click();
  await page.keyboard.type('Hiruzen, posso ajudar?');
@@ -97,16 +94,21 @@ try{
  await page.locator('#pendingTasks').getByText('Voltar ao portão amanhã.').waitFor();
  await page.locator('#menutoggle').click();
  await page.locator('#sidebar [data-tab="story"]').click();
- assert.equal(await page.locator('#time').isVisible(),true,'TEMPO permanece disponível em todos os turnos');
+ assert.equal(await page.locator('#time').isVisible(),false,'TEMPO fica oculto durante o combate');
+ await page.locator('#editor').fill('Akira encerra a conversa e fica livre para descansar.');
+ await page.locator('#send').click();
+ await page.locator('#chat .bubble.ai').last().getByText(/conversa se encerrou/).waitFor({timeout:15000});
+ assert.equal(await page.locator('#time').isVisible(),true,'TEMPO só aparece após o encerramento da conversa');
  await page.locator('#time').click();
  await page.locator('#timeactivity').fill('Descanso por um dia.');
  await page.locator('#timeamount').fill('1');
+ assert.equal(await page.locator('#timeunit').inputValue(),'24','Unidade padrão é dias, não horas');
  await page.locator('#send').click();
  await page.locator('#calendar').getByText(/14\/10.*Ano 1/).waitFor({timeout:15000});
  await page.locator('#editor').fill('Akira dorme até a manhã seguinte.');
  await page.locator('#send').click();
  await page.locator('#calendar').getByText(/15\/10.*Ano 1/).waitFor({timeout:15000});
- assert.equal(await page.locator('#time').isVisible(),true,'TEMPO continua ativo mesmo depois de passagem automática');
+ assert.equal(await page.locator('#time').isVisible(),false,'TEMPO some quando a cena não oferece janela segura');
  await page.setViewportSize({width:390,height:530});
  await page.locator('#editor').focus();
  await page.waitForTimeout(150);
