@@ -34,6 +34,7 @@ try{
  await page.locator('#confirm').check();
  await page.locator('#createform button[type="submit"]').click();
  await page.locator('#acceptintro').waitFor({timeout:15000});
+  await page.waitForFunction(()=>document.querySelector('#calendar')?.textContent?.includes('13/10'),{timeout:15000});
  assert.match(await page.locator('#calendar').innerText(),/13\/10.*Ano 1/s);
  await page.locator('#acceptintro').click();
  assert.equal(await page.locator('#time').isVisible(),false,'TEMPO permanece oculto após a introdução');
