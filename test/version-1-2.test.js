@@ -49,7 +49,7 @@ test('ficha e desenvolvimento ficam na mesma aba; calendário separado navega',(
  assert.match(html,/Ficha do personagem/);
  assert.match(js,/drawCalendar\(\)/);
  assert.match(js,/calendarEvents/);
- assert.match(js,/development\|\|\[\]/);
+ assert.match(js,/jutsus/);
  const syntax=spawnSync(process.execPath,['--check',new URL('../public/app.js',import.meta.url).pathname],{encoding:'utf8'});
  assert.equal(syntax.status,0,syntax.stderr);
 });
