@@ -1,5 +1,5 @@
 # Hospedagem gratuita de testes: o banco é temporário.
-# O servidor exige convite e mantém as campanhas separadas por navegador.
+# O servidor exige senha e mantém as campanhas separadas por navegador.
 services:
   - type: web
     name: shinobi-testes
@@ -31,7 +31,7 @@ services:
         value: 'true'
       - key: EPHEMERAL_STORAGE
         value: 'true'
-      - key: OWNER_INVITE_HASH
+      - key: SHINOBI_PASSWORD_HASH
         sync: false
       - key: ACCESS_SESSION_SECRET
         sync: false
