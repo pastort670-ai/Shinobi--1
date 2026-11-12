@@ -9,7 +9,7 @@ import {timeMaxHours} from './time-engine.js';
 import {provider} from './gemini.js';
 import {accessControl} from './access.js';
 const root=resolve(dirname(fileURLToPath(import.meta.url)),'..');
-export function app({dbPath=process.env.DB_PATH||resolve(root,'data/shinobi.sqlite'),generate=provider(),configured=!!process.env.GEMINI_API_KEY,secure=process.env.COOKIE_SECURE==='true',rateMs=15000,access={required:process.env.REQUIRE_INVITE==='true',ownerHash:process.env.OWNER_INVITE_HASH,secret:process.env.ACCESS_SESSION_SECRET}}={}){
+export function app({dbPath=process.env.DB_PATH||resolve(root,'data/shinobi.sqlite'),generate=provider(),configured=!!process.env.GEMINI_API_KEY,secure=process.env.COOKIE_SECURE==='true',rateMs=15000,access={required:process.env.REQUIRE_INVITE==='true',passwordHash:process.env.SHINOBI_PASSWORD_HASH,secret:process.env.ACCESS_SESSION_SECRET}}={}){
  if(dbPath!==':memory:')mkdirSync(dirname(dbPath),{recursive:true});const db=new DatabaseSync(dbPath);db.exec('PRAGMA journal_mode=WAL; CREATE TABLE IF NOT EXISTS campaigns(id TEXT PRIMARY KEY, owner TEXT NOT NULL, state TEXT NOT NULL, previous TEXT); CREATE TABLE IF NOT EXISTS usage(owner TEXT PRIMARY KEY, last INTEGER, day TEXT, count INTEGER); CREATE TABLE IF NOT EXISTS checkpoints(campaign TEXT NOT NULL, owner TEXT NOT NULL, message_index INTEGER NOT NULL, state TEXT NOT NULL, PRIMARY KEY(campaign,owner,message_index));');
  const gate=accessControl(db,{...access,secure});
  const busy=new Set();const hash=t=>createHash('sha256').update(t).digest('hex');
