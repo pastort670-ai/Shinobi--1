@@ -22,13 +22,25 @@ function dueTask(c,name,target){
 }
 export function planNpcTurn(c,i){
  if(process.env.MOTOR_SHINOBI_ENABLED==='false')return {mode:'disabled',day:c.day+(i.days||0),intentions:[]};
- const target=c.day+(i.days||0),named=relevantNames(c,i);
+ const target=c.day+(i.days||0);
+ const named=relevantNames(c,i);
+ // NPCs conhecidos podem cuidar de compromissos durante períodos longos,
+ // mas não precisam aparecer fisicamente nem conhecer segredos do jogador.
+ if(target>c.day){
+  const candidates=[...new Set([...Object.keys(c.npcAgents||{}),...Object.keys(c.relations||{}),...Object.keys(c.npcKnowledge||{})])];
+  for(const name of candidates){
+   if(named.length>=8)break;
+   const hasDatedTask=(c.pendingTasks||[]).some(t=>t.status==='open'&&Number.isInteger(t.dueDay)&&t.dueDay>c.day&&t.dueDay<=target&&t.description?.toLocaleLowerCase('pt-BR').includes(name.toLocaleLowerCase('pt-BR')));
+   if(hasDatedTask&&!named.includes(name))named.push(name);
+  }
+ }
  const intentions=named.map(name=>{
   const agent=c.npcAgents?.[name]||{};
   const knowledge=distinct([...(c.npcKnowledge?.[name]||[]),...(agent.knowledge||[])]).slice(-MAX_KNOWLEDGE);
   const task=dueTask(c,name,target);
   const relation=c.relations?.[name]||agent.relationship||'';
   const goals=(agent.goals||[]).slice(-3);
+  const offscreen=!(i.segments||[]).some(s=>s.text?.toLocaleLowerCase('pt-BR').includes(name.toLocaleLowerCase('pt-BR')))&&!c.messages.slice(-2).some(m=>m.text?.toLocaleLowerCase('pt-BR').includes(name.toLocaleLowerCase('pt-BR')));
   const choices=[
    {action:'continue',score:20,reason:'Preservar a rotina e a continuidade sem inventar acontecimentos.'},
    {action:'respond',score:48+(relation?8:0),reason:'Responder de forma coerente ao contato com o protagonista.'},
@@ -36,10 +48,10 @@ export function planNpcTurn(c,i){
    ...(relationPriority(relation)!==0?[{action:'relationship',score:51+Math.abs(relationPriority(relation))*8,reason:'Manter a relação já estabelecida.'}]:[])
   ];
   choices.sort((a,b)=>b.score-a.score||a.action.localeCompare(b.action));
-  return {name,action:choices[0].action,reason:choices[0].reason,task:choices[0].task||null,relationship:text(relation,160),goals,knownFacts:knowledge.slice(-5).map(v=>text(v,180)),priority:choices[0].score};
+  return {name,action:choices[0].action,scope:offscreen?'offscreen':'scene',reason:choices[0].reason,task:choices[0].task||null,relationship:text(relation,160),goals,knownFacts:knowledge.slice(-5).map(v=>text(v,180)),priority:choices[0].score};
  });
  return {mode:'event-driven',day:target,intentions,
-  instructions:'São intenções sugeridas, não acontecimentos realizados. Respeite a vontade do jogador, o cânone, a cena e a informação disponível. Nunca force ações, revelações ou decisões sem causa.'};
+  instructions:'São intenções sugeridas, não acontecimentos realizados. scope=offscreen indica um compromisso fora da cena: só descreva consequências observáveis ou notícias plausíveis se forem relevantes; não teletransporte o NPC nem revele seus segredos. Respeite a vontade do jogador, o cânone e a informação disponível. Nunca force ações, revelações ou decisões sem causa.'};
 }
 export function commitNpcTurn(previous,next,i,r){
  if(process.env.MOTOR_SHINOBI_ENABLED==='false')return next;
