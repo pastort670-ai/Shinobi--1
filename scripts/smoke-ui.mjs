@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import {chromium} from 'playwright';
+import {createHash} from 'node:crypto';
 import {app} from '../src/server.js';
 
 const response={narrative:'Hiruzen observa o movimento e pede ao mensageiro que proteja os moradores.',
@@ -124,5 +125,30 @@ try{
  await page.locator('#restorelocal').click();
  await page.waitForFunction(()=>document.getElementById('hero')?.textContent==='Akira Sarutobi',null,{timeout:15000});
  assert.deepEqual(errors,[],'Nenhum erro JavaScript no navegador');
+ // Mobile real login: verify cookie, application boot, network failure, and retry.
+ const secretPassword='SenhaDeTeste!2026';
+ const secured=app({dbPath:':memory:',access:{required:true,passwordHash:createHash('sha256').update(secretPassword).digest('hex'),secret:'m'.repeat(64)},rateMs:0,configured:true,generate:async()=>response});
+ await new Promise(resolve=>secured.listen(0,'127.0.0.1',resolve));
+ try{
+  const secureUrl='http://127.0.0.1:'+secured.address().port;
+  const loginPage=await browser.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
+  const loginErrors=[];loginPage.on('pageerror',e=>loginErrors.push(e.message));
+  await loginPage.goto(secureUrl);
+  await loginPage.locator('#password').fill(secretPassword);
+  await loginPage.locator('#enter').click();
+  await loginPage.locator('#connection').getByText(/Servidor e Gemini disponíveis/).waitFor({timeout:15000});
+  assert.equal(await loginPage.locator('#start').isVisible(),true,'Entrar com senha abre o jogo no celular');
+  const denied=async route=>{if(route.request().url().endsWith('/api/status'))await route.abort('failed');else await route.continue();};
+  await loginPage.route('**/api/status',denied);
+  await loginPage.reload();
+  await loginPage.locator('#reconnect').waitFor({state:'visible',timeout:15000});
+  assert.match(await loginPage.locator('#connection').innerText(),/Falha/);
+  await loginPage.unroute('**/api/status',denied);
+  await loginPage.locator('#reconnect').click();
+  await loginPage.locator('#connection').getByText(/Servidor e Gemini disponíveis/).waitFor({timeout:15000});
+  assert.deepEqual(loginErrors,[],'Inicialização, falha e recuperação não geram erros JavaScript');
+  await loginPage.close();
+  console.log('Mobile access smoke passed: password, session and reconnect.');
+ }finally{await new Promise(resolve=>secured.close(resolve));}
  console.log('Mobile UI smoke passed: creation, intro, mixed editing, combat, memory and time.');
 }finally{await browser.close();await new Promise(r=>srv.close(r));}

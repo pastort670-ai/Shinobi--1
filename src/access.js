@@ -31,7 +31,7 @@ export function accessControl(db,{required=false,passwordHash='',secret='',secur
     attempts.delete(key);
     const exp=now+30*86400000;
     const body=Buffer.from(JSON.stringify({v:2,passwordHash,exp})).toString('base64url');
-    res.setHeader('Set-Cookie',`shinobi_access=${body}.${sign(body)}; HttpOnly; SameSite=Strict; Path=/; Max-Age=2592000${secure?'; Secure':''}`);
+    res.setHeader('Set-Cookie',`shinobi_access=${body}.${sign(body)}; HttpOnly; SameSite=Lax; Path=/; Max-Age=2592000${secure?'; Secure':''}`);
     json({ok:true});
    }catch{active.push(now);attempts.set(key,active);json({error:'Senha incorreta.'},403);}
    return true;
