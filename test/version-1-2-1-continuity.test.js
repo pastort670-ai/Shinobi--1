@@ -17,12 +17,13 @@ test('uma narrativa longa preserva anos, marcos, exames e eventos pendentes',()=
  assert.equal(first.personalityTraits.length,1);
  assert.equal(first.consequences.length,1);
  const future=context(first,input({days:3650}));
- assert.ok(future.pending.some(e=>e.id.startsWith('chunin-exam-')));
+ assert.equal(future.timePlan.interruption?.day,1);assert.equal(future.day,1);assert.ok(!future.pending.some(e=>e.id.startsWith('chunin-exam-')));
  assert.equal(future.npcKnowledge.Hiruzen,undefined);const focused=context(first,input({segments:[{type:'FALAR',text:'Hiruzen, lembra da promessa?'}]}));assert.equal(focused.npcKnowledge.Hiruzen[0],'Akira prometeu voltar.');
  const years=apply(first,input({days:3650}),base);
- assert.equal(years.day,3650);assert.equal(view(years).age,12);
- assert.ok(years.timeline.filter(e=>e.id.startsWith('chunin-exam-')).length>=9);
- assert.equal(calendar(years.day).year,11);
+ assert.equal(years.day,1);assert.equal(view(years).age,2);
+ assert.equal(years.timeline.filter(e=>e.id.startsWith('chunin-exam-')).length,0);
+ assert.equal(calendar(years.day).year,1);
+ assert.ok(years.lastTimeInterruption);
  assert.equal(c.personalityTraits.length,0);
 });
 test('entradas invalidadas preservam história e regras temporais',()=>{
