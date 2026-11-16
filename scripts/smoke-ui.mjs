@@ -28,8 +28,19 @@ try{
  assert.equal(await page.locator('.headband-plate .shinobi-leaf').count(),1,'Cabeçalho usa emblema de bandana ninja');
  assert.equal(await page.locator('.headband-plate use').getAttribute('href'),'/village-icons.svg#konohagakure','Konoha é o padrão inicial');
  await page.locator('#start').click();
+ assert.equal(await page.locator('input[name="name"]').inputValue(),'Kaien Sarutobi','Kaien deve ser o personagem padrão');
+ assert.equal(await page.locator('input[name="age"]').inputValue(),'8','Idade inicial padrão é oito anos no nascimento de Naruto');
+ assert.equal(await page.locator('select[name="affiliation"]').inputValue(),'Academia Ninja');
+ assert.equal(await page.locator('select[name="clan"]').inputValue(),'Sarutobi');
+ assert.match(await page.locator('textarea[name="skills"]').inputValue(),/Prodígio excepcional/);
+ assert.match(await page.locator('textarea[name="history"]').inputValue(),/adotado aos seis anos por Hiruzen/);
+ // A ficha-base é um modelo editável; restaurar não substitui campanhas criadas.
+ await page.locator('input[name="name"]').fill('Outro personagem');
+ await page.locator('#akira').click();
+ assert.equal(await page.locator('input[name="name"]').inputValue(),'Kaien Sarutobi');
  await page.locator('input[name="name"]').fill('Akira Sarutobi');
  await page.locator('input[name="age"]').fill('2');
+ await page.locator('select[name="affiliation"]').selectOption('Civil');
  await page.locator('select[name="clan"]').selectOption('Sarutobi');
  await page.locator('textarea[name="history"]').fill('Adotado por Hiruzen.');
  await page.locator('#confirm').check();

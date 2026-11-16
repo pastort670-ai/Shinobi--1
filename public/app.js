@@ -59,9 +59,22 @@ async function auditCurrentMemories(){
 }
 async function load(id){current=await api('campaigns/'+id);remember('shinobi-active',id);parts=[{type:'AGIR',text:''}];timeActive=false;timeText='';editorMode='AGIR';calendarCursor=null;calendarSelected=current.day;render();await auditCurrentMemories();}
 $('campaigns').onchange=()=>run(()=>load($('campaigns').value));
-function openCreation(){if(busy)return;if(current){notice('Uma campanha por vez. Exporte e encerre a campanha atual antes de começar outra.');return;}$('createform').reset();$('creation').showModal();drawer(false);}
+function openCreation(){if(busy)return;if(current){notice('Uma campanha por vez. Exporte e encerre a campanha atual antes de começar outra.');return;}$('createform').reset();fillBaseCharacter();$('creation').showModal();drawer(false);}
 $('new').onclick=openCreation;$('start').onclick=openCreation;$('close').onclick=()=>$('creation').close();
-$('akira').onclick=()=>{const f=$('createform');const data={title:'Akira · O caminho de Sarutobi',name:'Akira Sarutobi',age:2,village:'Konohagakure',clan:'Sarutobi',affiliation:'Civil',appearance:'Olhos e cabelos castanhos.',personality:'Curioso, observador e muito talentoso.',skills:'Grande potencial ninja, mas ainda muito jovem.',history:'Órfão adotado por Hiruzen Sarutobi, o Terceiro Hokage, dois anos mais velho que Naruto.'};for(const [k,v]of Object.entries(data))f.elements.namedItem(k).value=v;};
+const BASE_CHARACTER={
+ title:'Kaien · O caminho de Sarutobi',
+ name:'Kaien Sarutobi',
+ age:8,
+ village:'Konohagakure',
+ clan:'Sarutobi',
+ affiliation:'Academia Ninja',
+ appearance:'Cabelos castanhos, olhos castanhos e expressão confiante. Postura disciplinada e observadora, fruto da educação recebida de Hiruzen.',
+ personality:'Inteligente, independente, ambicioso e extremamente curioso. Orgulha-se das próprias capacidades e não gosta de receber ordens sem compreender seus motivos. Respeita Hiruzen, mas prefere formar seus próprios julgamentos e convicções.',
+ skills:'Prodígio excepcional: inteligência, memória, reflexos e aprendizado muito acima da média. Talento natural para ninjutsu, taijutsu, genjutsu e estratégia. Assimila fundamentos rapidamente, surpreende instrutores experientes e pode superar colegas mais velhos com treino e dedicação. Ainda precisa de experiência e dominar técnicas progressivamente; não começa com jutsus aprendidos automaticamente.',
+ history:'Órfão desde pequeno, Kaien foi acolhido e adotado aos seis anos por Hiruzen Sarutobi, o Terceiro Hokage. Recebeu o sobrenome e reconhecimento como membro legítimo da família Sarutobi. Hiruzen percebeu seu talento extraordinário e assumiu pessoalmente parte de sua educação e treinamento. Dois anos depois, quando Naruto nasce, Kaien já é uma das jovens promessas de Konoha. Sua adoção o aproxima de Asuma e do clã Sarutobi; ao longo da vida poderá criar vínculos com Jiraiya, Tsunade e outros antigos alunos de Hiruzen. Teve pouco contato com Orochimaru, cujo caminho poderá gerar rivalidade. Kaien deseja construir seu próprio caminho ninja, aceitar missões e tomar decisões segundo o que considera correto. Seu futuro depende das experiências e escolhas da campanha.'
+};
+function fillBaseCharacter(){const form=$('createform');for(const [key,value] of Object.entries(BASE_CHARACTER)){const field=form.elements.namedItem(key);if(field)field.value=String(value);}const warning=$('character-warning');warning.hidden=true;warning.textContent='';}
+$('akira').onclick=fillBaseCharacter;
 $('createform').onsubmit=e=>{e.preventDefault();const raw=Object.fromEntries(new FormData(e.target));const age=Number(raw.age),problem=['Genin','Chūnin','Jōnin','ANBU'].includes(raw.affiliation)&&age<5?'Afiliação incompatível com a idade inicial.':raw.affiliation==='Academia Ninja'&&age<4?'A Academia exige idade adequada.':raw.clan==='Uchiha'&&raw.village==='Sem vila'&&!/ex[ií]l|fug|viag|fora|refugi/i.test(raw.history)?'Explique na história como um Uchiha vive fora de sua vila.':'';const warning=$('character-warning');warning.textContent=problem;warning.hidden=!problem;if(problem)return;run(async()=>{const c=await api('campaigns',{title:raw.title,character:raw});$('creation').close();await list(c.id);tab('story');try{current=await api('campaigns/'+c.id+'/intro',{revision:current.revision});calendarSelected=current.day;render();}catch(error){notice('Ficha criada. Introdução personalizada indisponível: '+error.message+' Use “Gerar outra introdução” para tentar novamente.');}},true);};
 function focusPart(){ $('editor')?.focus(); }
 function editorParts(){
