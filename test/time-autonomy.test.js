@@ -1,0 +1,60 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {create,context,input,apply} from '../src/engine.js';
+import {actualTime,timePlan} from '../src/time-engine.js';
+import {planNpcTurn} from '../src/motor.js';
+import {system,provider} from '../src/gemini.js';
+const ch={name:'Akira',age:2,village:'Konohagakure'};
+const outcome={narrative:'Os dias se passaram. Durante a espera, os moradores retomaram a rotina; na manhã de chegada a vila estava tranquila.',facts:[],relations:[],training:null,energyDelta:0,chakraDelta:0,timeOptions:[],divergences:[]};
+test('salto em dias respeita interrupção de compromisso datado',()=>{
+ const c=create('Tempo',ch);c.clockMinutes=20*60;
+ c.pendingTasks=[{id:'t1',description:'Encontrar Hiruzen para uma conversa agendada.',status:'open',dueDay:2}];
+ const i=input({days:5});const plan=timePlan(c,i);
+ assert.equal(plan.requestedHours,120);assert.equal(plan.allowedHours,36);
+ assert.match(plan.interruption.reason,/Hiruzen/);
+ const ctx=context(c,i);
+ assert.equal(ctx.day,2);assert.equal(ctx.requestedTimeNarration.hours,36);
+ assert.equal(ctx.requestedTimeNarration.requestedHours,120);
+ assert.equal(ctx.requestedTimeNarration.to,'08:00');
+ const tick=actualTime(c,i,outcome,0);
+ assert.equal(tick.dayDelta,2);assert.equal(tick.clockMinutes,8*60);
+ assert.ok(tick.interruption);
+ const n=apply(c,i,outcome);
+ assert.equal(n.day,2);assert.equal(n.clockMinutes,8*60);assert.ok(n.lastTimeInterruption);
+ assert.equal(c.day,0);
+});
+test('salto de horas e dias têm o mesmo limite e não inventam interrupção',()=>{
+ const c=create('Tempo',ch);c.clockMinutes=20*60;c.pendingTasks=[{description:'Treino agendado com Hiruzen.',status:'open',dueDay:2}];
+ const a=timePlan(c,input({hours:120})),b=timePlan(c,input({days:5}));
+ assert.equal(a.allowedHours,b.allowedHours);
+ const clean=create('Sem pendências',ch);
+ const tick=actualTime(clean,input({days:3}),outcome,0);
+ assert.equal(tick.dayDelta,3);assert.equal(tick.interruption,null);
+});
+test('NPC com compromisso pode ter iniciativa fora da cena sem ser teletransportado',()=>{
+ const c=create('Mundo vivo',ch);
+ c.relations.Hiruzen='Mentor e pai adotivo.';
+ c.pendingTasks=[{id:'treino',description:'Hiruzen prometeu avaliar o treinamento.',status:'open',dueDay:2}];
+ c.messages=[{role:'ai',text:'Akira está sozinho no campo de treino.',day:0}];
+ const plan=planNpcTurn(c,{days:2,segments:[]});
+ const h=plan.intentions.find(n=>n.name==='Hiruzen');
+ assert.ok(h);assert.equal(h.scope,'offscreen');assert.equal(h.action,'follow_up');
+ assert.match(h.task,/treinamento/);
+ assert.equal(c.npcAgents.Hiruzen,undefined);
+ const normal=planNpcTurn(c,{days:0,segments:[]});
+ assert.ok(!normal.intentions.some(n=>n.name==='Hiruzen'));
+ const ctx=context(c,input({days:2}));
+ assert.equal(ctx.motor.intentions.find(x=>x.name==='Hiruzen').scope,'offscreen');
+ assert.match(system,/AUTONOMIA DE NPCS/);
+});
+test('o pedido Gemini informa salto efetivo em vez do intervalo solicitado',async()=>{
+ const c=create('Teste',ch);c.pendingTasks=[{description:'Treino com Hiruzen',status:'open',dueDay:2}];
+ const i=input({days:5});let contextSent;
+ const gen=provider({external:false,key:'teste',fetcher:async(_url,request)=>{
+  contextSent=JSON.parse(JSON.parse(request.body).contents[0].parts[0].text);
+  return new Response(JSON.stringify({candidates:[{finishReason:'STOP',content:{parts:[{text:JSON.stringify(outcome)}]}}]}));
+ }});
+ await gen(c,i);
+ assert.equal(contextSent.requestedTimeNarration.hours,36);
+ assert.match(contextSent.priorityInstruction,/36 horas/);
+});
