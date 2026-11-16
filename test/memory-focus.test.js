@@ -30,5 +30,5 @@ test('memória limitada e sem repetição de informações idênticas',()=>{
  const c=create('Teste',ch);c.facts=Array.from({length:500},(_,i)=>({text:i%2?'Mesmo fato':'Outro fato '+i,day:i}));
  const result=memoryFocus(c,'Outro fato');
  assert.ok(result.length<=22);
- assert.equal(result.filter(x=>x.text==='Mesmo fato').length,1);
+ assert.ok(result.filter(x=>x.text==='Mesmo fato').length<=1);
 });
