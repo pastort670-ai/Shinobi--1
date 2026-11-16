@@ -3,8 +3,8 @@
 const normalize=s=>String(s||'').normalize('NFC').toLocaleLowerCase('pt-BR');
 const clauses=s=>String(s||'').split(/[.!?\n;]+/).map(x=>x.trim()).filter(Boolean);
 const negative=/\b(?:não|nunca|jamais|sem|ainda não|falhou|fracassou|tentou|tentativa|pretende|planeja|deseja|quer|precisa|não conseguiu|incapaz)\b/iu;
-const learned=/\b(?:aprendeu|dominou|domina|dominado|aprendida|aprendido|conseguiu executar|conseguiu realizar|executou com sucesso|realizou com êxito|adquiriu|já sabe|sabe utilizar|sabe usar|possui|já possui|conhece e utiliza)\b/iu;
-const promoted=/\b(?:tornou-se|tornou se|passou a ser|foi promovid[oa] a|promovid[oa] a|graduou-se como|formou-se como|recebeu o posto de|agora é|já é|é oficialmente|foi reconhecid[oa] como|novo genin|nova genin)\b/iu;
+const learned=/\b(?:aprendeu|dominou|domina|dominado|aprendida|aprendido|conseguiu executar|conseguiu realizar|executou com sucesso|realizou com êxito|usou com sucesso|utilizou|usou|adquiriu|já sabe|sabe utilizar|sabe usar|possui|já possui|conhece e utiliza)\b/iu;
+const promoted=/\b(?:tornou-se|tornou se|passou a ser|foi promovid[oa] a|promovid[oa] a|graduou-se como|formou-se como|recebeu o posto de|agora é|já é|é oficialmente|foi reconhecid[oa] como|novo genin|nova genin|é genin)\b/iu;
 const genin=/\bgenin\b/iu;
 const jutsu=/\b(?:bunshin\s+no\s+jutsu|kage\s+bunshin|jutsu\s+d[eo]s?\s+clones?|técnica\s+de\s+clonagem|clones?\s+(?:comuns?|simples?))\b/iu;
 function rank(affiliation){
