@@ -40,6 +40,7 @@ try{
  assert.equal(await page.locator('input[name="name"]').inputValue(),'Kaien Sarutobi');
  await page.locator('input[name="name"]').fill('Akira Sarutobi');
  await page.locator('input[name="age"]').fill('2');
+ await page.locator('select[name="affiliation"]').selectOption('Civil');
  await page.locator('select[name="clan"]').selectOption('Sarutobi');
  await page.locator('textarea[name="history"]').fill('Adotado por Hiruzen.');
  await page.locator('#confirm').check();
