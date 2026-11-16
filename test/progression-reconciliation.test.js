@@ -1,0 +1,55 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {create,view,context,input,apply,validate} from '../src/engine.js';
+import {reconcileProgress,hasExceptionalTalent,trainingGainLimit} from '../src/progression.js';
+import {system} from '../src/gemini.js';
+const character={name:'Akira Sarutobi',age:2,village:'Konohagakure',clan:'Sarutobi',skills:'Akira é um prodígio e gênio no aprendizado de ninjutsu.'};
+const response={narrative:'Após dez dias de estudo e treino, Akira demonstrou progresso real.',facts:[],relations:[],training:{skill:'ninjutsu',gain:8},energyDelta:0,chakraDelta:0,timeOptions:[],divergences:[],profileUpdates:[],learnedJutsus:[]};
+test('ficha de campanha anterior recupera genin e clone confirmados, sem alterar a origem',()=>{
+ const c=create('Antiga',character);
+ c.messages.push({role:'user',day:4,text:'Quero tentar o exame genin.'},{role:'ai',day:4,text:'Akira foi promovido a genin após concluir a avaliação.'});
+ c.messages.push({role:'user',day:6,text:'Tento aprender o jutsu de clones.'},{role:'ai',day:6,text:'Após treinamento, Akira aprendeu o Bunshin no Jutsu e consegue executá-lo.'});
+ const record=view(c);
+ assert.equal(record.profile.affiliation,'Genin');
+ assert.equal(record.jutsus.length,1);
+ assert.equal(record.jutsus[0].name,'Bunshin no Jutsu');
+ assert.equal(c.character.affiliation,'Civil');
+ assert.equal(c.profile.affiliation,undefined);
+ const ctx=context(c,input({segments:[{type:'FALAR',text:'Sensei, posso continuar?' }]}));
+ assert.equal(ctx.profile.affiliation,'Genin');
+ assert.equal(ctx.jutsus[0].name,'Bunshin no Jutsu');
+ const next=apply(c,input({segments:[{type:'AGIR',text:'Continuo treinando o jutsu que já aprendi.'}]}),{...response,training:null,narrative:'Akira repetiu os movimentos e praticou a clonagem.'});
+ assert.equal(next.profile.affiliation,'Genin');
+ assert.equal(next.jutsus.length,1);
+ assert.equal(next.character.affiliation,'Civil');
+});
+test('não transforma tentativa, falha, negacão ou técnica de outro personagem em conquista',()=>{
+ const c=create('Antiga',character);
+ c.messages.push({role:'ai',day:1,text:'Akira tentou aprender o Bunshin no Jutsu, mas falhou.'});
+ c.messages.push({role:'ai',day:2,text:'Akira ainda não é genin.'});
+ c.messages.push({role:'ai',day:3,text:'Akira assistiu a Hiruzen, que dominou o Bunshin no Jutsu.'});
+ assert.equal(reconcileProgress(c).jutsus.length,0);
+ assert.equal(reconcileProgress(c).profile.affiliation,undefined);
+});
+test('prodígio pode superar o ritmo médio após treino longo; minuto isolado segue limitado',()=>{
+ const c=create('Treino',character);
+ assert.equal(hasExceptionalTalent(c),true);
+ const long=input({days:12,segments:[{type:'AGIR',text:'Estudo ninjutsu todos os dias.'}]});
+ const grown=apply(c,long,response);
+ assert.equal(grown.progress.ninjutsu,8);
+ assert.equal(c.progress.ninjutsu,0);
+ const short=apply(c,input({segments:[{type:'AGIR',text:'Estudo um pouco.'}]}),response);
+ assert.equal(short.progress.ninjutsu,2);
+ const ordinary=create('Normal',{...character,skills:'Aluno comum.'});
+ assert.equal(trainingGainLimit(ordinary,long,{hours:12*24},response),6);
+ assert.equal(trainingGainLimit(c,long,{hours:12*24},response),8);
+ assert.throws(()=>validate({...response,training:{skill:'ninjutsu',gain:100}}),/Progressão inválida/);
+ assert.match(system,/PROGRESSÃO JUSTA/);
+});
+test('jutsu já aprendido não duplica durante novas respostas',()=>{
+ const c=create('Treino',character);
+ c.jutsus=[{name:'Bunshin no Jutsu',description:'Clonagem básica',day:0}];
+ c.messages.push({role:'ai',day:1,text:'Akira aprendeu o Bunshin no Jutsu.'});
+ const next=apply(c,input({segments:[{type:'AGIR',text:'Uso o Bunshin.'}]}),{...response,training:null,learnedJutsus:[{name:'Bunshin no Jutsu',description:'Clonagem consolidada'}]});
+ assert.equal(view(next).jutsus.length,1);
+});
