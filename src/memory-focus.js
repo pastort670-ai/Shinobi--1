@@ -1,5 +1,5 @@
 // Seleção determinística das lembranças mais úteis; não altera fatos canônicos.
-const tokens=value=>new Set(String(value||'').toLocaleLowerCase('pt-BR').match(/[\\p{L}\\p{N}]{4,}/gu)||[]);
+const tokens=value=>new Set(String(value||'').toLocaleLowerCase('pt-BR').match(/[\p{L}\p{N}]{4,}/gu)||[]);
 const overlap=(a,b)=>{let count=0;for(const t of a)if(b.has(t))count++;return count;};
 export function memoryFocus(c,question='',recent=[]){
  const query=tokens(question+' '+recent.map(m=>m.text||'').slice(-4).join(' '));
