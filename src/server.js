@@ -6,10 +6,11 @@ import {resolve,dirname} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {create,input,apply,view,fail} from './engine.js';
 import {timeMaxHours} from './time-engine.js';
-import {provider} from './gemini.js';
+import {provider,milestoneAuditor} from './gemini.js';
+import {milestoneSources,needsMilestoneAudit,verifiedMilestones} from './milestone-audit.js';
 import {accessControl} from './access.js';
 const root=resolve(dirname(fileURLToPath(import.meta.url)),'..');
-export function app({dbPath=process.env.DB_PATH||resolve(root,'data/shinobi.sqlite'),generate=provider(),configured=!!process.env.GEMINI_API_KEY,secure=process.env.COOKIE_SECURE==='true',rateMs=15000,access={required:process.env.REQUIRE_INVITE==='true',passwordHash:process.env.SHINOBI_PASSWORD_HASH,secret:process.env.ACCESS_SESSION_SECRET}}={}){
+export function app({dbPath=process.env.DB_PATH||resolve(root,'data/shinobi.sqlite'),generate=provider(),auditMilestones=milestoneAuditor(),configured=!!process.env.GEMINI_API_KEY,secure=process.env.COOKIE_SECURE==='true',rateMs=15000,access={required:process.env.REQUIRE_INVITE==='true',passwordHash:process.env.SHINOBI_PASSWORD_HASH,secret:process.env.ACCESS_SESSION_SECRET}}={}){
  if(dbPath!==':memory:')mkdirSync(dirname(dbPath),{recursive:true});const db=new DatabaseSync(dbPath);db.exec('PRAGMA journal_mode=WAL; CREATE TABLE IF NOT EXISTS campaigns(id TEXT PRIMARY KEY, owner TEXT NOT NULL, state TEXT NOT NULL, previous TEXT); CREATE TABLE IF NOT EXISTS usage(owner TEXT PRIMARY KEY, last INTEGER, day TEXT, count INTEGER); CREATE TABLE IF NOT EXISTS checkpoints(campaign TEXT NOT NULL, owner TEXT NOT NULL, message_index INTEGER NOT NULL, state TEXT NOT NULL, PRIMARY KEY(campaign,owner,message_index));');
  const gate=accessControl(db,{...access,secure});
  const busy=new Set();const hash=t=>createHash('sha256').update(t).digest('hex');
@@ -32,7 +33,7 @@ export function app({dbPath=process.env.DB_PATH||resolve(root,'data/shinobi.sqli
  if(!url.pathname.startsWith('/api/')){if(req.method!=='GET')fail('Método não permitido.',405);const assets={'/':['index.html','text/html'],'/app.js':['app.js','text/javascript'],'/style.css':['style.css','text/css'],'/village-icons.svg':['village-icons.svg','image/svg+xml']};const a=assets[url.pathname];if(!a)fail('Não encontrado.',404);res.writeHead(200,{'Content-Type':a[1]+'; charset=utf-8'});res.end(readFileSync(resolve(root,'public',a[0])));return;}
  if(req.headers.origin){const o=new URL(req.headers.origin);if(o.host!==req.headers.host)fail('Origem não permitida.',403);}if(req.headers['sec-fetch-site']==='cross-site')fail('Origem não permitida.',403);
  let token=req.headers.cookie?.match(/(?:^|; )shinobi=([a-f0-9]{64})(?:;|$)/)?.[1];if(!token){token=randomBytes(32).toString('hex');res.setHeader('Set-Cookie',`shinobi=${token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=31536000${secure?'; Secure':''}`);}const owner=hash(token);
- if(url.pathname==='/api/status'&&req.method==='GET')return json({configured,version:'1.8.0',externalLore:process.env.EXTERNAL_LORE_ENABLED!=='false',admin:!!visitor?.admin,ephemeral:process.env.EPHEMERAL_STORAGE==='true'||(process.env.RENDER==='true'&&!process.env.DB_PATH)});
+ if(url.pathname==='/api/status'&&req.method==='GET')return json({configured,version:'1.8.1',externalLore:process.env.EXTERNAL_LORE_ENABLED!=='false',admin:!!visitor?.admin,ephemeral:process.env.EPHEMERAL_STORAGE==='true'||(process.env.RENDER==='true'&&!process.env.DB_PATH)});
  const read=async(maxBytes=25000)=>{let n=0,chunks=[];for await(const chunk of req){n+=chunk.length;if(n>maxBytes)fail('Requisição muito grande.',413);chunks.push(chunk);}try{return JSON.parse(Buffer.concat(chunks).toString()||'{}');}catch{fail('JSON inválido.');}};
  if(url.pathname==='/api/import'){
   if(req.method!=='POST')fail('Método não permitido.',405);
@@ -65,10 +66,10 @@ export function app({dbPath=process.env.DB_PATH||resolve(root,'data/shinobi.sqli
  if(url.pathname==='/api/campaigns'){
  if(req.method==='GET')return json(db.prepare('SELECT state FROM campaigns WHERE owner=?').all(owner).map(r=>{let c=JSON.parse(r.state);return {id:c.id,title:c.title,name:c.character.name,day:c.day};}));
  if(req.method==='POST'){const raw=await read();if(db.prepare('SELECT 1 FROM campaigns WHERE owner=? LIMIT 1').get(owner))fail('Já existe uma campanha neste navegador. Exporte sua campanha antes de começar outra.',409);const c=create(raw.title,raw.character??{});db.prepare('INSERT INTO campaigns VALUES(?,?,?,NULL)').run(c.id,owner,JSON.stringify(c));return json(view(c),201);}}
- const m=url.pathname.match(/^\/api\/campaigns\/([a-f0-9-]+)(?:\/(turn|regenerate|export|rewind|intro|intro-confirm|memory|close))?$/);if(!m)fail('Rota não encontrada.',404);const [,id,action]=m;let row=get(id,owner),c=JSON.parse(row.state);
+ const m=url.pathname.match(/^\/api\/campaigns\/([a-f0-9-]+)(?:\/(turn|regenerate|export|rewind|intro|intro-confirm|memory|audit|close))?$/);if(!m)fail('Rota não encontrada.',404);const [,id,action]=m;let row=get(id,owner),c=JSON.parse(row.state);
  if(req.method==='GET'&&!action)return json({...view(c),undoableMessages:canUndo(id,owner,c,row)});
  if(req.method==='GET'&&action==='export'){res.setHeader('Content-Disposition','attachment; filename="shinobi-campanha.json"');return json({format:'shinobi-backup-v1',campaign:c});}
- if(req.method!=='POST'||!['turn','regenerate','rewind','intro','intro-confirm','memory','close'].includes(action))fail('A ficha é imutável. Operação não permitida.',405);
+ if(req.method!=='POST'||!['turn','regenerate','rewind','intro','intro-confirm','memory','audit','close'].includes(action))fail('A ficha é imutável. Operação não permitida.',405);
  if(busy.has(id))fail('Já existe um turno em andamento.',409);busy.add(id);lock=id;const raw=await read();if(raw.revision!==c.revision)fail('Campanha atualizada em outra aba. Recarregue antes de enviar.',409);
  if(action==='close'){
   if(raw.confirm!=='ENCERRAR')fail('Confirme o encerramento para proteger sua campanha.');
@@ -79,6 +80,15 @@ export function app({dbPath=process.env.DB_PATH||resolve(root,'data/shinobi.sqli
   return json({ok:true});
  }
  if(action==='intro-confirm'){if(c.messages.length>1)fail('A campanha já foi iniciada.',409);c.introConfirmed=true;c.revision++;db.prepare('UPDATE campaigns SET state=? WHERE id=? AND owner=?').run(JSON.stringify(c),id,owner);return json({...view(c),undoableMessages:canUndo(id,owner,c,row)});}
+ if(action==='audit'){
+  if(!needsMilestoneAudit(c))return json({...view(c),undoableMessages:canUndo(id,owner,c,row)});
+  const sources=milestoneSources(c);
+  const proposals=await auditMilestones(c.character,sources);
+  const result=verifiedMilestones(c,proposals,sources);
+  c.profile=result.profile;c.jutsus=result.jutsus;c.milestoneAuditVersion=1;c.revision++;
+  db.prepare('UPDATE campaigns SET state=? WHERE id=? AND owner=?').run(JSON.stringify(c),id,owner);
+  return json({...view(c),undoableMessages:canUndo(id,owner,c,row),verifiedAchievements:result.accepted});
+ }
  if(action==='memory'){
   const candidateId=String(raw.candidateId||'');
   const message=c.messages.find(m=>m.role==='ai'&&m.memoryCandidate?.id===candidateId);
@@ -86,7 +96,7 @@ export function app({dbPath=process.env.DB_PATH||resolve(root,'data/shinobi.sqli
   if(!['saved','dismissed'].includes(raw.decision))fail('Escolha salvar ou ignorar a memória.');
   if(!c.memories)c.memories=[];
   if(!c.memories.some(m=>m.id===candidateId)){
-   if(raw.decision==='saved'){const moment={...message.memoryCandidate,status:'saved',day:message.day,id:candidateId};c.memories.push(moment);c.development??=[];c.development.push({day:message.day,text:'Memória marcante: '+moment.title+' — '+moment.description});}
+   if(raw.decision==='saved'){const moment={...message.memoryCandidate,status:'saved',day:message.day,id:candidateId};c.memories.push(moment);c.milestoneAuditVersion=0;c.development??=[];c.development.push({day:message.day,text:'Memória marcante: '+moment.title+' — '+moment.description});}
   }
   message.memoryCandidate=null;c.revision++;
   db.prepare('UPDATE campaigns SET state=? WHERE id=? AND owner=?').run(JSON.stringify(c),id,owner);
