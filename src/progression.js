@@ -3,7 +3,7 @@
 const normalize=s=>String(s||'').normalize('NFC').toLocaleLowerCase('pt-BR');
 const clauses=s=>String(s||'').split(/[.!?\n;]+/).map(x=>x.trim()).filter(Boolean);
 const negative=/\b(?:não|nunca|jamais|sem|ainda não|falhou|fracassou|tentou|tentativa|pretende|planeja|deseja|quer|precisa|não conseguiu|incapaz)\b/iu;
-const learned=/\b(?:aprendeu|dominou|domina|dominado|aprendida|aprendido|conseguiu executar|executou com sucesso|realizou com êxito|adquiriu|já sabe|sabe utilizar|sabe usar|possui|já possui|conhece e utiliza)\b/iu;
+const learned=/\b(?:aprendeu|dominou|domina|dominado|aprendida|aprendido|conseguiu executar|conseguiu realizar|executou com sucesso|realizou com êxito|adquiriu|já sabe|sabe utilizar|sabe usar|possui|já possui|conhece e utiliza)\b/iu;
 const promoted=/\b(?:tornou-se|tornou se|passou a ser|foi promovid[oa] a|promovid[oa] a|graduou-se como|formou-se como|recebeu o posto de|agora é|já é|é oficialmente|foi reconhecid[oa] como|novo genin|nova genin)\b/iu;
 const genin=/\bgenin\b/iu;
 const jutsu=/\b(?:bunshin\s+no\s+jutsu|kage\s+bunshin|jutsu\s+d[eo]s?\s+clones?|técnica\s+de\s+clonagem|clones?\s+(?:comuns?|simples?))\b/iu;
@@ -30,6 +30,8 @@ export function reconcileProgress(c){
   for(const clause of clauses(item.text)){
    const v=normalize(clause);
    if(negative.test(v))continue;
+   // Ver uma técnica executada por outra pessoa não é aprender a técnica.
+   if(/\b(?:assistiu|observou|presenciou|viu)\b/iu.test(v)&&/\b(?:que|mestre|sensei|outro ninja)\b/iu.test(v))continue;
    const relevant=item.kind!=='narration'||(name&&v.includes(name))||/\b(?:você|seu personagem|protagonista)\b/u.test(v);
    if(!relevant)continue;
    if(item.kind!=='backstory'&&genin.test(v)&&promoted.test(v)&&rank(profile.affiliation||c.character.affiliation)<2)profile.affiliation='Genin';
@@ -45,7 +47,7 @@ export function reconcileProgress(c){
  return {profile,jutsus};
 }
 export function hasExceptionalTalent(c){
- return /\b(?:g[eê]nio|prodig[ií]o|talento excepcional|aprendi[sz]agem acelerada|aptid[aã]o extraordin[aá]ria)\b/iu.test([c.character?.skills,c.character?.history,c.profile?.skills].join(' '));
+ return /\b(?:g[eê]nio|(?:prod[ií]gio|prodigio)|talento excepcional|aprendi[sz]agem acelerada|aptid[aã]o extraordin[aá]ria)\b/iu.test([c.character?.skills,c.character?.history,c.profile?.skills].join(' '));
 }
 export function trainingGainLimit(c,i,tick,r){
  const timeHours=Math.max(0,tick.hours||0);
