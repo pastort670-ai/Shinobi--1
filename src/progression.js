@@ -34,7 +34,7 @@ export function reconcileProgress(c){
    if(/\b(?:assistiu|observou|presenciou|viu)\b/iu.test(v)&&/\b(?:que|mestre|sensei|outro ninja)\b/iu.test(v))continue;
    const relevant=item.kind!=='narration'||(name&&v.includes(name))||/\b(?:você|seu personagem|protagonista)\b/u.test(v);
    if(!relevant)continue;
-   if(item.kind!=='backstory'&&genin.test(v)&&promoted.test(v)&&rank(profile.affiliation||c.character.affiliation)<2)profile.affiliation='Genin';
+   if(item.kind!=='backstory'&&genin.test(v)&&(promoted.test(v)||/(?:^|\s)é\s+genin\b/u.test(v))&&rank(profile.affiliation||c.character.affiliation)<2)profile.affiliation='Genin';
    if(jutsu.test(v)&&learned.test(v)){
     const isShadow=/\bkage\s+bunshin\b/u.test(v);
     const jname=isShadow?'Kage Bunshin no Jutsu':'Bunshin no Jutsu';
