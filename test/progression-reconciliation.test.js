@@ -46,6 +46,14 @@ test('prodígio pode superar o ritmo médio após treino longo; minuto isolado s
  assert.throws(()=>validate({...response,training:{skill:'ninjutsu',gain:100}}),/Progressão inválida/);
  assert.match(system,/PROGRESSÃO JUSTA/);
 });
+test('histórico reconhece patente e jutsu que o protagonista já usa com sucesso',()=>{
+ const c=create('Antiga',character);
+ c.messages.push({role:'ai',day:10,text:'Akira é genin e recebeu seu protetor de testa.'});
+ c.messages.push({role:'ai',day:11,text:'Akira utilizou o Bunshin no Jutsu durante o treino, criando clones estáveis.'});
+ const current=view(c);
+ assert.equal(current.profile.affiliation,'Genin');
+ assert.equal(current.jutsus[0]?.name,'Bunshin no Jutsu');
+});
 test('jutsu já aprendido não duplica durante novas respostas',()=>{
  const c=create('Treino',character);
  c.jutsus=[{name:'Bunshin no Jutsu',description:'Clonagem básica',day:0}];
