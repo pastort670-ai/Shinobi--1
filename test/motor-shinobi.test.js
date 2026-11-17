@@ -36,7 +36,7 @@ test('motor conserva memória individual e objetivos apenas após turno confirma
  assert.equal(next.npcAgents.Hiruzen.knowledge.length,1);
  assert.equal(next.npcAgents.Hiruzen.goals.length,1);
  assert.equal(next.motorEvents.length,1);
- assert.equal(next.motorVersion,1);
+ assert.equal(next.motorVersion,2);
  assert.ok(!('npcAgents' in view(next)),'Estado privado dos NPCs não aparece na API pública');
  assert.ok(!('motorEvents' in view(next)),'Log privado não vaza para o cliente');
  assert.ok(context(next,turn).motor.intentions.some(i=>i.name==='Hiruzen'));
