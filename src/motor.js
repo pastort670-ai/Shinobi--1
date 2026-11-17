@@ -1,4 +1,4 @@
-// Motor Shinobi 1.0: event-driven NPC intentions, no extra model calls.
+// Motor Shinobi 2.0: event-driven NPC intentions and persistent goals, no extra model calls.
 // Simulation suggestions do not become canon until a completed turn is accepted.
 const MAX_AGENTS=24;
 const MAX_KNOWLEDGE=12;
@@ -30,7 +30,7 @@ export function planNpcTurn(c,i){
   const candidates=[...new Set([...Object.keys(c.npcAgents||{}),...Object.keys(c.relations||{}),...Object.keys(c.npcKnowledge||{})])];
   for(const name of candidates){
    if(named.length>=8)break;
-   const hasDatedTask=(c.pendingTasks||[]).some(t=>t.status==='open'&&Number.isInteger(t.dueDay)&&t.dueDay>c.day&&t.dueDay<=target&&t.description?.toLocaleLowerCase('pt-BR').includes(name.toLocaleLowerCase('pt-BR')));
+   const hasDatedTask=(c.pendingTasks||[]).some(t=>t.status==='open'&&Number.isInteger(t.dueDay)&&t.dueDay>c.day&&t.dueDay<=target&&t.description?.toLocaleLowerCase('pt-BR').includes(name.toLocaleLowerCase('pt-BR'))) || (c.npcAgents?.[name]?.goals||[]).some(g=>Number.isInteger(g.dueDay)&&g.dueDay>c.day&&g.dueDay<=target);
    if(hasDatedTask&&!named.includes(name))named.push(name);
   }
  }
@@ -39,18 +39,20 @@ export function planNpcTurn(c,i){
   const knowledge=distinct([...(c.npcKnowledge?.[name]||[]),...(agent.knowledge||[])]).slice(-MAX_KNOWLEDGE);
   const task=dueTask(c,name,target);
   const relation=c.relations?.[name]||agent.relationship||'';
-  const goals=(agent.goals||[]).slice(-3);
+  const goals=(agent.goals||[]).filter(g=>!g.resolved).slice(-3);
+  const plannedGoal=goals.find(g=>Number.isInteger(g.dueDay)&&g.dueDay<=target&&g.dueDay>=c.day)||null;
   const offscreen=!(i.segments||[]).some(s=>s.text?.toLocaleLowerCase('pt-BR').includes(name.toLocaleLowerCase('pt-BR')))&&!c.messages.slice(-2).some(m=>m.text?.toLocaleLowerCase('pt-BR').includes(name.toLocaleLowerCase('pt-BR')));
   const choices=[
    {action:'continue',score:20,reason:'Preservar a rotina e a continuidade sem inventar acontecimentos.'},
    {action:'respond',score:48+(relation?8:0),reason:'Responder de forma coerente ao contato com o protagonista.'},
    ...(task?[{action:'follow_up',score:75+(task.dueDay!==null&&task.dueDay<=target?15:0),reason:'Acompanhar compromisso existente.',task:text(task.description)}]:[]),
+   ...(plannedGoal&&!task?[{action:'follow_up',score:73,reason:'Retomar meta preexistente na data combinada.',task:text(plannedGoal.description)}]:[]),
    ...(relationPriority(relation)!==0?[{action:'relationship',score:51+Math.abs(relationPriority(relation))*8,reason:'Manter a relação já estabelecida.'}]:[])
   ];
   choices.sort((a,b)=>b.score-a.score||a.action.localeCompare(b.action));
   return {name,action:choices[0].action,scope:offscreen?'offscreen':'scene',reason:choices[0].reason,task:choices[0].task||null,relationship:text(relation,160),goals,knownFacts:knowledge.slice(-5).map(v=>text(v,180)),priority:choices[0].score};
  });
- return {mode:'event-driven',day:target,intentions,
+ return {mode:'event-driven',version:2,day:target,intentions,
   instructions:'São intenções sugeridas, não acontecimentos realizados. scope=offscreen indica um compromisso fora da cena: só descreva consequências observáveis ou notícias plausíveis se forem relevantes; não teletransporte o NPC nem revele seus segredos. Respeite a vontade do jogador, o cânone e a informação disponível. Nunca force ações, revelações ou decisões sem causa.'};
 }
 export function commitNpcTurn(previous,next,i,r){
@@ -73,7 +75,7 @@ export function commitNpcTurn(previous,next,i,r){
  const oldLog=previous.motorEvents||[];
  const event={day:next.day,kind:i.days?'time':'turn',participants:touched.slice(0,8),facts:(r.facts||[]).slice(0,5).map(v=>text(v,240))};
  next.motorEvents=[...oldLog,event].slice(-MAX_EVENTS);
- next.motorVersion=1;
+ next.motorVersion=2;
  return next;
 }
 export const motorLimits={MAX_AGENTS,MAX_KNOWLEDGE,MAX_EVENTS};

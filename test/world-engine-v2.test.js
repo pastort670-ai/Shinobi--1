@@ -1,0 +1,62 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {create,input,context,apply,view} from '../src/engine.js';
+import {planNpcTurn} from '../src/motor.js';
+import {motorWorldPlan,motorProgressCommit} from '../src/world-engine.js';
+const ch={name:'Kaien Sarutobi',age:8,village:'Konohagakure',clan:'Sarutobi',affiliation:'Academia Ninja',skills:'Prodígio excepcional, talento natural para ninjutsu.'};
+const result={narrative:'Kaien concluiu dez dias de treino de ninjutsu e praticou repetidamente.',facts:[],relations:[],training:null,energyDelta:0,chakraDelta:0,timeOptions:[],divergences:[]};
+test('motor 2 planeja tempo e credita treino longo sem o Gemini preencher training',()=>{
+ const c=create('Kaien',ch);
+ const i=input({days:10,segments:[{type:'AGIR',text:'Treino ninjutsu durante dez dias com dedicação.'}]});
+ const ctx=context(c,i);
+ assert.equal(ctx.worldEngine.version,2);
+ assert.equal(ctx.worldEngine.progression.exceptionalTalent,true);
+ assert.equal(ctx.worldEngine.progression.trainingRequested,true);
+ assert.equal(ctx.worldEngine.time.hours,240);
+ const next=apply(c,i,result);
+ assert.equal(next.day,10);
+ assert.ok(next.progress.ninjutsu>=4);
+ assert.equal(c.progress.ninjutsu,0);
+ assert.equal(next.worldEngineVersion,2);
+ assert.equal(next.worldHistory.length,1);
+ assert.equal(next.worldHistory[0].progress.skill,'ninjutsu');
+ assert.equal(view(next).character.age,8);
+});
+test('motor não inventa treino, promoção ou jutsu quando não há resultado confirmado',()=>{
+ const c=create('Kaien',ch),i=input({days:8,segments:[{type:'AGIR',text:'Tentarei estudar ninjutsu.'}]});
+ const nope=apply(c,i,{...result,narrative:'Kaien não conseguiu treinar durante o período.'});
+ assert.equal(nope.progress.ninjutsu,0);
+ assert.equal(nope.jutsus.length,0);
+ assert.equal(nope.profile.affiliation,undefined);
+ const vague=apply(c,i,{...result,narrative:'Os dias se passaram sem novidades.'});
+ assert.equal(vague.progress.ninjutsu,0);
+});
+test('treino curto ou sem habilidade explícita não ganha progresso arbitrário',()=>{
+ const c=create('Kaien',ch);
+ assert.equal(motorProgressCommit(c,input({segments:[{type:'AGIR',text:'Treino em silêncio.'}]}),result,{hours:1}),null);
+ const i=input({hours:1,segments:[{type:'AGIR',text:'Treino taijutsu.'}]});
+ const next=apply(c,i,{...result,narrative:'Kaien concluiu o treino de taijutsu com exercícios.'});
+ assert.equal(next.progress.taijutsu,1);
+});
+test('compromissos dos NPCs participam de saltos sem concluir nada automaticamente',()=>{
+ const c=create('Kaien',ch);
+ c.relations.Hiruzen='Mentor de Kaien';
+ c.npcAgents.Hiruzen={name:'Hiruzen',knowledge:['Kaien é aluno da Academia'],goals:[{description:'Revisar a formação de Kaien',dueDay:3}],lastObservedDay:0};
+ c.pendingTasks=[{status:'open',description:'Hiruzen avaliará o aprendizado de Kaien.',dueDay:3}];
+ const i=input({days:7});
+ const ctx=context(c,i);
+ assert.equal(ctx.worldEngine.time.interrupt.day,3);
+ assert.equal(ctx.worldEngine.npcGoals.find(g=>g.name==='Hiruzen').status,'planejado, ainda não confirmado');
+ const next=apply(c,i,{...result,narrative:'Depois de três dias, Kaien aguarda o encontro.'});
+ assert.equal(next.day,3);
+ assert.equal(next.pendingTasks[0].status,'open');
+ assert.equal(next.npcAgents.Hiruzen.goals[0].dueDay,3);
+ assert.equal(next.worldHistory[0].dueCommitments.length,1);
+ assert.equal(c.day,0);
+});
+test('motor 2 é compatível com personagens antigos sem campos adicionais',()=>{
+ const c=create('Antiga',{name:'Akira',age:2,village:'Konohagakure'});delete c.worldHistory;delete c.worldEngineVersion;delete c.npcAgents;
+ const n=apply(c,input({segments:[{type:'FALAR',text:'Olá, Hiruzen.'}]}),{...result,narrative:'Hiruzen responde.'});
+ assert.equal(n.worldEngineVersion,2);assert.equal(n.worldHistory.length,1);
+ assert.equal(n.progress.ninjutsu,0);
+});
