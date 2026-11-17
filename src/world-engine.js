@@ -29,6 +29,11 @@ export function motorProgressPlan(c,i,allowedHours=0){
 export function motorProgressCommit(c,i,r,tick){
  const plan=motorProgressPlan(c,i,tick.hours);
  if(!plan.trainingRequested||r.training||!completed.test(r.narrative)||failed.test(r.narrative))return null;
+ // Não atribuir ao protagonista o treino realizado por outro personagem.
+ const ownerName=lower(c.character?.name).split(/\s+/)[0];
+ const text=lower(r.narrative);
+ const playerIsSubject=(ownerName&&text.includes(ownerName))||/\b(?:você|protagonista|seu personagem)\b/iu.test(text);
+ if(!playerIsSubject)return null;
  // No category guess: apply only when the user supplied a specific technique/skill.
  if(!plan.skill)return null;
  const gain=Math.min(trainingGainLimit(c,i,tick,r),tick.hours>=48?Math.min(8,1+Math.floor(tick.hours/72)+(plan.exceptionalTalent?2:0)):tick.hours>=1?1:0);
