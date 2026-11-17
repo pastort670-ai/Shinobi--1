@@ -69,7 +69,13 @@ export function commitNpcTurn(previous,next,i,r){
   const goals=(next.pendingTasks||[]).filter(t=>t.status==='open'&&t.description?.toLocaleLowerCase('pt-BR').includes(safeName.toLocaleLowerCase('pt-BR'))).slice(-4).map(t=>({description:text(t.description,240),dueDay:t.dueDay??null}));
   agents[safeName]={name:safeName,knowledge,relationship:text(relationship,280),goals,lastObservedDay:next.day};
  }
- // Never update NPCs not mentioned by accepted results or delete the original NPC knowledge ledger.
+ // Reconciliar agendas de TODOS os NPCs conhecidos com os compromissos realmente abertos:
+ // tarefas concluídas/canceladas não podem continuar aparecendo como metas em próximas cenas.
+ for(const [name,agent] of Object.entries(agents)){
+  const activeTasks=(next.pendingTasks||[]).filter(t=>t.status==='open'&&t.description?.toLocaleLowerCase('pt-BR').includes(name.toLocaleLowerCase('pt-BR')));
+  agent.goals=activeTasks.slice(-4).map(t=>({description:text(t.description,240),dueDay:t.dueDay??null}));
+ }
+ // Nunca apagar conhecimento e relações de NPCs que não participaram do turno.
  const entries=Object.values(agents).sort((a,b)=>(b.lastObservedDay??0)-(a.lastObservedDay??0)).slice(0,MAX_AGENTS);
  next.npcAgents=Object.fromEntries(entries.map(agent=>[agent.name,agent]));
  const oldLog=previous.motorEvents||[];
