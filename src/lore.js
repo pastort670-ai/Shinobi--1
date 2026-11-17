@@ -47,7 +47,18 @@ const library=[
  ['organizações',0,'ANBU, Raiz e Akatsuki existem em contextos variados; seus objetivos e segredos mudam no tempo. Não projetar situação futura no passado.'],
  ['chakra técnicas ninjutsu genjutsu taijutsu',0,'Treino é necessário; técnicas avançadas não surgem instantaneamente.'],
  ['hierarquia academia missão',0,'Academia, genin, chūnin, jōnin e Kage indicam papéis que mudam por idade e feitos.'],
- ['história guerra',0,'Konoha foi fundada por Hashirama e Madara; Tobirama foi o Segundo Hokage.']
+ ['história guerra',0,'Konoha foi fundada por Hashirama e Madara; Tobirama foi o Segundo Hokage.'],
+ ['academia genin graduação bandana exame',0,'A formação ninja passa por treinamento e avaliação. A graduação a genin depende de conclusão confirmada, não apenas de idade ou desejo. Técnicas já comprovadas na campanha devem integrar o repertório.'],
+ ['missões rank d c b a s equipe liderança',0,'As missões shinobi são classificadas por dificuldade e risco; responsabilidade, graduação, supervisão e condições reais influenciam a escolha de tarefas. Não promover o personagem automaticamente.'],
+ ['treino prodígio talento habilidades progressão',0,'Talento excepcional pode acelerar a aprendizagem quando acompanhado de esforço demonstrado. Progresso acima da média é possível, mas não elimina prática, limitações ou necessidade de conquistas narradas.'],
+ ['bunshin jutsu clones genjutsu',0,'Bunshin no Jutsu cria clones ilusórios, que não possuem corpo físico para agir independentemente. Não confundir com Kage Bunshin. Confirmar que a técnica foi aprendida antes de registrá-la.'],
+ ['kage bunshin clones sombras chakra',0,'Kage Bunshin no Jutsu produz clones com substância e divide o chakra do usuário entre eles, exigindo reserva e controle compatíveis. Não atribuir esta técnica ao personagem apenas por conhecer Bunshin.'],
+ ['hengen transformação kawarimi substituição',0,'Henge no Jutsu altera a aparência; Kawarimi no Jutsu é uma técnica de substituição. Saber seus nomes não significa que o personagem as domina.'],
+ ['asuma sarutobi clã hiruzen',0,'Asuma é filho de Hiruzen. Vínculos de personagens adotados com o clã Sarutobi precisam nascer da história, com idade, convivência e acontecimentos coerentes.'],
+ ['sannin jiraiya tsunade orochimaru',0,'Jiraiya, Tsunade e Orochimaru foram discípulos de Hiruzen. Ser filho adotivo de Hiruzen não torna o protagonista automaticamente discípulo dos três.'],
+ ['academia naruto iruka professor',12*YEAR,'Durante a etapa clássica, Iruka é professor de Naruto na Academia. Não transportar esse cargo para os anos imediatamente posteriores ao nascimento de Naruto.'],
+ ['time 7 kakashi sasuke sakura naruto',12*YEAR,'Na era clássica, o Time 7 reúne Naruto, Sasuke e Sakura sob orientação de Kakashi. Uma campanha divergente pode alterar participações apenas quando a intervenção foi comprovada.'],
+ ['akatsuki pain invasão konoha',15*YEAR,'A ameaça da Akatsuki cresce na fase Shippuden; posições e informações de membros devem depender do momento e dos registros efetivos da campanha.']
 ].map(([key,day,text])=>({key,day,text}));
 export function temporalLore(day){
  const era=eraAt(day),age=Math.floor(day/YEAR);
@@ -61,8 +72,17 @@ export function temporalLore(day){
  if(day>=12*YEAR+180)facts.push('Hiruzen morreu durante a invasão de Konoha na história de referência; divergências da campanha podem alterar esse fato.');
  return facts;
 }
+const stopWords=new Set(['para','porque','quando','onde','como','sobre','entre','muito','mais','menos','esse','essa','isto','aquilo','tenho','quero','gostaria','fazer','durante','personagem','minha','meu','nosso','nossa','estou','estava','pode','apenas','agora']);
+const normLore=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLocaleLowerCase('pt-BR');
+const loreWords=s=>[...new Set((normLore(s).match(/[a-z0-9]{3,}/g)||[]).filter(w=>!stopWords.has(w)))];
 export function retrieveLore(day,query){
- const words=query.toLowerCase().split(/\W+/).filter(x=>x.length>3);
- const topical=library.filter(x=>x.day<=day).map(x=>({...x,score:words.filter(w=>(x.key+' '+x.text).toLowerCase().includes(w)).length})).sort((a,b)=>b.score-a.score).slice(0,5).map(x=>x.text);
- return [...temporalLore(day).slice(0,6),...topical];
+ const words=loreWords(query).slice(0,35);
+ const topic=library.filter(x=>x.day<=day).map((x,index)=>{
+  const keys=loreWords(x.key),description=loreWords(x.text),keyString=normLore(x.key),descriptionString=normLore(x.text);
+  const score=words.reduce((total,w)=>total+(keys.includes(w)?5:description.includes(w)?2:(w.length>4&&keyString.includes(w))?2:(w.length>5&&descriptionString.includes(w))?1:0),0);
+  return {text:x.text,score,index};
+ }).filter(x=>x.score>0).sort((a,b)=>b.score-a.score||a.index-b.index).slice(0,5).map(x=>x.text);
+ // Os princípios temporais são recuperados separadamente pelo contexto.
+ // Nunca preencher o limite com trechos aleatórios de assuntos não solicitados.
+ return [...temporalLore(day).slice(0,6),...topic];
 }
