@@ -152,3 +152,17 @@ test('o rank de Kakashi não contamina missão Sem rank concluída por Kaien',()
  old.messages.push(ai('Kakashi recebeu uma missão de rank S. Hiruzen aprovou o relatório de Kaien e confirmou que a missão do jovem terminou.',3));
  assert.equal(view(old).databook.missions.S,0);
 });
+
+test('salvar, exportar e reabrir conserva atribuição, conclusão e contador sem duplicar',()=>{
+ const old=c();
+ const first='Hiruzen confiou a Kaien uma missão de rank B de proteger o comboio.';
+ const assigned=apply(old,move('Aceito a proteção do comboio.'),response(first,{missionAssignment:{rank:'B',summary:'Proteção do comboio',evidence:first}}));
+ const summary='Kaien apresentou o relatório da escolta. Hiruzen aprovou o trabalho do jovem e confirmou a missão encerrada.';
+ const done=apply(assigned,move('Apresento o relatório.'),response(summary,{missionCompletion:{rank:'B',summary:'Proteção do comboio concluída',evidence:summary}}));
+ const reloaded=JSON.parse(JSON.stringify(done));
+ assert.equal(view(reloaded).databook.missions.B,1);
+ assert.equal(view(reloaded).databook.missionLog.length,1);
+ assert.equal(reloaded.messages.filter(m=>m.missionAssignment).length,1);
+ assert.equal(reloaded.messages.filter(m=>m.missionCompletion).length,1);
+ assert.equal(view(done).databook.missions.B,1);
+});
