@@ -788,7 +788,7 @@ export const specialistKnowledge=Object.freeze([
   "title": "Konohamaru Sarutobi",
   "summary": "Neto de Hiruzen; não deve aparecer com idade inadequada no nascimento de Naruto.",
   "tags": "konohamaru hiruzen sarutobi neto",
-  "from": 12,
+  "from": 4,
   "kind": "reference",
   "reference": "https://naruto-official.com/en/anime/naruto1"
  },
