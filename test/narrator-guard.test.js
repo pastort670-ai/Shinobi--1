@@ -25,6 +25,20 @@ test('fala curta do jogador entre aspas não é reproduzida pelo narrador',()=>{
  assert.ok(!out.narrative.includes('Bom dia'));
  assert.match(out.narrative,/Hiruzen acena/);
 });
+test('repete fala curta mesmo com exclamação dentro das aspas',()=>{
+ const c=create('Prosa',ch);
+ const i=input({segments:[{type:'FALAR',text:'Bom dia'}]});
+ const outcome=stripPlayerEcho(c,i,'Kaien: "Bom dia!"\nHiruzen responde com um aceno.');
+ assert.ok(!outcome.narrative.includes('Bom dia'));
+ assert.match(outcome.narrative,/Hiruzen responde/);
+});
+test('pontuação diferente não permite o narrador copiar uma fala longa',()=>{
+ const c=create('Prosa',ch);
+ const i=input({segments:[{type:'FALAR',text:'Quero aprender o Bunshin, Hiruzen!'}]});
+ const out=stripPlayerEcho(c,i,'Kaien repetiu: "Quero aprender o Bunshin. Hiruzen!"\nO mestre aponta para o campo de treino.');
+ assert.doesNotMatch(out.narrative,/Quero aprender o Bunshin/);
+ assert.match(out.narrative,/O mestre aponta/);
+});
 test('fala de turno anterior também não é reencenada',()=>{
  const c=create('Prosa',ch);
  c.messages.push({role:'user',text:'FALAR: Encontre-me na biblioteca depois do treinamento.',day:0});
