@@ -23,7 +23,7 @@ const rankOf=text=>{
 };
 // Aprovação de relatório final e confirmação de resultado contam apenas quando uma
 // missão do protagonista está ligada ao contexto, não quando o texto é mera intenção.
-const reportSuccess=/\b(?:relatorio(?:\s+final)?|prestacao de contas|resultado(?:s)?|trabalho)\b.{0,95}\b(?:aprovad\w*|aceit\w*|valid\w*|homologad\w*|confirm\w*|reconhec\w*\s+(?:o\s+)?sucesso)\b|\b(?:aprov\w*|aceit\w*|valid\w*|homolog\w*|confirm\w*)\b.{0,80}\b(?:relatorio|prestacao de contas|sucesso da missao)\b/u;
+const reportSuccess=/\b(?:relatorio(?:\s+final)?|prestacao de contas|resultado(?:s)?|trabalho)\b.{0,95}\b(?:aprov\w*|aceit\w*|valid\w*|homolog\w*|confirm\w*|reconhec\w*\s+(?:o\s+)?sucesso)\b|\b(?:aprov\w*|aceit\w*|valid\w*|homolog\w*|confirm\w*)\b.{0,80}\b(?:relatorio|prestacao de contas|sucesso da missao)\b/u;
 const taskCompleted=/\b(?:objetivo(?:s)?|trabalho|servico|encargo)\b.{0,95}\b(?:alcancad\w*|atingid\w*|concluid\w*|cumprid\w*|finalizad\w*)\b/u;
 const submittedReport=/\b(?:entrego|entregou|apresento|apresentou|relato|relatou|presto|prestou|encaminho|encaminhou)\b.{0,90}\b(?:relatorio|resultados?|prestacao de contas|documentos?)\b/u;
 const actors={team:/\b(?:equipe|time|grupo|esquadrao|todos|nos|voces|voc[eê]s)\b/u};
