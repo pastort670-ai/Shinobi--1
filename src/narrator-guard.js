@@ -6,13 +6,13 @@ const clean=v=>String(v||'').trim().replace(/^[“"«'‘]+|[”"»'’]+$/gu,''
 const words=v=>normal(v).split(/\s+/).filter(Boolean);
 export function playerDialogue(c,i){
  const result=[];
- const add=v=>{const s=clean(v);if(s.length>=6&&!result.some(q=>normal(q)===normal(s)))result.push(s);};
- for(const s of i.segments||[])if(s.type==='FALAR')add(s.text);
+ const add=v=>{const s=clean(v);if(s.length>=3&&!result.some(q=>normal(q)===normal(s)))result.push(s);};
+ for(const s of i.segments||[])if(s.type==='FALAR'){add(s.text);for(const part of String(s.text||'').split(/(?<=[?!])\\s+/u))if(part!==s.text)add(part);}
  for(const m of (c.messages||[]).filter(m=>m.role==='user').slice(-8)){
   const lines=String(m.text||'').split(/\n(?=(?:FALAR|AGIR|NARRAR|TEMPO):)/u);
-  for(const line of lines){if(/^FALAR:\s*/iu.test(line))add(line.replace(/^FALAR:\s*/iu,''));}
+  for(const line of lines){if(/^FALAR:\s*/iu.test(line)){const phrase=line.replace(/^FALAR:\s*/iu,'');add(phrase);for(const part of phrase.split(/(?<=[?!])\\s+/u))if(part!==phrase)add(part);}}
  }
- return result.slice(-14);
+ return result.slice(-28);
 }
 const escapeRegex=s=>s.replace(/[.*+?^\u0024{}()|[\]\\]/g,'\\$&');
 const tokens=s=>clean(s).match(/[\p{L}\p{N}]+/gu)||[];
@@ -29,7 +29,7 @@ function findEcho(text,quote){
   const quotedBefore=/[“"«]\s*$/u.test(before),quotedAfter=/^[.!?…]*\s*[”"»]/u.test(after);
   const linePrefix=before.slice(before.lastIndexOf('\n')+1);
   const attributed=/\b(?:diz|disse|fala|falou|declara|declarou|responde|respondeu|sussurra|sussurrou)\b[^\n]{0,25}$/iu.test(linePrefix)||/^[\p{L}\s.'-]{2,90}:\s*["“«]?$/iu.test(linePrefix);
-  if(long||(phrase.length>=5&&((quotedBefore&&quotedAfter)||attributed)))return m;
+  if(long||(phrase.length>=3&&(attributed||(phrase.length>=5&&quotedBefore&&quotedAfter))))return m;
  }
  return null;
 }
