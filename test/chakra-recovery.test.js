@@ -19,6 +19,21 @@ test('diálogo sem técnica não custa nem recupera chakra artificialmente',()=>
  assert.equal(c.chakra,47);
 });
 
+test('o narrador não deve gastar chakra por conversa ou movimento sem ninjutsu',()=>{
+ const c=create('Proteção',baseCharacter);c.chakra=73;
+ const say=input({segments:[{type:'FALAR',text:'Hiruzen, como aprender um jutsu?'}]});
+ const n=apply(c,say,narration('Hiruzen explica os fundamentos do chakra.',{chakraDelta:-16}));
+ assert.equal(n.chakra,73);
+ const ordinary=apply(c,action('Akira caminha até a escola.'),narration('Akira chegou ao portão da Academia.',{chakraDelta:-12}));
+ assert.equal(ordinary.chakra,73);
+});
+
+test('se um NPC usar ninjutsu diante do jogador, não debita o chakra do protagonista',()=>{
+ const c=create('Mestre',baseCharacter);c.chakra=58;
+ const n=apply(c,action('Observo Hiruzen.'),narration('Hiruzen utilizou chakra para criar um Bunshin, enquanto Akira apenas assistiu.',{chakraDelta:-13}));
+ assert.equal(n.chakra,58);
+});
+
 test('ninja experiente e prodígio gasta menos pelo mesmo ninjutsu',()=>{
  const novice=create('Iniciante',baseCharacter),expert=create('Experiente',{...baseCharacter,skills:'Prodígio excepcional com controle de chakra avançado.'});
  expert.progress.ninjutsu=90;
