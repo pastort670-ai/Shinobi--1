@@ -18,7 +18,7 @@ function relevantNames(c,i){
  return all.filter(name=>name.length>1&&textInput.includes(name.toLocaleLowerCase('pt-BR'))).slice(0,8);
 }
 function dueTask(c,name,target){
- return (c.pendingTasks||[]).filter(t=>t.status==='open'&&t.description?.toLocaleLowerCase('pt-BR').includes(name.toLocaleLowerCase('pt-BR'))).sort((a,b)=>(a.dueDay??999999)-(b.dueDay??999999)).find(t=>t.dueDay===null||t.dueDay===undefined||t.dueDay<=target+7);
+ return (c.pendingTasks||[]).filter(t=>t.status==='open'&&t.description?.toLocaleLowerCase('pt-BR').includes(name.toLocaleLowerCase('pt-BR'))).sort((a,b)=>(a.dueDay??999999)-(b.dueDay??999999)).find(t=>t.dueDay===null||t.dueDay===undefined||t.dueDay<=target);
 }
 export function planNpcTurn(c,i){
  if(process.env.MOTOR_SHINOBI_ENABLED==='false')return {mode:'disabled',day:c.day+(i.days||0),intentions:[]};
@@ -38,22 +38,23 @@ export function planNpcTurn(c,i){
   const agent=c.npcAgents?.[name]||{};
   const knowledge=distinct([...(c.npcKnowledge?.[name]||[]),...(agent.knowledge||[])]).slice(-MAX_KNOWLEDGE);
   const task=dueTask(c,name,target);
+  const addressed=(i.segments||[]).some(s=>s.text?.toLocaleLowerCase('pt-BR').includes(name.toLocaleLowerCase('pt-BR')));
   const relation=c.relations?.[name]||agent.relationship||'';
   const goals=(agent.goals||[]).filter(g=>!g.resolved).slice(-3);
   const plannedGoal=goals.find(g=>Number.isInteger(g.dueDay)&&g.dueDay<=target&&g.dueDay>=c.day)||null;
   const offscreen=!(i.segments||[]).some(s=>s.text?.toLocaleLowerCase('pt-BR').includes(name.toLocaleLowerCase('pt-BR')))&&!c.messages.slice(-2).some(m=>m.text?.toLocaleLowerCase('pt-BR').includes(name.toLocaleLowerCase('pt-BR')));
   const choices=[
    {action:'continue',score:20,reason:'Preservar a rotina e a continuidade sem inventar acontecimentos.'},
-   {action:'respond',score:48+(relation?8:0),reason:'Responder de forma coerente ao contato com o protagonista.'},
+   ...(addressed?[{action:'respond',score:62+(relation?8:0),reason:'Responder apenas ao contato presente do protagonista.'}]:[]),
    ...(task?[{action:'follow_up',score:75+(task.dueDay!==null&&task.dueDay<=target?15:0),reason:'Acompanhar compromisso existente.',task:text(task.description)}]:[]),
    ...(plannedGoal&&!task?[{action:'follow_up',score:73,reason:'Retomar meta preexistente na data combinada.',task:text(plannedGoal.description)}]:[]),
-   ...(relationPriority(relation)!==0?[{action:'relationship',score:51+Math.abs(relationPriority(relation))*8,reason:'Manter a relação já estabelecida.'}]:[])
+   ...(addressed&&relationPriority(relation)!==0?[{action:'relationship',score:51+Math.abs(relationPriority(relation))*8,reason:'Manter a relação já estabelecida.'}]:[])
   ];
   choices.sort((a,b)=>b.score-a.score||a.action.localeCompare(b.action));
   return {name,action:choices[0].action,scope:offscreen?'offscreen':'scene',reason:choices[0].reason,task:choices[0].task||null,relationship:text(relation,160),goals,knownFacts:knowledge.slice(-5).map(v=>text(v,180)),priority:choices[0].score};
  });
  return {mode:'event-driven',version:2,day:target,intentions,
-  instructions:'São intenções sugeridas, não acontecimentos realizados. scope=offscreen indica um compromisso fora da cena: só descreva consequências observáveis ou notícias plausíveis se forem relevantes; não teletransporte o NPC nem revele seus segredos. Respeite a vontade do jogador, o cânone e a informação disponível. Nunca force ações, revelações ou decisões sem causa.'};
+  instructions:'São intenções sugeridas, não acontecimentos realizados. Responder depende de contato real no turno; NPCs apenas lembrados ou presentes na cena não devem repetir respostas e discursos sem nova causa. Metas futuras não devem ser cobradas antes do vencimento. scope=offscreen indica compromisso fora da cena: descreva notícias plausíveis apenas se relevantes; não teletransporte o NPC nem revele segredos. Respeite a vontade do jogador, o cânone e a informação disponível. Nunca force ações, revelações ou decisões sem causa.'};
 }
 export function commitNpcTurn(previous,next,i,r){
  if(process.env.MOTOR_SHINOBI_ENABLED==='false')return next;
