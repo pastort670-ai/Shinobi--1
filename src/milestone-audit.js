@@ -1,3 +1,4 @@
+import {protagonistAchievement} from './progression.js';
 // Auditoria de conquistas: somente registros aceitos da campanha podem ser fontes.
 const normalized=t=>String(t||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLocaleLowerCase('pt-BR').replace(/\s+/g,' ').trim();
 export function milestoneSources(c){
@@ -21,14 +22,14 @@ export function verifiedMilestones(c,proposals,sources=milestoneSources(c)){
   // Memória confirmada: prova preferencial; relatos aceitos: devem citar claramente o protagonista.
   const protagonist=normalized(c.character?.name||'').split(' ')[0];
   if(src.kind==='accepted-narration'&&protagonist&&!normalized(src.text).includes(protagonist))continue;
-  if(p.kind==='rank'&&value==='genin'&&/\bgenin\b/u.test(quote)){
+  if(p.kind==='rank'&&value==='genin'&&/\bgenin\b/u.test(quote)&&protagonistAchievement(src.text,c.character?.name,'rank')){
    if(/\b(?:chunin|jonin|jounin|anbu|hokage)\b/u.test(normalized(profile.affiliation||c.character?.affiliation)))continue;
    profile.affiliation='Genin';accepted.push({kind:'rank',value:'Genin',sourceId:src.id});
   }else if(p.kind==='jutsu'){
    const shadow=/\bkage\s+bunshin\b/u.test(value);
    const clone=/\bbunshin\b|\bclone\b|\bclonagem\b/u.test(value);
    const sourceMentions=shadow?/\bkage\s+bunshin\b/u.test(quote):/\bbunshin\b|\bclone\b|\bclonagem\b/u.test(quote);
-   if(!clone||!sourceMentions)continue;
+   if(!clone||!sourceMentions||!protagonistAchievement(src.text,c.character?.name,'jutsu'))continue;
    const name=shadow?'Kage Bunshin no Jutsu':'Bunshin no Jutsu';
    if(!jutsus.some(x=>normalized(x.name)===normalized(name))){
     jutsus.push({name,description:'Técnica confirmada em um acontecimento da campanha.',day:src.day});accepted.push({kind:'jutsu',value:name,sourceId:src.id});
