@@ -24,7 +24,7 @@ function sources(c){
  return items;
 }
 // Conquistas pertencem a quem executou a ação, não a quem a presenciou.
-function playerPerformed(clause,name,verb){
+export function playerPerformed(clause,name,verb){
  const v=normalize(clause);
  if(/\b(?:você|o protagonista|a protagonista|seu personagem|sua personagem)\b/iu.test(v))return true;
  if(!name)return false;
@@ -47,7 +47,7 @@ export function reconcileProgress(c){
    if(negative.test(v))continue;
    // Ver uma técnica executada por outra pessoa não é aprender a técnica.
    if(/\b(?:assistiu|observou|presenciou|viu)\b/iu.test(v)&&/\b(?:que|mestre|sensei|outro ninja)\b/iu.test(v))continue;
-   const relevant=playerPerformed(v,name,'aprendeu|dominou|domina|conseguiu|executou|realizou|usou|utilizou|adquiriu|sabe|possui|foi|tornou-se|passou|graduou-se|formou-se|recebeu|é|já');
+   const relevant=playerPerformed(v,name,'aprendeu|concluiu|dominou|domina|conseguiu|executou|realizou|usou|utilizou|adquiriu|sabe|possui|foi|tornou-se|passou|graduou-se|formou-se|recebeu|é|já');
    if(!relevant)continue;
    if(item.kind!=='backstory'&&genin.test(v)&&(promoted.test(v)||/(?:^|\s)é\s+genin\b/u.test(v))&&rank(profile.affiliation||c.character.affiliation)<2)profile.affiliation='Genin';
    if(jutsu.test(v)&&learned.test(v)){
