@@ -22,7 +22,7 @@ export function timeOpportunity(c){
  return longTermTimeOpportunity(c);
 }
 export function canUseTime(c){
- return c.timeScene!=='combat'&&c.introConfirmed!==false&&
+ return c.timeScene!=='combat'&&!(c.introConfirmed===false&&(c.messages||[]).length<=1)&&
    (c.timeAvailable===true||Boolean(timeOpportunity(c)));
 }
 export function timeSuggestions(c){
