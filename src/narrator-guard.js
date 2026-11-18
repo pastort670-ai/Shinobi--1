@@ -7,10 +7,10 @@ const words=v=>normal(v).split(/\s+/).filter(Boolean);
 export function playerDialogue(c,i){
  const result=[];
  const add=v=>{const s=clean(v);if(s.length>=3&&!result.some(q=>normal(q)===normal(s)))result.push(s);};
- for(const s of i.segments||[])if(s.type==='FALAR'){add(s.text);for(const part of String(s.text||'').split(/(?<=[?!])\\s+/u))if(part!==s.text)add(part);}
+ for(const s of i.segments||[])if(s.type==='FALAR'){add(s.text);for(const part of String(s.text||'').split(/(?<=[?!])\s+/u))if(part!==s.text)add(part);}
  for(const m of (c.messages||[]).filter(m=>m.role==='user').slice(-8)){
   const lines=String(m.text||'').split(/\n(?=(?:FALAR|AGIR|NARRAR|TEMPO):)/u);
-  for(const line of lines){if(/^FALAR:\s*/iu.test(line)){const phrase=line.replace(/^FALAR:\s*/iu,'');add(phrase);for(const part of phrase.split(/(?<=[?!])\\s+/u))if(part!==phrase)add(part);}}
+  for(const line of lines){if(/^FALAR:\s*/iu.test(line)){const phrase=line.replace(/^FALAR:\s*/iu,'');add(phrase);for(const part of phrase.split(/(?<=[?!])\s+/u))if(part!==phrase)add(part);}}
  }
  return result.slice(-28);
 }
