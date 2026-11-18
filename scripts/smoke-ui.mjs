@@ -87,7 +87,8 @@ try{
  await page.locator('#menutoggle').click();
  await page.locator('#sidebar [data-tab="sheet"]').click();
  assert.equal(await page.locator('#db-graphic .db-radar-label').count(),8,'O radar deve mostrar oito rótulos no próprio gráfico');
- assert.equal(await page.locator('#db-attributes').isVisible(),false,'Não deve existir segunda lista visual de oito atributos');
+ const srOnlyBox=await page.locator('#db-attributes').boundingBox();
+ assert.ok(srOnlyBox&&srOnlyBox.width<=1.5&&srOnlyBox.height<=1.5,'A leitura acessível permanece reduzida a 1 pixel, sem segunda lista visual');
  assert.equal(await page.locator('#sheet-missions').evaluate(e=>e.open),false,'Detalhes da ficha ficam recolhidos');
  await page.locator('#sheet-missions > summary').click();
  assert.equal(await page.locator('#db-missions').isVisible(),true,'Missões ainda podem ser abertas ao toque');
