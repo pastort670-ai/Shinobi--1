@@ -46,7 +46,7 @@ function playerLinked(s,first,hasAssignment){
 // na chamada transitória da IA. O registro pode ser reconstituído após reabrir
 // a ficha, restaurar um backup ou corrigir outras partes da interface.
 function verifiedMissionProof(message,first,active,preceding){
- const p=message?.missionProof;
+ const p=message?.missionProof||message?.missionCompletion;
  if(!p||!ranks.has(p.rank)||p.rank==='?'||typeof p.evidence!=='string'||typeof message.text!=='string')return null;
  const proof=norm(p.evidence.trim()),scene=norm(message.text);
  if(proof.length<20||!scene.includes(proof)||rejection.test(proof)||future.test(proof)||otherActor(proof,first))return null;
@@ -66,7 +66,7 @@ function complete(s,first,active,scene,lastPlayer){
   // A missão pode ser encerrada de modo passivo, sem repetir nome e rank na frase.
   // Exigimos conexão comprovada com protagonista, especialmente no relatório entregue.
   return Boolean(!remoteNews&&(active||sceneReferencesPlayer||playerReported)&&
-    (active||sceneReferencesPlayer&&playerReported));
+    (active||sceneReferencesPlayer||Boolean(rankOf(s)&&playerReported)));
  }
  // Uma missão já atribuída pode terminar pela aprovação do relatório ou pelo
  // cumprimento de seus objetivos, mesmo sem a palavra "concluída".
@@ -141,7 +141,7 @@ function savedMissionRecords(c,first,already){
   const description=task.description,text=norm(description);
   if(!/\bmissao\b/u.test(text)||rejection.test(text)||future.test(text)||
      !(finish.test(text)||nounCompletion.test(text)||otherFinish.test(text)))continue;
-  if(!playerLinked(text,first,false))continue;
+  if(!playerLinked(text,first,false)&&!(first&&new RegExp('\\b'+first+'\\b','u').test(text)&&rankOf(text)&&taskCompleted.test(text)))continue;
   const rank=rankOf(text)||'?',day=Number.isInteger(task.day)?task.day:c.day||0;
   const candidate={rank,day,summary:description.slice(0,180),source:'completed-task',taskId:task.id||null};
   const duplicate=records.some(x=>(x.rank===rank||x.rank==='?'||rank==='?')&&sameMission(x,candidate,first));
