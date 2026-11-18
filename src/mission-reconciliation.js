@@ -52,6 +52,58 @@ function complete(s,first,active,scene,lastPlayer){
  return false;
 }
 
+// Memórias Marcantes são acontecimentos da campanha confirmados pelo jogador.
+// Elas sobrevivem à compactação do histórico narrativo e são fontes válidas para a ficha.
+const nounCompletion=/\b(?:conclusao|finalizacao|cumprimento)\b.{0,95}\bmissao\b|\bmissao\b.{0,95}\b(?:conclusao|finalizacao|cumprimento)\b/u;
+const missionOrdinals=/\b(?:primeir[ao]|segund[ao]|terceir[ao]|quart[ao]|quint[ao])\s+(?:missao|designacao)\b/u;
+const stopMissionWords=new Set('a o as os de da do das dos em no na nos nas com por para sua seu primeira segunda terceir terceira missao rank classe nivel categoria oficial sucesso retornou reporte reportar relatou concluiu concluiu cumprimento cumprida concluida finalizada hokage konoha personagem ate apos quando recebeu ficou muito mais ja nesta naquela durante nova'.split(' '));
+
+function distinctiveWords(summary,first){
+ return new Set((norm(summary).match(/\b[a-z]{5,}\b/gu)||[]).filter(word=>!stopMissionWords.has(word)&&word!==first));
+}
+function sameMission(existing,incoming,first){
+ const distance=Math.abs((existing.day||0)-(incoming.day||0));
+ if(distance>7)return false;
+ const oldText=norm(existing.summary),newText=norm(incoming.summary);
+ const oldOrdinal=oldText.match(missionOrdinals)?.[0],newOrdinal=newText.match(missionOrdinals)?.[0];
+ if(oldOrdinal&&newOrdinal&&oldOrdinal!==newOrdinal)return false;
+ const oldWords=distinctiveWords(oldText,first),newWords=distinctiveWords(newText,first);
+ const overlap=[...newWords].some(word=>oldWords.has(word));
+ if(oldOrdinal&&newOrdinal&&oldOrdinal===newOrdinal)return true;
+ if(overlap)return true;
+ return distance<=1&&!/\b(?:outra|segunda|terceira|nova)\s+missao\b/u.test(newText);
+}
+
+function savedMissionRecords(c,first,already){
+ const memories=Array.isArray(c.memories)?c.memories:[];
+ const records=[...already];
+ const seen=new Set();
+ for(const m of memories){
+  if(m?.status!=='saved'||typeof m.description!=='string')continue;
+  const description=m.description.trim(),text=norm([m.title,description].filter(Boolean).join('. '));
+  if(!/\bmissao\b/u.test(text)||!(finish.test(text)||nounCompletion.test(text))||rejection.test(text)||future.test(text)||otherActor(text,first))continue;
+  // Requer que o desfecho confirmado se refira ao protagonista, não a terceiros.
+  const direct=playerLinked(norm(description),first,false);
+  const indirect=first&&new RegExp('\\b'+first+'\\b.{0,105}\\b(?:conclusao|cumprimento|finalizacao)\\b.{0,85}\\bmissao\\b','u').test(norm(description));
+  if(!direct&&!indirect)continue;
+  const rank=rankOf(text)||'?';
+  const day=Number.isInteger(m.day)?m.day:c.day||0;
+  const memoryId=typeof m.id==='string'?m.id:null;
+  const memoryKey=memoryId||norm(description).slice(0,180);
+  if(seen.has(memoryKey))continue;
+  seen.add(memoryKey);
+  const candidate={rank,summary:description.slice(0,180),day,source:'saved-memory',memoryId,memoryKey};
+  const match=records.findIndex(item=>
+    (item.rank===rank||item.rank==='?'||rank==='?')&&sameMission(item,candidate,first)
+  );
+  if(match>=0){
+   // Memória pode dar o rank correto a uma conclusão antes registrada sem rank.
+   if(records[match].rank==='?'&&rank!=='?')records[match]=candidate;
+  }else records.push(candidate);
+ }
+ return records.sort((a,b)=>(a.day||0)-(b.day||0)||(a.messageIndex??Number.MAX_SAFE_INTEGER)-(b.messageIndex??Number.MAX_SAFE_INTEGER)).slice(-200);
+}
+
 /** Reconstruct an idempotent mission ledger from accepted AI scenes, never player claims alone.
  *  Records with messageIndex are stable for checkpoints and rewind.
  */
@@ -90,5 +142,5 @@ export function reconciledMissions(c,stored=[]){
   lastCompletion={rank,index,assignment};
   active=null;
  }
- return out.sort((a,b)=>a.messageIndex-b.messageIndex).slice(-200);
+ return savedMissionRecords(c,first,out.sort((a,b)=>a.messageIndex-b.messageIndex).slice(-200));
 }
