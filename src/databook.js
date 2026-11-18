@@ -44,12 +44,11 @@ function hasNarrativeEvidence(narrative,evidence,name){
  if(typeof narrative!=='string'||!normal(narrative).includes(normal(evidence.trim())))return false;
  const full=normal(name).trim(),first=full.split(/\s+/)[0],phrase=normal(evidence);
  if(!first)return false;
- const escaped=v=>v.replace(/[.*+?^\x24{}()|[\]\\]/g,'\\ const subject=normal(name).split(/\s+/)[0],phrase=normal(evidence);
- return Boolean(subject&&phrase.includes(subject))||/\b(voce|protagonista|seu personagem|sua personagem)\b/.test(phrase);');
+ const safe=v=>v.replace(/[^a-z0-9 ]/g,'').trim().replace(/\s+/g,'\\s+');
  const verbs='(?:treinou|aprendeu|estudou|praticou|demonstrou|mostrou|completou|executou|aprimorou|aperfeicoou|resistiu|concluiu|desenvolveu|realizou|dominou|superou|utilizou|usou)';
- const actors=[full,first,'voce','o protagonista','a protagonista','seu personagem','sua personagem'].map(escaped).join('|');
+ const actors=[full,first,'voce','o protagonista','a protagonista','seu personagem','sua personagem'].map(safe).filter(Boolean).join('|');
  const direct=new RegExp('(?:^|[^a-z0-9])(?:'+actors+')(?:\\s+(?:ja|tambem|claramente|finalmente)){0,2}\\s+'+verbs+'\\b','u');
- const team=new RegExp('\\b(?:equipe|time|esquadrao)\\s+(?:de|do)\\s+'+escaped(first)+'\\s+'+verbs+'\\b','u');
+ const team=new RegExp('\\b(?:equipe|time|esquadrao)\\s+(?:de|do)\\s+'+safe(first)+'\\s+'+verbs+'\\b','u');
  return direct.test(phrase)||team.test(phrase);
 }
 
