@@ -161,3 +161,11 @@ test('backup do mesmo aparelho pode recuperar a campanha após reinício gratuit
  assert.match(js,/const restored=await api\('import',data\)/);
  assert.match(js,/localStorage\.removeItem\('shinobi-active'\)/);
 });
+
+test('um iniciante pode vencer apenas um adversário sem que isso vire vitória sobre todo o grupo',()=>{
+ const old=c();old.messages.push(ai('Quatro ninjas inimigos cercam Kaien no pátio.',0));
+ const attack=move('Ataco apenas um dos quatro inimigos e tento abrir caminho.');
+ const result=enforceCombatOutcome(old,attack,narrative('Kaien derrotou apenas um dos quatro inimigos, enquanto os demais mantiveram suas posições.',{sceneType:'combat'}));
+ assert.equal(result.combatVetoed,false,'conquista parcial é permitida');
+ assert.ok(result.energyDelta<0,'a desvantagem numérica continua cansativa');
+});
