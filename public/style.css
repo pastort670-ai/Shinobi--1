@@ -653,3 +653,126 @@ html[data-theme=dark] .memory-proposal button[data-memory-save]{color:#f0fff5;ba
 
 /* SHINOBI 2.6 — contexto de evidências sem números obrigatórios */
 .db-stat-proof{display:block;margin-top:3px;font-size:10px;color:var(--muted);line-height:1.4}
+
+
+/* SHINOBI 2.8 — leitura limpa, detalhes sob demanda e calendário mobile-first. */
+.sheet-compact,.compact-register,.calendar-simple{max-width:730px}
+.sheet-compact>.eyebrow,.compact-register>.eyebrow,.calendar-simple>.eyebrow{letter-spacing:1px}
+.sheet-compact>h1,.compact-register>h1,.calendar-simple>h1{font-size:25px;line-height:1.2;margin:6px 0 18px}
+.conditions-inline{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin-bottom:12px}
+.conditions-inline .condition{display:flex;flex-direction:column;gap:3px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--raised);font-size:11px;color:var(--muted)}
+.conditions-inline .condition b{font-size:13px;color:var(--ink)}
+.conditions-inline .chakra-feedback{grid-column:1/-1;margin:0}
+.sheet-compact .db-board{border:1px solid var(--line);background:var(--surface);box-shadow:none;padding:12px 10px 6px;border-radius:14px;margin:4px 0 12px}
+.sheet-compact .db-banner{border-bottom:0;margin:0 0 6px;padding:0;gap:8px}
+.sheet-compact .db-seal{width:34px;height:34px;min-width:34px;font-size:20px;transform:none;border-radius:8px}
+.sheet-compact .db-banner h2{font-size:15px!important;line-height:1.25}
+.sheet-compact .db-edition{font-size:9px;letter-spacing:.8px}
+.sheet-compact .db-profile{margin:7px 0 1px;gap:6px}
+.sheet-compact .db-profile strong{font-size:17px;line-height:1.2}
+.sheet-compact .db-profile span{font-size:10px}
+.sheet-compact .db-toggle{border:1px solid var(--line);border-radius:8px;padding:5px 8px;font-size:11px;min-height:35px}
+.sheet-compact .db-toggle input{width:16px;height:16px}
+.sheet-compact .db-layout{grid-template-columns:minmax(0,1fr);gap:0}
+.sheet-compact .db-graphic{width:100%;max-width:390px;margin:auto}
+.sheet-compact .db-graphic svg{width:100%;max-width:390px;overflow:visible}
+.sheet-compact .db-attributes{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;clip-path:inset(50%)!important;border:0!important}
+.db-radar-label text{font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;fill:var(--ink);font-size:11px;font-weight:720}
+.db-radar-label .db-radar-grade{font-weight:600;font-size:10px;fill:var(--muted)}
+.db-radar-label{pointer-events:none}
+.sheet-compact .db-grid-ring{stroke:var(--line);stroke-width:1;fill:transparent}
+.sheet-compact .db-axis{stroke:var(--line)}
+.sheet-compact .db-data-area{fill:var(--accent);fill-opacity:.16;stroke:var(--accent);stroke-width:2.5}
+.sheet-compact .db-data-line{stroke:var(--accent)}
+.sheet-compact .db-data-point{fill:var(--accent)}
+.db-explanation{margin:0 3px 4px;border-top:1px solid var(--line);padding:6px 4px}
+.db-explanation summary{color:var(--muted);font-size:11px;font-weight:700}
+.db-explanation .db-note{border:0!important;margin:3px 0 0!important;padding:4px 0!important;font-size:11px!important}
+.panel-fold{border:1px solid var(--line);border-radius:12px;margin:9px 0;background:var(--surface);overflow:hidden}
+.panel-fold>summary{display:flex;align-items:center;gap:10px;min-height:49px;list-style:none;cursor:pointer;padding:11px 14px;font-weight:750;color:var(--ink);font-size:14px}
+.panel-fold>summary::-webkit-details-marker,.compact-entry>summary::-webkit-details-marker,.compact-more>summary::-webkit-details-marker{display:none}
+.panel-fold>summary:after{content:'⌄';font-size:18px;color:var(--muted);margin-left:auto;transition:transform .15s ease}
+.panel-fold[open]>summary:after{transform:rotate(180deg)}
+.panel-count{display:inline-flex;align-items:center;justify-content:center;background:var(--raised);border-radius:999px;padding:2px 9px;font-size:10px;color:var(--muted);font-weight:700;white-space:nowrap;margin-left:auto}
+.panel-fold>summary .panel-count{margin-left:auto}
+.panel-fold>summary:after{margin-left:1px}
+.panel-inner{padding:0 13px 12px}
+.panel-inner .fact{padding:9px 0}
+.register-intro{margin:-4px 0 18px!important;color:var(--muted);font-size:12px!important;line-height:1.5}
+.register-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:5px 0 7px}
+.register-heading h2{margin:0!important;font-size:16px!important;line-height:1.4}
+.register-heading .panel-count{margin:0}
+.memory-primary{margin-bottom:14px}
+.compact-entry{border-bottom:1px solid var(--line);margin:0}
+.compact-entry:last-child{border-bottom:0}
+.compact-entry>summary{display:flex;flex-direction:column;gap:2px;list-style:none;cursor:pointer;padding:11px 22px 11px 2px;position:relative;min-height:49px}
+.compact-entry>summary:after{content:'›';position:absolute;right:3px;top:13px;font-size:19px;line-height:1;color:var(--muted);transition:transform .15s ease}
+.compact-entry[open]>summary:after{transform:rotate(90deg)}
+.compact-entry-title{font-size:13px;font-weight:750;line-height:1.35;overflow-wrap:anywhere}
+.compact-entry>summary small{font-size:10px;color:var(--muted)}
+.compact-entry-preview{color:var(--muted);font-size:11px;line-height:1.45;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}
+.compact-entry-body{padding:3px 8px 12px;border-left:2px solid var(--accent);margin:0 0 9px;background:var(--raised);border-radius:0 6px 6px 0}
+.compact-entry-body p{margin:3px 0!important;white-space:pre-wrap;font-size:12px!important;line-height:1.65}
+.compact-more{margin-top:7px;border-top:1px dashed var(--line);padding-top:4px}
+.compact-more>summary{display:block;list-style:none;cursor:pointer;font-size:12px;font-weight:700;color:var(--blue);padding:10px 1px}
+.compact-more-content{padding:0 4px}
+.empty-compact{color:var(--muted)!important;font-size:12px!important;padding:9px 0;margin:0!important}
+.era-summary{display:flex;flex-direction:column;gap:2px;padding:14px 16px;background:var(--raised);border-radius:12px;margin:0 0 14px}
+.era-summary small{font-size:10px;letter-spacing:1px;font-weight:800;color:var(--muted)}
+.era-summary strong{font-size:19px}
+.era-summary span{font-size:12px;color:var(--muted)}
+.calendar-disclaimer{color:var(--muted);font-size:11px!important;line-height:1.5;margin:15px 0 5px!important}
+.calendar-simple .cal-app{background:var(--surface);border:1px solid var(--line);border-radius:15px;padding:10px 12px 13px;margin:0 0 12px;box-shadow:none}
+.calendar-simple .calendar-now{margin:0 0 13px;padding:5px 2px 12px;border:0;border-radius:0;border-bottom:1px solid var(--line);background:transparent;box-shadow:none;gap:9px}
+.calendar-simple .calendar-now-icon{width:27px;height:27px;font-size:16px;border-width:1px}
+.calendar-simple .calendar-now strong{font-size:13px}
+.calendar-simple .calendar-now small{font-size:9px;font-weight:750;letter-spacing:.7px;color:var(--muted)}
+.calendar-simple .calendar-now span{font-size:10px}
+.calendar-simple .calendar-now button{background:var(--raised);border:1px solid var(--line);color:var(--ink);min-height:34px;font-size:11px;font-weight:750;padding:5px 12px;border-radius:9px;width:auto;flex:0 0 auto}
+.calendar-mainbar{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:0 4px;margin-bottom:13px}
+.calendar-mainbar button{min-height:38px;min-width:38px;border:0;border-radius:50%;background:transparent;font-size:26px;color:var(--ink);font-weight:400;padding:0;line-height:1}
+.calendar-mainbar button:not(:disabled):hover{background:var(--raised)}
+.calendar-simple .cal-month-label{font-size:17px;font-weight:800;line-height:1.3;margin:0;min-width:0;flex:1}
+.calendar-simple .month-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:3px;margin:0 0 6px;touch-action:pan-y}
+.calendar-simple .cal-weekday{color:var(--muted);font-size:10px;font-weight:700;min-height:29px}
+.calendar-simple .cal-blank{min-height:43px}
+.calendar-simple .month-grid .cal-cell{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:43px;min-width:0;padding:5px 0 9px;border:1px solid transparent;border-radius:10px;background:transparent;font-size:13px;font-weight:600;line-height:1.15;box-shadow:none;outline-offset:0}
+.calendar-simple .month-grid .cal-cell:hover:not(:disabled){background:var(--raised)}
+.calendar-simple .month-grid .cal-cell.cal-selected{background:var(--soft);color:var(--ink);border:1px solid var(--accent);box-shadow:none}
+.calendar-simple .month-grid .cal-cell.cal-today{background:var(--accent);border:1px solid var(--accent);color:#fff;font-weight:800;outline:0;box-shadow:none}
+.calendar-simple .month-grid .cal-cell.cal-today.cal-selected{box-shadow:0 0 0 2px var(--accent);outline:2px solid var(--surface);outline-offset:-4px}
+.calendar-simple .month-grid .cal-cell:disabled{opacity:.18}
+.calendar-simple .month-grid .cal-cell .cal-day-number{display:block}
+.calendar-simple .month-grid .cal-dot{position:absolute;bottom:5px;left:50%;transform:translateX(-50%);width:4px;height:4px;background:var(--blue);border-radius:100%;display:block}
+.calendar-simple .month-grid .cal-dot.era-dot{background:var(--accent);border-radius:1px}
+.calendar-simple .month-grid .cal-today .cal-dot{background:#fff}
+.calendar-simple #callegend{display:flex;gap:12px;flex-wrap:wrap;margin:9px 0;font-size:10px}
+.calendar-simple #callegend span{font-size:10px;font-weight:600}
+.calendar-simple .cal-browsing{font-size:11px;padding:7px 9px;margin:8px 0;border-radius:8px}
+.calendar-simple .cal-browsing[hidden]{display:none!important}
+.calendar-simple .cal-day-agenda{border-top:1px solid var(--line);margin:12px 0 0;padding-top:11px}
+.calendar-simple .calendar-selected-title{font-size:13px;line-height:1.4;font-weight:750;margin:0 0 6px;border:0;padding:0}
+.calendar-simple #caldayinfo{margin:0}
+.calendar-simple #caldayinfo .compact-entry{padding:0}
+.calendar-advanced .calendar-year-title{font-size:11px}
+.calendar-simple .cal-app .calendar-now button:disabled{opacity:.5}
+@media(max-width:680px){
+ .sheet-compact,.compact-register,.calendar-simple{padding:23px 14px 70px}
+ .sheet-compact .db-board{padding:10px 8px 5px}
+ .sheet-compact .db-graphic{max-width:370px}
+ .sheet-compact .db-graphic svg{max-width:370px}
+ .calendar-simple .cal-app{padding:10px 8px}
+ .calendar-simple .calendar-now button{width:auto;flex:0 0 auto}
+ .calendar-simple .month-grid{gap:2px}
+ .calendar-simple .cal-weekday{font-size:10px}
+ .calendar-simple .month-grid .cal-cell{min-height:43px;font-size:12px;padding-top:3px}
+ .db-radar-label text{font-size:11px}
+}
+@media(max-width:370px){
+ .sheet-compact .db-profile strong{font-size:15px}
+ .db-radar-label text{font-size:10px}
+ .db-radar-label .db-radar-grade{font-size:9px}
+ .calendar-simple .calendar-now strong{font-size:12px}
+ .calendar-simple .cal-month-label{font-size:15px}
+ .calendar-simple .month-grid .cal-cell{min-height:39px}
+}
