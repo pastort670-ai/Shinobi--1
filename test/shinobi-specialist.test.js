@@ -78,3 +78,22 @@ test('provedor Gemini permanece narrador e recebe parecer especialista na mesma 
  assert.equal(r.narrative,out.narrative);
  assert.equal(r.lookupStatus,'disabled');
 });
+
+test('especialista recupera contexto da última cena quando o jogador fala pouco',()=>{
+ const c=create('Contexto',character);
+ c.messages.push({role:'ai',text:'Hiruzen fala sobre o controle de chakra e o treino de Bunshin no Jutsu.',day:0});
+ const brief=buildSpecialistBrief(c,turn('E agora?'));
+ assert.ok(brief.knowledge.some(x=>/chakra|bunshin|hiruzen/i.test(x.title+' '+x.text)));
+ assert.ok(brief.knowledge.length<=8);
+});
+
+test('auxílio à ficha reconhece a graduação atualizada e não reescreve a ficha inicial',()=>{
+ const c=create('Graduação',character);
+ c.character.affiliation='Estudante da Academia';
+ c.profile={affiliation:'Genin'};
+ const original=JSON.stringify(c);
+ const brief=buildSpecialistBrief(c,turn('Posso participar de uma missão genin?'));
+ assert.equal(brief.sheetAssistant.rank,'Genin');
+ assert.equal(brief.sheetAssistant.initialSheetLocked,true);
+ assert.equal(JSON.stringify(c),original);
+});
