@@ -365,6 +365,11 @@ function renderDatabook(c){
   const width=known?(stat.value/5*100).toFixed(0):0;
   return '<div class="db-stat"><div class="db-stat-head"><strong>'+esc(stat.label)+'</strong><span>'+esc(display)+'</span></div><div class="db-meter" aria-label="'+esc(stat.label)+': '+esc(display)+'"><i style="width:'+width+'%"></i></div></div>';
  }).join('');
+ const intelligenceEvidence=data.intelligenceEvidence||{};
+ if(intelligenceEvidence.sourceCount>0){
+  const count=Number(intelligenceEvidence.studyCount)||0,plans=Number(intelligenceEvidence.tacticCount)||0;
+  $('db-attributes').innerHTML+='<p class="db-intelligence-evidence">Inteligência: avaliação baseada em '+count+' estudo(s) confirmado(s) e '+plans+' estratégia(s) registrada(s) na campanha.</p>';
+ }
  const missionRanks=['D','C','B','A','S'],totals=data.missions||{};
  $('db-missions').innerHTML=missionRanks.map(rank=>'<div class="db-mission"><small>RANK</small><strong>'+rank+'</strong><span>'+Math.max(0,Number(totals[rank])||0)+'</span></div>').join('')+(totals.unranked?'<div class="db-mission db-mission-unranked"><small>SEM RANK</small><strong>?</strong><span>'+Math.max(0,Number(totals.unranked)||0)+'</span></div>':'');
  const log=Array.isArray(data.missionLog)?data.missionLog.slice(-5).reverse():[];
