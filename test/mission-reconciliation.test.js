@@ -69,6 +69,19 @@ test('não atribui missões concluídas apenas por NPCs',()=>{
  assert.equal(view(c).databook.missions.B,0);
 });
 
+test('notícia distante sobre missão de outra equipe não aumenta a ficha',()=>{
+ const c=campaign();
+ c.messages.push(narrator('Notícias chegaram ao gabinete: a missão rank S foi concluída no País da Areia por ninjas estrangeiros.'));
+ assert.equal(view(c).databook.missions.S,0);
+});
+
+test('anúncio passivo conta quando o jogador acabou de apresentar o relatório',()=>{
+ const c=campaign();
+ c.messages.push(player('Entrego o relatório final da missão.'));
+ c.messages.push(narrator('Missão de rank C concluída. O contratante confirma o resultado.'));
+ assert.equal(view(c).databook.missions.C,1);
+});
+
 test('negações e missão ainda não concluída nunca criam registro',()=>{
  const c=campaign();
  c.messages.push(narrator('Akira não concluiu a missão de rank C.'));
