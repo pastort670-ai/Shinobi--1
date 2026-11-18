@@ -136,3 +136,19 @@ test('duas missões D concluídas em locais diferentes não se fundem na mesma d
  ];
  assert.equal(view(old).databook.missions.D,2);
 });
+
+test('missões estruturadas ficam guardadas com o turno aceito e ajudam no reconhecimento posterior',()=>{
+ const old=c(),assignment='Hiruzen atribuiu a Kaien a missão de rank C de proteger os agricultores.';
+ const assigned=apply(old,move('Aceito a missão.'),response(assignment,{missionAssignment:{rank:'C',summary:'Proteção agrícola',evidence:assignment}}));
+ assert.equal(assigned.messages.at(-1).missionAssignment?.rank,'C');
+ const success=apply(assigned,move('Volto e apresento o relatório da missão.'),response('Kaien entregou o relatório e Hiruzen aprovou o trabalho.'));
+ assert.equal(view(success).databook.missions.C,1);
+ assert.equal(view(assigned).databook.missions.C,0);
+});
+
+test('o rank de Kakashi não contamina missão Sem rank concluída por Kaien',()=>{
+ const old=c();
+ old.messages.push(user('Apresento o relatório de minha missão.',3));
+ old.messages.push(ai('Kakashi recebeu uma missão de rank S. Hiruzen aprovou o relatório de Kaien e confirmou que a missão do jovem terminou.',3));
+ assert.equal(view(old).databook.missions.S,0);
+});
