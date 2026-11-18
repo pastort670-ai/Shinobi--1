@@ -213,3 +213,10 @@ test('missões diferentes da mesma categoria podem contar individualmente quando
  ];
  assert.equal(view(c).databook.missions.D,2);
 });
+
+test('concluir burocracia e receber proposta não é concluir missão',()=>{
+ const c=create('Kaien',{...hero,name:'Kaien'});
+ c.memories=[{id:'proposta',status:'saved',day:3,title:'A Nova Diretriz',description:'Kaien concluiu suas tarefas burocráticas e recebeu de Hiruzen a proposta para sua primeira missão de reconhecimento externo.'}];
+ assert.equal(view(c).databook.missions.unranked,0);
+ assert.equal(view(c).databook.missions.D,0);
+});
