@@ -134,3 +134,30 @@ test('interface mostra origem da avaliação de Inteligência e Gemini recebe re
  assert.match(s,/COMBATE MAIS RIGOROSO/);
  assert.ok(context(c(),move('Ataco o inimigo.')).combatDifficulty);
 });
+
+test('desvantagem numérica causa desgaste mesmo quando não há vitória automática',()=>{
+ const old=c();old.messages.push(ai('Quatro ninjas inimigos avançam contra Kaien.',0));
+ const next=apply(old,move('Ataco um dos quatro inimigos sem preparo.'),narrative('Kaien conseguiu desviar do primeiro ataque, mas permanece cercado.',{sceneType:'combat',energyDelta:0}));
+ assert.ok(next.energy<=94);
+ assert.equal(next.timeScene,'combat');
+});
+
+test('o combate não bloqueia vitória explícita de aliados que ajudaram',()=>{
+ const old=c();old.messages.push(ai('Três ninjas inimigos cercaram Kaien.',0));
+ const outcome=enforceCombatOutcome(old,move('Ataco os inimigos para proteger Hiruzen.'),narrative('Todos os inimigos foram derrotados por Hiruzen enquanto Kaien se protegeu.',{sceneType:'combat'}));
+ assert.equal(outcome.combatVetoed,false);
+});
+
+test('uma vitória formulada como conseguiu derrotar também exige plausibilidade',()=>{
+ const old=c();old.messages.push(ai('Cinco inimigos desafiam Kaien.',0));
+ const outcome=enforceCombatOutcome(old,move('Ataco os cinco inimigos.'),narrative('Kaien conseguiu derrotar os cinco adversários sem nenhum esforço.',{sceneType:'combat'}));
+ assert.equal(outcome.combatVetoed,true);
+});
+
+test('backup do mesmo aparelho pode recuperar a campanha após reinício gratuito da hospedagem',()=>{
+ const js=readFileSync(new URL('../public/app.js',import.meta.url),'utf8');
+ assert.match(js,/autoRestoreAttempted/);
+ assert.match(js,/data\?\.campaign\?\.id===saved\('shinobi-active',''\)/);
+ assert.match(js,/const restored=await api\('import',data\)/);
+ assert.match(js,/localStorage\.removeItem\('shinobi-active'\)/);
+});
