@@ -2,6 +2,30 @@ const $=id=>document.getElementById(id);let current=null,busy=false,parts=[{type
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const saved=(key,fallback)=>{try{return localStorage.getItem(key)||fallback;}catch{return fallback;}};
 const remember=(key,value)=>{try{localStorage.setItem(key,value);}catch{}};
+// Rascunhos por campanha ficam no próprio aparelho. Não são enviados ao narrador até o usuário clicar em Enviar.
+const draftKey=id=>'shinobi-draft-'+id;
+function saveDraft(){
+ if(!current?.id)return;
+ try{
+  const draft={parts:editorParts(),editorMode,timeActive,timeText,timeAmount,timeUnit};
+  localStorage.setItem(draftKey(current.id),JSON.stringify(draft));
+ }catch{}
+}
+function loadDraft(){
+ try{
+  const state=JSON.parse(localStorage.getItem(draftKey(current.id))||'null');
+  if(!state||!Array.isArray(state.parts)||state.parts.length>8)return;
+  const valid=state.parts.every(p=>p&&['AGIR','FALAR'].includes(p.type)&&typeof p.text==='string'&&p.text.length<=2000);
+  if(!valid)return;
+  parts=state.parts.length?state.parts:[{type:'AGIR',text:''}];
+  editorMode=['AGIR','FALAR'].includes(state.editorMode)?state.editorMode:'AGIR';
+  timeActive=Boolean(state.timeActive)&&current.timeAvailable===true;
+  timeText=typeof state.timeText==='string'?state.timeText.slice(0,2000):'';
+  timeAmount=Number.isFinite(Number(state.timeAmount))?Number(state.timeAmount):1;
+  timeUnit=[1,24].includes(Number(state.timeUnit))?Number(state.timeUnit):24;
+ }catch{}
+}
+function clearDraft(id){try{localStorage.removeItem(draftKey(id));}catch{}}
 function theme(value){document.documentElement.dataset.theme=value;remember('shinobi-theme',value);$('lighttheme').classList.toggle('selected',value==='light');$('darktheme').classList.toggle('selected',value==='dark');$('lighttheme').setAttribute('aria-pressed',String(value==='light'));$('darktheme').setAttribute('aria-pressed',String(value==='dark'));document.querySelector('meta[name="theme-color"]').content=value==='dark'?'#14121c':'#f4ecd9';}
 theme(saved('shinobi-theme','light')==='dark'?'dark':'light');
 const villageSymbols={Konohagakure:'konohagakure',Sunagakure:'sunagakure',Kirigakure:'kirigakure',Kumogakure:'kumogakure',Iwagakure:'iwagakure',Amegakure:'amegakure',Takigakure:'takigakure',Kusagakure:'kusagakure',Otogakure:'otogakure',Hoshigakure:'hoshigakure'};
@@ -57,7 +81,7 @@ async function auditCurrentMemories(){
  }catch(error){$('connection').textContent='● Memórias aguardam revisão';notice('A campanha está disponível, mas a revisão automática das memórias falhou: '+error.message);}
  finally{loading.hidden=true;}
 }
-async function load(id){current=await api('campaigns/'+id);remember('shinobi-active',id);parts=[{type:'AGIR',text:''}];timeActive=false;timeText='';editorMode='AGIR';calendarCursor=null;calendarSelected=current.day;render();await auditCurrentMemories();}
+async function load(id){current=await api('campaigns/'+id);remember('shinobi-active',id);parts=[{type:'AGIR',text:''}];timeActive=false;timeText='';editorMode='AGIR';calendarCursor=null;calendarSelected=current.day;loadDraft();render();await auditCurrentMemories();}
 $('campaigns').onchange=()=>run(()=>load($('campaigns').value));
 function openCreation(){if(busy)return;if(current){notice('Uma campanha por vez. Exporte e encerre a campanha atual antes de começar outra.');return;}$('createform').reset();fillBaseCharacter();$('creation').showModal();drawer(false);}
 $('new').onclick=openCreation;$('start').onclick=openCreation;$('close').onclick=()=>$('creation').close();
@@ -96,7 +120,7 @@ document.addEventListener('selectionchange',saveCaret);
 function placeCaret(node,position){const range=document.createRange(),sel=window.getSelection();range.setStart(node,position);range.collapse(true);sel.removeAllRanges();sel.addRange(range);saveCaret();}
 function choose(type){
  if(busy)return;
- if(type==='TEMPO'){if(!timeActive&&current?.timeAvailable!==true)return;timeActive=!timeActive;renderTime();return;}
+ if(type==='TEMPO'){if(!timeActive&&current?.timeAvailable!==true)return;timeActive=!timeActive;renderTime();saveDraft();return;}
  const root=$('editor'),previousMode=editorMode;editorMode=type;
  if(!root){renderDrafts();return;}
  const sel=window.getSelection();
@@ -120,7 +144,7 @@ function choose(type){
  }else{
   const next=document.createElement('span');next.dataset.kind=type;next.className=type==='FALAR'?'inline-talk':'inline-narrate';next.textContent='\u200b';root.appendChild(next);placeCaret(next.firstChild,1);
  }
- root.focus();updateMode();
+ root.focus();updateMode();saveDraft();
 }
 function updateMode(){
  if(timeActive&&current?.timeAvailable!==true){timeActive=false;timeText='';if($('timearea'))$('timearea').hidden=true;}
@@ -137,9 +161,9 @@ function renderTime(){
  if(!timeActive){updateMode();return;}
  el.innerHTML='<p class="time-preflight">O avanço acontece no próximo envio; eventos e compromissos podem interrompê-lo. Limite desta cena: '+(current?.timeMaxHours||24)+' horas.</p><label for="timeactivity">⌛ ATIVIDADE DURANTE O TEMPO</label><textarea id="timeactivity" rows="2" maxlength="2000" placeholder="O que seu personagem faz durante esse período?">'+esc(timeText)+'</textarea><div class="time-inline-controls"><input id="timeamount" aria-label="Quantidade" type="number" min="1" max="3650" value="'+esc(timeAmount)+'"><select id="timeunit" aria-label="Unidade"><option value="1">horas</option><option value="24">dias</option><option value="168">semanas</option><option value="720">meses (30 dias)</option><option value="8760">anos (365 dias)</option></select></div><div class="time-suggestions">'+(current?.timeChoices?.length?current.timeChoices:(current?.timeOptions||[]).map(d=>({hours:d*24,label:d+' dias'}))).map(opt=>'<button type="button" data-hours="'+opt.hours+'">'+esc(opt.label)+'</button>').join('')+'</div>';
  $('timeunit').value=String(timeUnit);
- $('timeactivity').oninput=e=>{timeText=e.target.value;};
- $('timeamount').oninput=e=>{timeAmount=e.target.value;};
- $('timeunit').onchange=e=>{timeUnit=Number(e.target.value);};
+ $('timeactivity').oninput=e=>{timeText=e.target.value;saveDraft();};
+ $('timeamount').oninput=e=>{timeAmount=e.target.value;saveDraft();};
+ $('timeunit').onchange=e=>{timeUnit=Number(e.target.value);saveDraft();};
  el.querySelectorAll('[data-hours]').forEach(b=>b.onclick=()=>{const h=Number(b.dataset.hours);timeUnit=h>=24&&h%24===0?24:1;timeAmount=h/timeUnit;$('timeamount').value=timeAmount;$('timeunit').value=String(timeUnit);});
  updateMode();
 }
@@ -149,7 +173,7 @@ function renderDrafts(){
  for(const part of parts){const el=document.createElement('span');el.dataset.kind=part.type==='FALAR'?'FALAR':'AGIR';el.className=part.type==='FALAR'?'inline-talk':'inline-narrate';el.textContent=part.text||'\u200b';root.appendChild(el);}
  root.addEventListener('beforeinput',e=>{if(e.inputType==='insertParagraph'){e.preventDefault();document.execCommand('insertText',false,'\n');}});
  root.addEventListener('paste',e=>{e.preventDefault();const plain=e.clipboardData.getData('text/plain');document.execCommand('insertText',false,plain);});
- root.addEventListener('input',()=>{parts=editorParts();checkReview();saveCaret();});
+ root.addEventListener('input',()=>{parts=editorParts();checkReview();saveCaret();saveDraft();});
  root.addEventListener('focus',()=>{if(!root.querySelector('span')){const el=document.createElement('span');el.dataset.kind='AGIR';el.className='inline-narrate';el.textContent='\u200b';root.appendChild(el);}});
  renderTime();checkReview();updateMode();freeze();
 }
@@ -166,13 +190,13 @@ async function send(days=null){
  if(segments.length>8||segments.some(s=>s.text.length>2000)){notice('Use até oito trechos com no máximo 2000 caracteres cada.');return;}
  if(!segments.length&&!days){notice('Escreva uma ação ou fala para começar.');focusPart();return;}
  const payload={segments,days:0,hours,revision:current.revision},id=current.id;
- await run(async()=>{current=await api('campaigns/'+id+'/turn',payload);parts=[{type:'AGIR',text:''}];timeActive=false;timeText='';timeAmount=1;timeUnit=24;editorMode='AGIR';savedCaret=null;render();},true);
+ await run(async()=>{current=await api('campaigns/'+id+'/turn',payload);parts=[{type:'AGIR',text:''}];timeActive=false;timeText='';timeAmount=1;timeUnit=24;editorMode='AGIR';savedCaret=null;clearDraft(id);render();},true);
 }
 $('send').onclick=()=>send();
 $('regen').onclick=()=>{if(current&&!busy&&current.messages.length>=3&&current.introConfirmed!==false){lastAction='Regenerar última resposta';run(async()=>{current=await api(`campaigns/${current.id}/regenerate`,{revision:current.revision});render();},true);}};
 $('copyerror').onclick=async()=>{const data={version:'1.4.0',page:location.pathname,operation:lastAction,issue:$('turnnotice').textContent||$('notice').textContent||'Sem erro recente',engine:$('connection').textContent};try{await navigator.clipboard.writeText(JSON.stringify(data,null,2));notice('Diagnóstico copiado. Compartilhe este texto para facilitar a correção.');}catch{notice('Não foi possível copiar o diagnóstico neste navegador.');}};
 $('restorelocal').onclick=()=>{if(busy)return;lastAction='Recuperar backup local';run(async()=>{if(current)throw Error('Encerre a campanha atual antes de restaurar.');const content=await recoverBackup();if(!content)throw Error('Não há backup local neste aparelho. Tente importar um arquivo.');const data=JSON.parse(content);const restored=await api('import',data);await list(restored.id);tab('story');notice('Campanha recuperada do backup local.');});};
-$('closecampaign').onclick=()=>{if(!current||busy)return;lastAction='Encerrar campanha';run(async()=>{const original={id:current.id,revision:current.revision};const backup=await api('campaigns/'+original.id+'/export');const raw=JSON.stringify(backup);let copied=false;try{await storeBackup(raw);copied=true;}catch{try{if(raw.length<=2500000){localStorage.setItem('shinobi-autobackup',raw);copied=true;}}catch{}}if(!copied&&!window.confirm('Não foi possível salvar um backup local. Antes de continuar, você já exportou o arquivo JSON da campanha?'))return;if(!window.confirm('Encerrar a campanha atual? Ela será apagada do servidor, mas o backup local poderá recuperá-la.'))return;if(window.prompt('Digite ENCERRAR para confirmar a exclusão:')!=='ENCERRAR')return;await api('campaigns/'+original.id+'/close',{revision:original.revision,confirm:'ENCERRAR'});location.reload();});};
+$('closecampaign').onclick=()=>{if(!current||busy)return;lastAction='Encerrar campanha';run(async()=>{const original={id:current.id,revision:current.revision};const backup=await api('campaigns/'+original.id+'/export');const raw=JSON.stringify(backup);let copied=false;try{await storeBackup(raw);copied=true;}catch{try{if(raw.length<=2500000){localStorage.setItem('shinobi-autobackup',raw);copied=true;}}catch{}}if(!copied&&!window.confirm('Não foi possível salvar um backup local. Antes de continuar, você já exportou o arquivo JSON da campanha?'))return;if(!window.confirm('Encerrar a campanha atual? Ela será apagada do servidor, mas o backup local poderá recuperá-la.'))return;if(window.prompt('Digite ENCERRAR para confirmar a exclusão:')!=='ENCERRAR')return;await api('campaigns/'+original.id+'/close',{revision:original.revision,confirm:'ENCERRAR'});clearDraft(original.id);location.reload();});};
 $('restorebackup').onclick=()=>{if(!busy)$('backupfile').click();};
 $('backupfile').onchange=e=>{const file=e.target.files?.[0];if(!file)return;lastAction='Restaurar campanha';run(async()=>{if(file.size>4000000)throw Error('O backup é grande demais para importar.');const data=JSON.parse(await file.text());const restored=await api('import',data);await list(restored.id);tab('story');notice('Campanha restaurada neste aparelho. Exporte backups periodicamente para maior segurança.');});e.target.value='';};
 $('export').onclick=()=>{if(current&&!busy)window.location.href=`/api/campaigns/${current.id}/export`;else if(!busy)notice('Crie uma campanha para exportar.');};
