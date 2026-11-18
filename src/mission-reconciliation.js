@@ -1,7 +1,7 @@
 // Reconcilia missões a partir das narrativas ACEITAS.
 // Campos opcionais do Gemini ajudam, mas não são a única forma de registrar.
 const norm=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
-const ranks=new Set(['D','C','B','A','S']);
+const ranks=new Set(['D','C','B','A','S','?']);
 const completionVerbs='concluida|concluidas|concluido|concluidos|cumprida|cumpridas|cumprido|cumpridos|finalizada|finalizadas|finalizado|finalizados|completada|completadas|completado|completados|encerrada|encerradas|encerrado|encerrados|terminada|terminadas|terminado|terminados';
 const completedActs='concluiu|concluiram|cumpriu|cumpriram|finalizou|finalizaram|completou|completaram|encerrou|encerraram|terminou|terminaram';
 const finish=new RegExp('\\bmissao\\b.{0,95}\\b(?:'+completionVerbs+')\\b|\\b(?:'+completedActs+')\\b.{0,90}\\bmissao\\b','u');
@@ -67,8 +67,8 @@ export function reconciledMissions(c,stored=[]){
   const match=parts.find(s=>complete(s,first,active));
   if(!match)continue;
   const explicit=rankOf(match);
-  const rank=explicit||active?.rank||ranked;
-  if(!rank||!ranks.has(rank))continue;
+  const rank=explicit||active?.rank||ranked||'?';
+  if(!ranks.has(rank))continue;
   // Do not count repeated victory announcements for the same mission.
   const assignment=active?.rank===rank?active.source:null;
   const repeated=lastCompletion?.rank===rank&&(
