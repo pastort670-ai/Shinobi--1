@@ -36,6 +36,14 @@ function otherActor(text,first){
  if(by&&by[1]!==first&&!['nos','voces'].includes(by[1]))return true;
  return false;
 }
+function assignmentLinked(sentence,first){
+ const s=norm(sentence);
+ const isNamed=first&&new RegExp('\\b'+first+'\\b','u').test(s);
+ const secondPerson=/\b(?:voce|voces|sua equipe|seu grupo|seu time|o protagonista)\b/u.test(s);
+ const assignedNpc=s.match(/\b([a-z][a-z-]+)\s+(?:recebeu|aceitou|assumiu|pegou|iniciou|comecou|ganhou)\s+(?:\w+\s+){0,8}\bmissao\b/u);
+ if(assignedNpc&&assignedNpc[1]!==first)return false;
+ return Boolean(isNamed||secondPerson);
+}
 function playerLinked(s,first,hasAssignment){
  const name=first&&new RegExp('(?:^|[^a-z0-9])'+first+'(?:[^a-z0-9]|$)','u').test(s);
  const direct=name&&new RegExp('\\b'+first+'\\b.{0,60}\\b(?:'+completedActs+')\\b|\\b(?:'+completedActs+')\\b.{0,60}\\b'+first+'\\b','u').test(s);
@@ -150,11 +158,23 @@ export function reconciledMissions(c,stored=[]){
   if(message?.role!=='ai'||typeof message.text!=='string')continue;
   const parts=sliceSentences(message.text);
   const ranked=rankOf(message.text);
-  if(ranked&&parts.some(s=>assignments.test(s)&&!finish.test(s)&&!otherActor(s,first))){
+  if(ranked&&parts.some(s=>assignments.test(s)&&!finish.test(s)&&assignmentLinked(s,first))){
    active={rank:ranked,source:index,opened:index};
   }
   const preceding=norm(messages[index-1]?.role==='user'?messages[index-1].text:'');
-  const match=parts.find(s=>complete(s,first,active,norm(message.text),preceding));
+  const narrated=norm(message.text);
+  let match=parts.find(s=>complete(s,first,active,narrated,preceding));
+  const event=message.missionCompletion;
+  // Registro explícito sobrevive no turno aceito, mas só vale quando o trecho
+  // da história comprova conclusão e o rank já está estabelecido na campanha.
+  if(!match&&event&&ranks.has(event.rank)&&event.rank!=='?'&&
+     typeof event.evidence==='string'&&event.evidence.length>=20&&
+     narrated.includes(norm(event.evidence))&&
+     (ranked===event.rank||active?.rank===event.rank)&&
+     (finish.test(norm(event.evidence))||taskCompleted.test(norm(event.evidence))||reportSuccess.test(norm(event.evidence)))&&
+     complete(norm(event.evidence),first,active,narrated,preceding)){
+    match=norm(event.evidence);
+  }
   if(!match)continue;
   const explicit=rankOf(match);
   const rank=explicit||active?.rank||ranked||'?';
