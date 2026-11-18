@@ -29,12 +29,12 @@ const confirmedStats=c=>{
 
 export function databookView(c){
  const ratings=confirmedStats(c),log=reconciledMissions(c,c.databook?.missions);
- const missions=Object.fromEntries(MISSION_RANKS.map(rank=>[rank,log.filter(x=>x.rank===rank).length]));
+ const missions={...Object.fromEntries(MISSION_RANKS.map(rank=>[rank,log.filter(x=>x.rank===rank).length])),unranked:log.filter(x=>x.rank==='?').length};
  return {
   version:'1.0',basis:'Avaliações internas aproximadas; não são notas oficiais de databooks.',
   attributes:DATABOOK_ATTRIBUTES.map(a=>({key:a.key,label:a.label,value:ratings[a.key],description:grade(ratings[a.key]),evaluated:ratings[a.key]!==null})),
   ratings,missions,missionLog:log.slice(-12),
-  missionPolicy:'Conta conclusões confirmadas na narrativa, inclusive em cenas anteriores recuperáveis; o rank precisa estar documentado. Nenhuma missão é atribuída por mera alegação do jogador.',
+  missionPolicy:'Conta missões confirmadas em narrativas aceitas, recuperando cenas anteriores. Missões sem classificação comprovada são marcadas como Sem rank, jamais classificadas arbitrariamente.',
   history:(Array.isArray(c.databook?.history)?c.databook.history:[]).filter(h=>h&&Number.isInteger(h.day)&&h.day>=0).slice(-18),
   hasPartialData:Object.values(ratings).some(v=>v===null)
  };
