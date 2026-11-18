@@ -49,6 +49,10 @@ try{
   await page.waitForFunction(()=>document.querySelector('#calendar')?.textContent?.includes('13/10'),{timeout:15000});
  assert.match(await page.locator('#calendar').innerText(),/13\/10.*Ano 1/s);
  await page.locator('#acceptintro').click();
+ await page.locator('#editor').fill('Meu rascunho de Naruto não deve desaparecer.');
+ await page.reload({waitUntil:'networkidle'});
+ await page.waitForFunction(()=>document.querySelector('#editor')?.innerText?.includes('Meu rascunho de Naruto não deve desaparecer.'),null,{timeout:15000});
+ await page.locator('#editor').fill('');
  assert.equal(await page.locator('#time').isVisible(),false,'TEMPO permanece oculto após a introdução');
  assert.equal(await page.locator('.headband-plate use').getAttribute('href'),'/village-icons.svg#konohagakure');
  await page.locator('#menutoggle').click();
