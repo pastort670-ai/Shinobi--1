@@ -372,10 +372,13 @@ function renderDatabook(c){
  }).join('');
  const points=attrs.map((stat,i)=>valid(stat)?'<circle class="db-data-point" cx="'+p(i,stat.value)[0]+'" cy="'+p(i,stat.value)[1]+'" r="4.2"></circle>':'').join('');
  container.innerHTML='<svg viewBox="0 0 256 256" role="img" aria-label="Gráfico de oito atributos; dados parciais não são preenchidos com notas inventadas.">'+axes+grid+filled+links+points+'<circle cx="128" cy="128" r="2.5" class="db-center"></circle></svg>';
+ const attributeEvidence=data.attributeEvidence||{};
  $('db-attributes').innerHTML=attrs.map(stat=>{
   const known=valid(stat),display=known?(stat.description+(numbers?' · '+stat.value.toLocaleString('pt-BR')+'/5':'')):'Não avaliado';
   const width=known?(stat.value/5*100).toFixed(0):0;
-  return '<div class="db-stat"><div class="db-stat-head"><strong>'+esc(stat.label)+'</strong><span>'+esc(display)+'</span></div><div class="db-meter" aria-label="'+esc(stat.label)+': '+esc(display)+'"><i style="width:'+width+'%"></i></div></div>';
+  const records=Math.max(0,Number(attributeEvidence[stat.key]?.records)||0);
+  const proof=records?'<small class="db-stat-proof">'+records+' registro(s) de prática confirmado(s)</small>':'';
+  return '<div class="db-stat"><div class="db-stat-head"><strong>'+esc(stat.label)+'</strong><span>'+esc(display)+'</span></div><div class="db-meter" aria-label="'+esc(stat.label)+': '+esc(display)+'"><i style="width:'+width+'%"></i></div>'+proof+'</div>';
  }).join('');
  const intelligenceEvidence=data.intelligenceEvidence||{};
  if(intelligenceEvidence.sourceCount>0){
