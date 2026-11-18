@@ -36,6 +36,7 @@ function aliasMatch(a,b,aDesc='',bDesc=''){
  // Short name is an alias of a full name only when it has a distinctive first token.
  return x[0]===y[0]&&x[0].length>=3;
 }
+export function isGroupNpc(name){return isGroup(name);}
 function isGroup(name){
  const s=norm(name);
  if(!s)return true;
@@ -157,8 +158,13 @@ export function npcContinuity(c,i){
   return {...m,score:overlap+Math.min(1,profile/1000)};
  }).sort((a,b)=>b.score-a.score||b.index-a.index).slice(0,5);
  if(!ranked.length)return null;
+ const knownNamePattern=/\b(?:comerciante|lojista|vendedor|mercador|atendente)(?:\s+(?:chamado|de nome))?\s+([A-ZÁÉÍÓÚÂÊÔÃÕÇ][\p{L}-]{2,})/gu;
+ const names=[...new Set(ranked.flatMap(m=>[...String(m.text).matchAll(knownNamePattern)].map(hit=>hit[1])).filter(name=>!/^(?:Um|Uma|Ele|Ela|Esse|Essa|Daquele|Outro|O|A)$/.test(name)))].slice(0,8);
+ const previousNPCs=Object.entries(c.npcAgents||{}).filter(([name,a])=>
+   names.includes(name)||roles.test(norm(name+' '+(a.relationship||'')+' '+(a.knowledge||[]).join(' ')))||place.test(norm(name+' '+(a.relationship||'')+' '+(a.knowledge||[]).join(' ')))
+ ).slice(-10).map(([name,a])=>({name,relationship:a.relationship||'',knownFacts:(a.knowledge||[]).slice(-3)}));
  return {visitedPreviously:true,priorScenes:ranked.map(m=>({day:m.day,text:m.text.slice(0,620)})),
-  previousNPCs:Object.entries(c.npcAgents||{}).filter(([name,a])=>roles.test(norm(name+' '+(a.relationship||'')))||place.test(norm(name+' '+(a.relationship||'')))).slice(-8).map(([name,a])=>({name,relationship:a.relationship||'',knownFacts:(a.knowledge||[]).slice(-3)})),
-  rule:'Ao revisitar uma loja, retome o comerciante ou responsável que já apareceu no histórico. Não invente outro nome ou pessoa para o MESMO funcionário sem um motivo narrado (troca de turno, novo empregado, mudança de proprietário). Use a descrição da loja, a posição, os fatos lembrados e os nomes anteriores; pessoas diferentes na mesma loja podem coexistir, nunca as funda automaticamente. Não transforme uma compra em vínculo importante.'};
+  establishedMerchantNames:names,previousNPCs,
+  rule:'Ao revisitar uma loja, retome o comerciante ou responsável que já apareceu no histórico, utilizando o mesmo nome, aparência e lembranças. Se houver nome em establishedMerchantNames, preserve-o como identidade. Não invente outra pessoa para o MESMO funcionário sem um motivo narrado (troca de turno, novo empregado, mudança de proprietário). Pessoas distintas na mesma loja podem coexistir: não as funda automaticamente. Não transforme uma compra em vínculo importante.'};
 }
 export const relationshipPolicy='A aba Relações mostra apenas indivíduos com vínculo significativo e duradouro: família, mentores, amizades, aliados relevantes ou rivalidades pessoais contínuas. Simples presença, inimigos ocasionais, guardas, guarnições, comerciantes em transações e grupos sem vínculo pessoal NÃO são relações. Os personagens incidentais continuam a existir na memória do mundo, mas não ocupam a ficha. Use o mesmo nome/identidade de um NPC quando ele reaparecer; consulte npcContinuity ao revisitar lojas e locais. Reações novas alteram relações já estabelecidas, não criam uma pessoa diferente.';
