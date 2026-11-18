@@ -79,6 +79,16 @@ const stopMissionWords=new Set('a o as os de da do das dos em no na nos nas com 
 function distinctiveWords(summary,first){
  return new Set((norm(summary).match(/\b[a-z]{5,}\b/gu)||[]).filter(word=>!stopMissionWords.has(word)&&word!==first));
 }
+function missionLocation(summary){
+ const s=norm(summary);
+ const start=s.search(/\bmissao\b/u);
+ if(start<0)return null;
+ const tail=s.slice(start).slice(0,135);
+ const matches=[...tail.matchAll(/\b(?:nos|nas|na|no|ao|aos)\s+([a-z]{5,})\b/gu)]
+  .map(m=>m[1])
+  .filter(v=>!new Set(['hokage','gabinete','escritorio','volta','retorno','regresso','aldeia','vila','konoha','missao']).has(v));
+ return matches[0]||null;
+}
 function sameMission(existing,incoming,first){
  const distance=Math.abs((existing.day||0)-(incoming.day||0));
  if(distance>7)return false;
@@ -86,6 +96,8 @@ function sameMission(existing,incoming,first){
  const oldOrdinal=oldText.match(missionOrdinals)?.[0],newOrdinal=newText.match(missionOrdinals)?.[0];
  if(oldOrdinal&&newOrdinal&&oldOrdinal!==newOrdinal)return false;
  const oldWords=distinctiveWords(oldText,first),newWords=distinctiveWords(newText,first);
+ const oldPlace=missionLocation(oldText),newPlace=missionLocation(newText);
+ if(oldPlace&&newPlace&&oldPlace!==newPlace)return false;
  const overlap=[...newWords].some(word=>oldWords.has(word));
  if(oldOrdinal&&newOrdinal&&oldOrdinal===newOrdinal)return true;
  if(overlap)return true;
