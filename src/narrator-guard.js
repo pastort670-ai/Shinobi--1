@@ -14,46 +14,50 @@ export function playerDialogue(c,i){
  }
  return result.slice(-14);
 }
-export function narrativeEchoes(c,i,narrative){
- const actual=normal(narrative).replace(quoted,'');
- return playerDialogue(c,i).filter(q=>{
-  const phrase=normal(q).replace(quoted,'');
-  // Very short utterances can legitimately be used by an NPC. A repeated
-  // short phrase is prohibited when the narrator explicitly quotes it.
-  const long=phrase.length>=18&&words(phrase).length>=3;
-  return long&&actual.includes(phrase) || (phrase.length>=6&&new RegExp('(?:[“"«])'+escapeRegex(phrase)+'(?:[”"»])','iu').test(actual));
- });
+const escapeRegex=s=>s.replace(/[.*+?^\u0024{}()|[\]\\]/g,'\\$&');
+const tokens=s=>clean(s).match(/[\\p{L}\\p{N}]+/gu)||[];
+function echoRegex(s){
+ const t=tokens(s);if(!t.length)return null;
+ const sep='[\\s.,!?;:—–"“”«»…]*';
+ return new RegExp('(?<![\\p{L}\\p{N}])'+t.map(escapeRegex).join(sep)+'(?![\\p{L}\\p{N}])','giu');
 }
-const escapeRegex=s=>s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
-function removeSpan(text,start,end){
- // Remove the complete standalone quoted sentence, not adjacent NPC reactions.
- const before=text.slice(0,start),after=text.slice(end);
- const p=before.lastIndexOf('\n'),endOfLine=after.indexOf('\n');
- const lineStart=p<0?0:p+1,lineEnd=endOfLine<0?text.length:end+endOfLine;
- const line=text.slice(lineStart,lineEnd);
- const prefix=line.slice(0,start-lineStart),suffix=line.slice(end-lineStart);
- // When a line only replays the character's speech, drop it.
- if(/^(?:[-—* ]|\*\*|[\wÀ-ÿ .,'“"«»:]{0,100}(?:diz|disse|fala|falou|responde|respondeu|declara|declarou)[: ,]+)*[“"«]?$/iu.test(prefix.trim())&&/^[”"»]?[.!?\s]*$/u.test(suffix.trim())){
-  return text.slice(0,lineStart)+text.slice(lineEnd).replace(/^\n/,'');
+function findEcho(text,quote){
+ const phrase=clean(quote),long=phrase.length>=18&&tokens(phrase).length>=3;
+ const pattern=echoRegex(phrase);if(!pattern)return null;
+ for(const m of text.matchAll(pattern)){
+  const before=text.slice(0,m.index),after=text.slice(m.index+m[0].length);
+  const quotedBefore=/[“"«]\s*$/u.test(before),quotedAfter=/^[.!?…]*\s*[”"»]/u.test(after);
+  const linePrefix=before.slice(before.lastIndexOf('\n')+1);
+  const attributed=/\b(?:diz|disse|fala|falou|declara|declarou|responde|respondeu|sussurra|sussurrou)\b[^\n]{0,25}$/iu.test(linePrefix)||/^[\p{L}\s.'-]{2,90}:\s*["“«]?$/iu.test(linePrefix);
+  if(long||(phrase.length>=5&&((quotedBefore&&quotedAfter)||attributed)))return m;
  }
- // Preserve the rest of the response; replace the echoed quotation by an omission.
- return before.replace(/[“"«]\s*$/u,'')+after.replace(/^\s*[”"»]/u,'').replace(/^\s+/,' ');
+ return null;
+}
+export function narrativeEchoes(c,i,narrative){
+ return playerDialogue(c,i).filter(phrase=>!!findEcho(String(narrative||''),phrase));
+}
+function removeSpan(text,start,end){
+ const before=text.slice(0,start),after=text.slice(end),lineStart=before.lastIndexOf('\n')+1;
+ const prefix=before.slice(lineStart),lineEnd=after.indexOf('\n'),suffix=lineEnd<0?after:after.slice(0,lineEnd);
+ const attribution=/\b(?:diz|disse|fala|falou|declara|declarou|responde|respondeu|sussurra|sussurrou)\b[^\n]{0,25}[: —]?\s*["“«]?\s*$/iu.test(prefix)||/^[\p{L}\s.'-]{2,90}:\s*["“«]?\s*$/iu.test(prefix);
+ const rest=suffix.replace(/^[.!?…]*\s*[”"»]?\s*/u,'');
+ if(attribution){
+  // Remove only the player's speech attribution, preserving the other
+  // characters' words and actions on the same line.
+  const beginning=before.slice(0,lineStart),tail=after.slice(lineEnd<0?after.length:lineEnd);
+  return beginning+rest+(tail.startsWith('\n')&&rest?'\n':'')+tail.replace(/^\n/u,'');
+ }
+ return before.replace(/[“"«]\s*$/u,'').trimEnd()+(after.replace(/^[.!?…]*\s*[”"»]?/u,'').startsWith('\n')?'':' ')+after.replace(/^[.!?…]*\s*[”"»]?/u,'');
 }
 export function stripPlayerEcho(c,i,narrative){
  let result=String(narrative||''),removed=0;
- for(const quote of playerDialogue(c,i)){
-  const phrase=normal(quote);
-  if(phrase.length<6)continue;
-  const long=phrase.length>=18&&words(phrase).length>=3;
-  let n=0;
-  while(n++<8){
-   const normalized=normal(result);
-   const pos=normalized.indexOf(phrase);
-   // Find original match with whitespace-insensitive regular expression.
-   const exact=new RegExp(escapeRegex(clean(quote)).replace(/\s+/g,'\\s+'),'iu');
-   const match=exact.exec(result);
-   if(!match||(!long&&!new RegExp('(?:[“"«])'+escapeRegex(clean(quote))+'(?:[”"»])','iu').test(result)))break;
-   result=removeSpan(result,match.index,match.index+match[0].length);removed++;
+ for(const phrase of playerDialogue(c,i)){
+  for(let guard=0;guard<12;guard++){
+   const match=findEcho(result,phrase);if(!match)break;
+   const previous=result;
+   result=removeSpan(result,match.index,match.index+match[0].length);
+   if(previous===result)break;
+   removed++;
   }
  }
  result=result.replace(/\n{3,}/g,'\n\n').replace(/\s+([.,!?])/g,'$1').trim();
