@@ -36,13 +36,14 @@ function otherActor(text,first){
  if(by&&by[1]!==first&&!['nos','voces'].includes(by[1]))return true;
  return false;
 }
-function assignmentLinked(sentence,first){
+function assignmentLinked(sentence,first,recentlyLinked=false){
  const s=norm(sentence);
  const isNamed=first&&new RegExp('\\b'+first+'\\b','u').test(s);
  const secondPerson=/\b(?:voce|voces|sua equipe|seu grupo|seu time|o protagonista)\b/u.test(s);
  const assignedNpc=s.match(/\b([a-z][a-z-]+)\s+(?:recebeu|aceitou|assumiu|pegou|iniciou|comecou|ganhou)\s+(?:\w+\s+){0,8}\bmissao\b/u);
  if(assignedNpc&&assignedNpc[1]!==first)return false;
- return Boolean(isNamed||secondPerson);
+ const offeredToPlayerByContext=recentlyLinked&&/\b(?:outra|nova|segunda|proxima)\s+missao\b/u.test(s)&&/\b(?:ofereceu|propos|confiou|encarregou|designou|atribuiu|entregou)\b/u.test(s);
+ return Boolean(isNamed||secondPerson||offeredToPlayerByContext);
 }
 function playerLinked(s,first,hasAssignment){
  const name=first&&new RegExp('(?:^|[^a-z0-9])'+first+'(?:[^a-z0-9]|$)','u').test(s);
@@ -158,7 +159,8 @@ export function reconciledMissions(c,stored=[]){
   if(message?.role!=='ai'||typeof message.text!=='string')continue;
   const parts=sliceSentences(message.text);
   const ranked=rankOf(message.text);
-  if(ranked&&parts.some(s=>assignments.test(s)&&!finish.test(s)&&assignmentLinked(s,first))){
+  const pastLinked=Boolean(first&&messages.slice(Math.max(0,index-3),index).some(m=>m?.role==='ai'&&new RegExp('\\b'+first+'\\b','u').test(norm(m.text))&&/\bmissao\b/u.test(norm(m.text))));
+  if(ranked&&parts.some(s=>assignments.test(s)&&!finish.test(s)&&assignmentLinked(s,first,pastLinked))){
    active={rank:ranked,source:index,opened:index};
   }
   const preceding=norm(messages[index-1]?.role==='user'?messages[index-1].text:'');
