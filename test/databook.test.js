@@ -14,7 +14,7 @@ test('oito parâmetros oficiais da estrutura, escala e ordem estáveis',()=>{
  const s=databookView(create('Estreia',character));
  assert.equal(s.attributes.length,8);
  assert.ok(s.attributes.every(a=>a.value===null&&a.description==='Ainda não avaliado'));
- assert.deepEqual(s.missions,{D:0,C:0,B:0,A:0,S:0});
+ assert.deepEqual(s.missions,{D:0,C:0,B:0,A:0,S:0,unranked:0});
 });
 
 test('campanhas antigas abrem sem campos adicionais e preservam estado',()=>{
