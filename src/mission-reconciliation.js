@@ -172,14 +172,14 @@ export function reconciledMissions(c,stored=[]){
   const parts=sliceSentences(message.text);
   const ranked=rankOf(message.text);
   const pastLinked=Boolean(first&&messages.slice(Math.max(0,index-3),index).some(m=>m?.role==='ai'&&new RegExp('\\b'+first+'\\b','u').test(norm(m.text))&&/\bmissao\b/u.test(norm(m.text))));
-  const assignment=parts.find(sentence=>rankOf(sentence)&&assignments.test(sentence)&&!finish.test(sentence)&&assignmentLinked(sentence,first,pastLinked));
+  const assignedScene=parts.find(sentence=>rankOf(sentence)&&assignments.test(sentence)&&!finish.test(sentence)&&assignmentLinked(sentence,first,pastLinked));
   const eventAssigned=message.missionAssignment;
   const quoted=typeof eventAssigned?.evidence==='string'?norm(eventAssigned.evidence):'';
   const verifiedEvent=Boolean(quoted.length>=20&&norm(message.text).includes(quoted)&&
     rankOf(quoted)===eventAssigned.rank&&assignments.test(quoted)&&!finish.test(quoted)&&
     assignmentLinked(quoted,first,pastLinked));
-  if(assignment||verifiedEvent){
-   active={rank:assignment?rankOf(assignment):eventAssigned.rank,source:index,opened:index};
+  if(assignedScene||verifiedEvent){
+   active={rank:assignedScene?rankOf(assignedScene):eventAssigned.rank,source:index,opened:index};
   }
   const preceding=norm(messages[index-1]?.role==='user'?messages[index-1].text:'');
   const narrated=norm(message.text);
