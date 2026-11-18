@@ -9,7 +9,7 @@ const matchers={
  ninjutsu:/\b(?:ninjutsu|jutsu|tecnicas? ninja|manipulacao de chakra|moldou chakra|controle de chakra|clonagem|bunshin|rasengan|chakra elemental|natureza elemental)\b/u,
  taijutsu:/\b(?:taijutsu|artes marciais|corpo a corpo|golpes?|socos?|chutes?|postura de combate|movimentos? de luta|combate fisico|luta corporal)\b/u,
  genjutsu:/\b(?:genjutsu|ilusoes? ninja|tecnicas? ilusorias|tecnica de ilusao|manipulacao dos sentidos)\b/u,
- strength:/\b(?:forca fisica|musculos?|muscular|levantamento de peso|levantou pesos?|carregou pesos?|carga pesada|flexoes|agachamentos?|potencia fisica|golpes? fortes?|fortaleceu o corpo|treino de forca)\b/u,
+ strength:/\b(?:forca fisica|musculos?|muscular|levantamento de peso|levantou pesos?|carregou pesos?|carga pesada|flexoes|agachamentos?|potencia fisica|exercicios? de forca|treino de forca|golpes? fortes?|fortaleceu o corpo|treino de forca)\b/u,
  speed:/\b(?:velocidade|rapidez|agilidade|reflexos?|corrida|correu|sprint|desviou|esquiva|acelerou|movimentacao rapida|deslocamento rapido)\b/u,
  stamina:/\b(?:resistencia|folego|condicionamento|vigor|corrida longa|corrida prolongada|maratona|persistiu|perseverou|treino prolongado|exercicios? de resistencia)\b/u,
  handSeals:/\b(?:selos? de mao|sinais? de mao|sequencia de selos|gestos? de jutsu|mudras?|execucao de selos)\b/u
