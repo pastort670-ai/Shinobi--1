@@ -4,7 +4,7 @@ import {create,apply,view,input,context,validate} from '../src/engine.js';
 import {databookView,DATABOOK_ATTRIBUTES,MISSION_RANKS} from '../src/databook.js';
 import {readFileSync} from 'node:fs';
 
-const character={name:'Akira Sarutobi',age:2,village:'Konohagakure',clan:'Sarutobi',affiliation:'Academia Ninja'};
+const character={name:'Akira Sarutobi',age:2,village:'Konohagakure',clan:'Sarutobi',affiliation:'Civil'};
 const i=input({segments:[{type:'AGIR',text:'Treino com um instrutor.'}]});
 const response={narrative:'Akira Sarutobi pratica os movimentos aprendidos com atenção.',facts:[],relations:[],training:null,energyDelta:0,chakraDelta:0,timeOptions:[],divergences:[]};
 
