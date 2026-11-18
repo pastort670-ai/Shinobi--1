@@ -46,7 +46,7 @@ test('ficha e desenvolvimento ficam na mesma aba; calendário separado navega',(
  const js=readFileSync(new URL('../public/app.js',import.meta.url),'utf8');
  for(const id of ['jutsus','sheetcontent','conditions','abilities','calendarpage','calgrid','calprev','calnext','calupcoming'])assert.match(html,new RegExp('id="'+id+'"'));
  assert.doesNotMatch(html,/id="development" class="page-view"/);
- assert.match(html,/Ficha do personagem/);
+ assert.match(html,/Ficha ninja/); // título curto da versão 2.8
  assert.match(js,/drawCalendar\(\)/);
  assert.match(js,/calendarEvents/);
  assert.match(js,/jutsus/);
