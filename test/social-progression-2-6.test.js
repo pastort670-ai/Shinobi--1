@@ -142,3 +142,13 @@ test('estrutura da interface expõe as evidências em lugar de exibir não avali
  assert.match(js,/db-intelligence-evidence/);
  assert.match(js,/attributeEvidence/);
 });
+
+test('o mentor adotivo da história inicial reconhece a ligação familiar mesmo sem relação duplicada em c.relations',()=>{
+ const old=c();delete old.relations.Hiruzen;
+ const social=buildSocialDynamics(old,talk('Hiruzen, pode me ajudar a praticar?'));
+ const mentor=social.namedNPCs.find(p=>p.name==='Hiruzen');
+ assert.ok(mentor);
+ assert.equal(mentor.knownFromOrigin,true);
+ assert.equal(mentor.hasPositive,true);
+ assert.match(mentor.principle,/relação estabelecida na origem/i);
+});
