@@ -90,7 +90,8 @@ function savedMissionRecords(c,first,already){
  for(const m of memories){
   if(m?.status!=='saved'||typeof m.description!=='string')continue;
   const description=m.description.trim(),text=norm(description);
-  if(!/\bmissao\b/u.test(text)||!(finish.test(text)||nounCompletion.test(text))||rejection.test(text)||future.test(text)||otherActor(text,first))continue;
+  const reportApproved=/\bmissao\b.{0,110}\b(?:relatorio|resultados?|trabalho|objetivo)\b.{0,120}\b(?:aprovado|aprovada|aceito|aceita|validado|validada|confirmado|confirmada|concluido|concluida)\b|\b(?:relatorio|resultados?)\b.{0,110}\bmissao\b.{0,120}\b(?:aprovado|aprovada|aceito|aceita|confirmado|confirmada|concluido|concluida)\b/u.test(text)||/\brelatorio\b.{0,100}\bmissao\b.{0,100}\baprovad\w*\b/u.test(text);
+  if(!/\bmissao\b/u.test(text)||!(finish.test(text)||nounCompletion.test(text)||reportApproved)||rejection.test(text)||future.test(text)||otherActor(text,first))continue;
   // Ex.: "Kaien concluiu tarefas burocráticas e recebeu proposta para uma missão"
   // NÃO significa que concluiu a missão recém-proposta.
   const verbToMission=text.match(new RegExp('\\b(?:'+completedActs+')\\b(.{0,110})\\bmissao\\b','u'));
@@ -99,7 +100,8 @@ function savedMissionRecords(c,first,already){
   // Requer que o desfecho confirmado se refira ao protagonista, não a terceiros.
   const direct=playerLinked(norm(description),first,false);
   const indirect=first&&new RegExp('\\b'+first+'\\b.{0,105}\\b(?:conclusao|cumprimento|finalizacao)\\b.{0,85}\\bmissao\\b','u').test(norm(description));
-  if(!direct&&!indirect)continue;
+  const personalReport=Boolean(first&&reportApproved&&new RegExp('\\b(?:missao\\b.{0,65}\\b(?:de|do|da)\\s+)?'+first+'\\b','u').test(text));
+  if(!direct&&!indirect&&!personalReport)continue;
   const rank=rankOf(text)||'?';
   const day=Number.isInteger(m.day)?m.day:c.day||0;
   const memoryId=typeof m.id==='string'?m.id:null;
@@ -114,6 +116,19 @@ function savedMissionRecords(c,first,already){
    // Memória pode dar o rank correto a uma conclusão antes registrada sem rank.
    if(records[match].rank==='?'&&rank!=='?')records[match]=candidate;
   }else records.push(candidate);
+ }
+ // Uma pendência de missão marcada DONE pela própria campanha é outra fonte
+ // persistente, independente da redação do Gemini no último turno.
+ for(const task of Array.isArray(c.pendingTasks)?c.pendingTasks:[]){
+  if(task?.status!=='done'||typeof task.description!=='string')continue;
+  const description=task.description,text=norm(description);
+  if(!/\bmissao\b/u.test(text)||rejection.test(text)||future.test(text)||
+     !(finish.test(text)||nounCompletion.test(text)||otherFinish.test(text)))continue;
+  if(!playerLinked(text,first,false))continue;
+  const rank=rankOf(text)||'?',day=Number.isInteger(task.day)?task.day:c.day||0;
+  const candidate={rank,day,summary:description.slice(0,180),source:'completed-task',taskId:task.id||null};
+  const duplicate=records.some(x=>(x.rank===rank||x.rank==='?'||rank==='?')&&sameMission(x,candidate,first));
+  if(!duplicate)records.push(candidate);
  }
  return records.sort((a,b)=>(a.day||0)-(b.day||0)||(a.messageIndex??Number.MAX_SAFE_INTEGER)-(b.messageIndex??Number.MAX_SAFE_INTEGER)).slice(-200);
 }
