@@ -33,20 +33,20 @@ export function app({dbPath=process.env.DB_PATH||resolve(root,'data/shinobi.sqli
  if(!url.pathname.startsWith('/api/')){if(req.method!=='GET')fail('Método não permitido.',405);const assets={'/':['index.html','text/html'],'/app.js':['app.js','text/javascript'],'/style.css':['style.css','text/css'],'/village-icons.svg':['village-icons.svg','image/svg+xml']};const a=assets[url.pathname];if(!a)fail('Não encontrado.',404);res.writeHead(200,{'Content-Type':a[1]+'; charset=utf-8'});res.end(readFileSync(resolve(root,'public',a[0])));return;}
  if(req.headers.origin){const o=new URL(req.headers.origin);if(o.host!==req.headers.host)fail('Origem não permitida.',403);}if(req.headers['sec-fetch-site']==='cross-site')fail('Origem não permitida.',403);
  let token=req.headers.cookie?.match(/(?:^|; )shinobi=([a-f0-9]{64})(?:;|$)/)?.[1];if(!token){token=randomBytes(32).toString('hex');res.setHeader('Set-Cookie',`shinobi=${token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=31536000${secure?'; Secure':''}`);}const owner=hash(token);
- if(url.pathname==='/api/status'&&req.method==='GET')return json({configured,version:'2.1.0',externalLore:process.env.EXTERNAL_LORE_ENABLED!=='false',admin:!!visitor?.admin,ephemeral:process.env.EPHEMERAL_STORAGE==='true'||(process.env.RENDER==='true'&&!process.env.DB_PATH)});
+ if(url.pathname==='/api/status'&&req.method==='GET')return json({configured,version:'2.2.0',externalLore:process.env.EXTERNAL_LORE_ENABLED!=='false',admin:!!visitor?.admin,ephemeral:process.env.EPHEMERAL_STORAGE==='true'||(process.env.RENDER==='true'&&!process.env.DB_PATH)});
  const read=async(maxBytes=25000)=>{let n=0,chunks=[];for await(const chunk of req){n+=chunk.length;if(n>maxBytes)fail('Requisição muito grande.',413);chunks.push(chunk);}try{return JSON.parse(Buffer.concat(chunks).toString()||'{}');}catch{fail('JSON inválido.');}};
  if(url.pathname==='/api/import'){
   if(req.method!=='POST')fail('Método não permitido.',405);
   const existing=db.prepare('SELECT COUNT(*) AS n FROM campaigns WHERE owner=?').get(owner).n;
   if(existing)fail('Já existe uma campanha neste navegador. Exporte ou finalize sua história antes de restaurar outro backup.',409);
-  const raw=await read(4000000),data=raw?.campaign;
+  const raw=await read(8000000),data=raw?.campaign;
   if(!['shinobi-backup-v1','shinobi-backup-v2'].includes(raw?.format)||!data||typeof data!=='object')fail('Arquivo de campanha inválido.');
   if(!data.character||typeof data.character.name!=='string'||!data.character.name.trim()||data.character.name.length>100||!Number.isInteger(data.character.age)||data.character.age<0||data.character.age>100)fail('Ficha inválida no backup.');
-  if(!Number.isInteger(data.day)||data.day<0||data.day>36500||!Array.isArray(data.messages)||!data.messages.length||data.messages.length>3500||data.messages.some(m=>!m||!['ai','user'].includes(m.role)||typeof m.text!=='string'||m.text.length>12000))fail('Histórico inválido no backup.');
+  if(!Number.isInteger(data.day)||data.day<0||data.day>36500||!Array.isArray(data.messages)||!data.messages.length||data.messages.length>3500||data.messages.some(m=>!m||!['ai','user'].includes(m.role)||typeof m.text!=='string'||m.text.length>22000))fail('Histórico inválido no backup.');
   if(!Array.isArray(data.facts)||!Array.isArray(data.timeline)||!Array.isArray(data.development)||data.facts.length>20000||data.timeline.length>1000||data.development.length>10000)fail('Registros inválidos no backup.');
   if(!['village','clan','appearance','personality','skills','history','affiliation'].every(k=>data.character[k]===undefined||typeof data.character[k]==='string'&&data.character[k].length<=2000))fail('Campos de personagem inválidos no backup.');
   if(data.title!==undefined&&(typeof data.title!=='string'||data.title.length>100))fail('Título inválido no backup.');
-  if(data.facts.some(x=>!x||typeof x.text!=='string'||x.text.length>1000)||data.development.some(x=>!x||typeof x.text!=='string'||x.text.length>500))fail('Dados narrativos inválidos no backup.');
+  if(data.facts.some(x=>!x||typeof x.text!=='string'||x.text.length>2600)||data.development.some(x=>!x||typeof x.text!=='string'||x.text.length>500))fail('Dados narrativos inválidos no backup.');
 
   const safeNum=x=>Number.isInteger(x)&&x>=0&&x<=100;
   if(!safeNum(data.energy)||!safeNum(data.chakra)||!data.progress||!['taijutsu','ninjutsu','genjutsu'].every(k=>safeNum(data.progress[k])))fail('Condições inválidas no backup.');
