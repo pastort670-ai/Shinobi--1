@@ -23,10 +23,12 @@ export function buildSocialDynamics(c,i){
  const people=[...mentioned].filter(name=>norm(input).includes(norm(name))).slice(0,6).map(name=>{
   const relation=c.relations?.[name]||c.npcAgents?.[name]?.relationship||'';
   const witnessed=[...(c.npcKnowledge?.[name]||[]),...(c.npcAgents?.[name]?.knowledge||[])].slice(-6);
-  const hasPositive=/\b(?:afeto|mentor|filho|familia|pai|amizade|amigo|confia|confianca|respeita|admira|orgulho|aliado|protegido)\b/u.test(norm(relation));
+  const backstory=norm(c.character?.history||'');
+  const knownFromOrigin=backstory.includes(norm(name))&&/\b(?:adotad\w*|criad\w*|treinad\w*|mentor|mestre|filh\w*)\b/u.test(backstory);
+  const hasPositive=knownFromOrigin||/\b(?:afeto|mentor|filho|familia|pai|amizade|amigo|confia|confianca|respeita|admira|orgulho|aliado|protegido)\b/u.test(norm(relation));
   const hasNegative=/\b(?:inimigo|odio|hostil|despreza|traiu|desconfia)\b/u.test(norm(relation));
-  return {name,relation,hasPositive,hasNegative,witnessedFacts:witnessed.map(s=>String(s).slice(0,160)),
-   principle:hasPositive?'Relação positiva: NPC costuma cooperar ou explicar seus limites, não rejeitar sem motivo.':hasNegative?'Relação problemática: há resistência justificada, mas feitos reais ainda podem impressionar.':'Atitude inicial neutra ou aberta; não tratar o jogador com arrogância automática.'};
+  return {name,relation,knownFromOrigin,hasPositive,hasNegative,witnessedFacts:witnessed.map(s=>String(s).slice(0,160)),
+   principle:hasPositive?(knownFromOrigin?'Relação estabelecida na origem: este NPC conhece o protagonista pessoalmente e pode reconhecer seu talento, respeitando o histórico.':'Relação positiva: NPC costuma cooperar ou explicar seus limites, não rejeitar sem motivo.'):hasNegative?'Relação problemática: há resistência justificada, mas feitos reais ainda podem impressionar.':'Atitude inicial neutra ou aberta; não tratar o jogador com arrogância automática.'};
  });
  const now=norm((i.segments||[]).map(x=>x.text).join(' '));
  const isRequest=/\b(?:pe[cç]o|pedir|solicito|solicita|convencer|conven[cç]o|proponho|proposta|poderia|permita|deixe|autorize|ensine|treine|ajude|preciso|gostaria)\b/iu.test(now);
