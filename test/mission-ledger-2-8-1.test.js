@@ -109,3 +109,22 @@ test('campo estruturado da resposta aceita persiste como evidência rastreável 
  assert.equal(next.messages.at(-1).missionCompletion?.rank,'D');
  assert.equal(reconciledMissions(next,next.databook.missions).length,1);
 });
+
+test('missão atribuída a um NPC não substitui a missão pendente de Kaien',()=>{
+ const old=c();
+ old.messages.push(ai('Hiruzen atribuiu a Kaien uma missão de rank D para investigar o armazém.',1));
+ old.messages.push(ai('Enquanto isso, Kakashi recebeu uma missão rank S na fronteira.',2));
+ old.messages.push(user('Apresento a Hiruzen meu relatório final do armazém.',2));
+ old.messages.push(ai('Hiruzen aprovou o relatório final e confirmou o sucesso do trabalho de Kaien.',2));
+ const totals=view(old).databook.missions;
+ assert.equal(totals.D,1);
+ assert.equal(totals.S,0);
+});
+
+test('evento estruturado isolado sem evidência na narração não concede missão',()=>{
+ const old=c();old.messages.push({
+  role:'ai',text:'Kaien está aguardando a avaliação.',
+  day:1,missionCompletion:{rank:'S',summary:'Missão rank S encerrada',evidence:'Kaien concluiu a missão rank S.'}
+ });
+ assert.equal(view(old).databook.missions.S,0);
+});
