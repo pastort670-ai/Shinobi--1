@@ -1,0 +1,41 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {create,input,apply,context} from '../src/engine.js';
+import {planNpcTurn} from '../src/motor.js';
+const ch={name:'Kaien',age:8,village:'Konohagakure',clan:'Sarutobi'};
+const outcome={narrative:'Kaien aguarda no pátio.',facts:[],relations:[],training:null,energyDelta:0,chakraDelta:0,timeOptions:[],divergences:[]};
+test('NPC presente não repete iniciativa sem o jogador chamá-lo novamente',()=>{
+ const c=create('NPCs',ch);
+ c.relations.Hiruzen='Pai adotivo e mentor de Kaien.';
+ c.npcKnowledge.Hiruzen=['Kaien frequenta a Academia.'];
+ c.messages.push({role:'ai',text:'Hiruzen acompanha o treino no pátio.',day:0});
+ const i=input({segments:[{type:'AGIR',text:'Examino os equipamentos no chão.'}]});
+ const p=planNpcTurn(c,i);
+ const h=p.intentions.find(x=>x.name==='Hiruzen');
+ assert.ok(h);
+ assert.equal(h.action,'continue');
+ assert.ok(!p.intentions.some(x=>x.action==='respond'));
+ const addressed=planNpcTurn(c,input({segments:[{type:'FALAR',text:'Hiruzen, podemos conversar?'}]}));
+ assert.ok(['respond','relationship'].includes(addressed.intentions.find(x=>x.name==='Hiruzen').action));
+});
+test('NPC não cobra tarefa futura antes de vencer e age na data',()=>{
+ const c=create('NPCs',ch);
+ c.relations.Hiruzen='Mentor';
+ c.pendingTasks=[{status:'open',description:'Hiruzen prometeu avaliar Kaien na próxima semana.',dueDay:7}];
+ const early=planNpcTurn(c,input({segments:[{type:'AGIR',text:'Hiruzen, vou ler os pergaminhos.'}],days:1}));
+ assert.ok(early.intentions.find(x=>x.name==='Hiruzen').action!=='follow_up');
+ const timely=planNpcTurn(c,input({days:7}));
+ assert.equal(timely.intentions.find(x=>x.name==='Hiruzen').action,'follow_up');
+ const n=apply(c,input({days:7}),{...outcome,narrative:'Depois de sete dias, Kaien chega ao compromisso.'});
+ assert.equal(n.pendingTasks[0].status,'open');
+});
+test('metas autônomas registradas não são resolvidas sem consequência observada',()=>{
+ const c=create('NPCs',ch);
+ c.npcAgents.Hiruzen={name:'Hiruzen',goals:[{description:'Observar a evolução de Kaien',dueDay:4}],knowledge:['Kaien é aprendiz'],relationship:'Mentor',lastObservedDay:0};
+ const p=planNpcTurn(c,input({days:4}));
+ assert.equal(p.intentions.find(x=>x.name==='Hiruzen').scope,'offscreen');
+ assert.equal(p.intentions.find(x=>x.name==='Hiruzen').action,'follow_up');
+ assert.deepEqual(c.npcAgents.Hiruzen.knowledge,['Kaien é aprendiz']);
+ const ctx=context(c,input({days:4}));
+ assert.ok(ctx.worldEngine.npcGoals.some(g=>g.name==='Hiruzen'));
+});
