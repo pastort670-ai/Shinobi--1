@@ -144,3 +144,72 @@ test('somente a narração aceita é usada, e o Gemini continua o narrador',()=>
  assert.equal(view(c).databook.missions.S,0);
  assert.ok(context(c,act('Volto para casa.')).databook);
 });
+
+test('regressão visual Kaien: missão rank D consta nas Memórias Marcantes e deve aparecer na ficha',()=>{
+ const c=create('Campanha de Kaien',{...hero,name:'Kaien',age:4});
+ c.day=7;
+ c.memories=[
+  {id:'m1',status:'saved',day:3,title:'A Nova Diretriz',description:'Kaien concluiu suas tarefas burocráticas e recebeu de Hiruzen a proposta para sua primeira missão de reconhecimento externo.'},
+  {id:'m2',status:'saved',day:5,title:'Decisão com consequências',description:'Kaien concluiu a missão de rank D nos armazéns e retornou para reportar-se ao Hokage.'},
+  {id:'m3',status:'saved',day:6,title:'Decisão com consequências',description:'Kaien retornou ao escritório do Hokage e prestou contas de sua primeira designação oficial.'},
+  {id:'m4',status:'saved',day:6,title:'Decisão com consequências',description:'Kaien relatou com sucesso a conclusão de sua primeira missão e aguarda as próximas diretrizes de Hiruzen.'},
+  {id:'m5',status:'saved',day:6,title:'Missão Cumprida',description:'Kaien concluiu com sucesso e rigor profissional sua primeira missão oficial de rank D nos armazéns.'}
+ ];
+ const oldState=JSON.stringify(c);
+ const sheet=view(c).databook;
+ assert.equal(sheet.missions.D,1,'as três lembranças relacionadas descrevem a mesma missão D');
+ assert.equal(sheet.missions.C,0);
+ assert.equal(sheet.missions.unranked,0);
+ assert.equal(sheet.missionLog.length,1);
+ assert.equal(sheet.missionLog[0].source,'saved-memory');
+ assert.equal(JSON.stringify(c),oldState,'ler a ficha não altera o estado da campanha');
+ const after=apply(c,act('Kaien acompanha a rotina da vila.'),reply('Kaien conversou com o responsável pela missão.'));
+ assert.equal(after.databook.missions.filter(x=>x.rank==='D').length,1,'persiste ao seguir a campanha');
+ assert.equal(view(after).databook.missions.D,1);
+});
+
+test('sem transcrição da cena original, a lembrança salva continua contabilizada',()=>{
+ const c=create('Kaien',{...hero,name:'Kaien'});
+ c.messages=[c.messages[0]];
+ c.memories=[{id:'d1',status:'saved',day:5,title:'Missão Cumprida',description:'Kaien concluiu com sucesso a missão oficial de rank D nos armazéns.'}];
+ assert.equal(view(c).databook.missions.D,1);
+});
+
+test('memórias ainda não salvas, descartadas e intenções não podem gerar missões',()=>{
+ const c=create('Kaien',{...hero,name:'Kaien'});
+ c.memories=[
+  {id:'a',status:'dismissed',day:3,title:'Conclusão',description:'Kaien concluiu a missão rank S.'},
+  {id:'b',status:'proposed',day:3,title:'Conclusão',description:'Kaien concluiu a missão rank A.'},
+  {id:'c',status:'saved',day:3,title:'Nova Diretriz',description:'Kaien recebeu de Hiruzen a proposta para sua primeira missão de reconhecimento externo.'},
+  {id:'d',status:'saved',day:3,title:'Sem sucesso',description:'Kaien ainda não concluiu a missão rank D.'},
+  {id:'e',status:'saved',day:3,title:'Relato',description:'Hiruzen concluiu a missão rank B e Kaien observou o retorno.'}
+ ];
+ const totals=view(c).databook.missions;
+ assert.deepEqual(totals,{D:0,C:0,B:0,A:0,S:0,unranked:0});
+});
+
+test('memória eliminada não continua contabilizada no histórico derivado',()=>{
+ const c=create('Kaien',{...hero,name:'Kaien'});
+ c.memories=[{id:'d1',status:'saved',day:5,title:'Missão Cumprida',description:'Kaien concluiu a missão rank D nos armazéns.'}];
+ const a=apply(c,act('Revisito o relatório.'),reply('Kaien voltou ao gabinete.'));
+ assert.equal(view(a).databook.missions.D,1);
+ a.memories=[];
+ assert.equal(view(a).databook.missions.D,0);
+});
+
+test('uma missão Sem rank identificada depois pela memória muda para a classificação comprovada',()=>{
+ const c=create('Kaien',{...hero,name:'Kaien'});
+ c.messages.push(narrator('Kaien concluiu a missão e voltou aos armazéns.',4));
+ c.memories=[{id:'d1',status:'saved',day:4,title:'Missão Cumprida',description:'Kaien concluiu a missão oficial de rank D nos armazéns.'}];
+ assert.equal(view(c).databook.missions.D,1);
+ assert.equal(view(c).databook.missions.unranked,0);
+});
+
+test('missões diferentes da mesma categoria podem contar individualmente quando a distinção é explícita',()=>{
+ const c=create('Kaien',{...hero,name:'Kaien'});
+ c.memories=[
+  {id:'primeira',status:'saved',day:4,title:'Primeira missão',description:'Kaien concluiu sua primeira missão de rank D na área dos armazéns.'},
+  {id:'segunda',status:'saved',day:5,title:'Segunda missão',description:'Kaien concluiu sua segunda missão de rank D na academia.'}
+ ];
+ assert.equal(view(c).databook.missions.D,2);
+});
