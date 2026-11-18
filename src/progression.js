@@ -23,6 +23,21 @@ function sources(c){
  for(const m of c.memories||[])if(m.status==='saved')items.push({kind:'memory',text:(m.title||'')+'. '+(m.description||'')});
  return items;
 }
+// Conquistas pertencem a quem executou a ação, não a quem a presenciou.
+function playerPerformed(clause,name,verb){
+ const v=normalize(clause);
+ if(/\b(?:você|o protagonista|a protagonista|seu personagem|sua personagem)\b/iu.test(v))return true;
+ if(!name)return false;
+ const nameAt=v.indexOf(name);
+ if(nameAt<0)return false;
+ const before=v.slice(0,nameAt);
+ if(/(?:\b(?:a|ao|para|de|do|diante de|perante|sobre|com|informou a|contou a|disse a)\s+)$/iu.test(before))return false;
+ // Only the first named actor in the clause may earn the achievement.
+ const firstActor=v.match(/\b([\p{L}][\p{L}'-]*)\s+(?:foi\s+)?(?:aprendeu|dominou|usou|utilizou|executou|realizou|conseguiu|tornou-se|passou|graduou-se|formou-se|recebeu|é|foi|sabe)\b/iu);
+ if(firstActor&&firstActor[1]!==name)return false;
+ const after=v.slice(nameAt+name.length);
+ return new RegExp('^\\s*(?:,\\s*)?(?:foi\\s+)?(?:'+verb+')\\b','iu').test(after);
+}
 export function reconcileProgress(c){
  const profile={...(c.profile||{})},jutsus=Array.isArray(c.jutsus)?c.jutsus.map(j=>({...j})):[];
  const name=normalize(c.character?.name).split(/\s+/)[0];
@@ -32,7 +47,7 @@ export function reconcileProgress(c){
    if(negative.test(v))continue;
    // Ver uma técnica executada por outra pessoa não é aprender a técnica.
    if(/\b(?:assistiu|observou|presenciou|viu)\b/iu.test(v)&&/\b(?:que|mestre|sensei|outro ninja)\b/iu.test(v))continue;
-   const relevant=item.kind!=='narration'||(name&&v.includes(name))||/\b(?:você|seu personagem|protagonista)\b/u.test(v);
+   const relevant=playerPerformed(v,name,'aprendeu|dominou|domina|conseguiu|executou|realizou|usou|utilizou|adquiriu|sabe|possui|foi|tornou-se|passou|graduou-se|formou-se|recebeu|é|já');
    if(!relevant)continue;
    if(item.kind!=='backstory'&&genin.test(v)&&(promoted.test(v)||/(?:^|\s)é\s+genin\b/u.test(v))&&rank(profile.affiliation||c.character.affiliation)<2)profile.affiliation='Genin';
    if(jutsu.test(v)&&learned.test(v)){
