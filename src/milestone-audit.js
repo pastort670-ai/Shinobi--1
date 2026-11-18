@@ -1,3 +1,4 @@
+import {playerPerformed} from './progression.js';
 // Auditoria de conquistas: somente registros aceitos da campanha podem ser fontes.
 const normalized=t=>String(t||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLocaleLowerCase('pt-BR').replace(/\s+/g,' ').trim();
 export function milestoneSources(c){
@@ -21,6 +22,13 @@ export function verifiedMilestones(c,proposals,sources=milestoneSources(c)){
   // Memória confirmada: prova preferencial; relatos aceitos: devem citar claramente o protagonista.
   const protagonist=normalized(c.character?.name||'').split(' ')[0];
   if(src.kind==='accepted-narration'&&protagonist&&!normalized(src.text).includes(protagonist))continue;
+  // Verificar QUEM conquistou: encontrar o verbo e o jutsu/patente no mesmo
+  // trecho confirmado. Citar um texto verdadeiro não basta se o autor for NPC.
+  const proof=src.text.split(/[.!?;\n]+/u).find(part=>normalized(part).includes(quote));
+  const rankVerb='recebeu|foi|tornou-se|graduou-se|formou-se|passou|é|já|promovido';
+  const jutsuVerb='aprendeu|concluiu|dominou|usou|utilizou|executou|realizou|conseguiu|sabe|possui';
+  const actor=proof&&(playerPerformed(proof,protagonist,p.kind==='rank'?rankVerb:jutsuVerb));
+  if(!actor)continue;
   if(p.kind==='rank'&&value==='genin'&&/\bgenin\b/u.test(quote)){
    if(/\b(?:chunin|jonin|jounin|anbu|hokage)\b/u.test(normalized(profile.affiliation||c.character?.affiliation)))continue;
    profile.affiliation='Genin';accepted.push({kind:'rank',value:'Genin',sourceId:src.id});
