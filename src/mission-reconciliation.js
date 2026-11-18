@@ -85,7 +85,8 @@ function savedMissionRecords(c,first,already){
   // Ex.: "Kaien concluiu tarefas burocráticas e recebeu proposta para uma missão"
   // NÃO significa que concluiu a missão recém-proposta.
   const verbToMission=text.match(new RegExp('\\b(?:'+completedActs+')\\b(.{0,110})\\bmissao\\b','u'));
-  if(verbToMission&&/\b(?:tarefas?|atividades?|burocratic\w*|proposta|recebeu|convite|designad\w*)\b/u.test(verbToMission[1])&&!/\bmissao\b.{0,60}\b(?:'+completionVerbs+')\b/u.test(text))continue;
+  const missionThenCompleted=new RegExp('\\bmissao\\b.{0,60}\\b(?:'+completionVerbs+')\\b','u').test(text);
+  if(verbToMission&&/\b(?:tarefas?|atividades?|burocratic\w*|proposta|recebeu|convite|designad\w*)\b/u.test(verbToMission[1])&&!missionThenCompleted)continue;
   // Requer que o desfecho confirmado se refira ao protagonista, não a terceiros.
   const direct=playerLinked(norm(description),first,false);
   const indirect=first&&new RegExp('\\b'+first+'\\b.{0,105}\\b(?:conclusao|cumprimento|finalizacao)\\b.{0,85}\\bmissao\\b','u').test(norm(description));
