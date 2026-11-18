@@ -120,7 +120,7 @@ try{
  await page.locator('#sidebar [data-tab="memory"]').click();
  await page.locator('#memorable').getByText('Defesa do portão').waitFor();
  await page.locator('#memory .panel-fold > summary').filter({hasText:'Compromissos'}).click();
- await page.locator('#pendingTasks').getByText('Voltar ao portão amanhã.').waitFor();
+ await page.locator('#pendingTasks .compact-entry-preview').getByText('Voltar ao portão amanhã.').waitFor();
  await page.locator('#menutoggle').click();
  await page.locator('#sidebar [data-tab="story"]').click();
  assert.equal(await page.locator('#time').isVisible(),false,'TEMPO fica oculto durante o combate');
