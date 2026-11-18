@@ -2,13 +2,13 @@
 // Campos opcionais do Gemini ajudam, mas não são a única forma de registrar.
 const norm=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
 const ranks=new Set(['D','C','B','A','S','?']);
-const completionVerbs='concluida|concluidas|concluido|concluidos|cumprida|cumpridas|cumprido|cumpridos|finalizada|finalizadas|finalizado|finalizados|completada|completadas|completado|completados|encerrada|encerradas|encerrado|encerrados|terminada|terminadas|terminado|terminados';
-const completedActs='concluiu|concluiram|cumpriu|cumpriram|finalizou|finalizaram|completou|completaram|encerrou|encerraram|terminou|terminaram';
+const completionVerbs='concluida|concluidas|concluido|concluidos|cumprida|cumpridas|cumprido|cumpridos|finalizada|finalizadas|finalizado|finalizados|completada|completadas|completado|completados|encerrada|encerradas|encerrado|encerrados|terminada|terminadas|terminado|terminados|realizada|realizadas|executada|executadas|bem-sucedida|bem-sucedidas';
+const completedActs='concluiu|concluiram|cumpriu|cumpriram|finalizou|finalizaram|completou|completaram|encerrou|encerraram|terminou|terminaram|realizou|realizaram|executou|executaram';
 const finish=new RegExp('\\bmissao\\b.{0,95}\\b(?:'+completionVerbs+')\\b|\\b(?:'+completedActs+')\\b.{0,90}\\bmissao\\b','u');
-const otherFinish=new RegExp('\\b(?:'+completedActs+')\\b.{0,65}\\b(?:objetivo|tarefa|encargo)\\b|\\b(?:objetivo|tarefa)\\b.{0,65}\\b(?:atingido|cumprido|concluido)\\b','u');
+const otherFinish=new RegExp('\\b(?:'+completedActs+')\\b.{0,65}\\b(?:objetivo|tarefa|encargo)\\b|\\b(?:objetivo|tarefa|trabalho|encargo)\\b.{0,65}\\b(?:atingido|alcancado|cumprido|concluido|completado|realizado|finalizado|executado)\\b','u');
 const rejection=/\b(?:nao|nunca|jamais|ainda nao|sem sucesso|fracassou|falhou|nao conseguiu)\b.{0,80}\b(?:missao|objetivo|tarefa|conclu\w*|cumpr\w*|termin\w*|finaliz\w*|complet\w*)\b|\bmissao\b.{0,45}\b(?:nao|nunca|ainda nao|sem sucesso)\b/u;
 const future=/\b(?:pretende|pretendia|quer|planeja|poderia|tenta|tentara|devera|sera|vai|quando|antes de|espera)\b.{0,35}\b(?:conclu\w*|cumpr\w*|termin\w*|finaliz\w*|complet\w*)\b/u;
-const assignments=/\b(?:receb\w*|aceit\w*|designad\w*|encarreg\w*|atribu\w*|convocad\w*|designou|entregou|inici\w*|comec\w*|parti\w*|missao\s+(?:de\s+)?(?:rank|classe|nivel|categoria))\b/u;
+const assignments=/\b(?:receb\w*|aceit\w*|designad\w*|encarreg\w*|atribu\w*|convocad\w*|confiou|confiad\w*|ofereceu|propo\w*|designou|entregou|inici\w*|comec\w*|parti\w*|missao\s+(?:de\s+)?(?:rank|classe|nivel|categoria))\b/u;
 const sliceSentences=text=>norm(text).split(/(?<=[.!?])\s+|\n+|[;]+/u).map(v=>v.trim()).filter(Boolean).slice(0,65);
 const rankOf=text=>{
  const s=norm(text);
@@ -21,6 +21,11 @@ const rankOf=text=>{
  for(const p of patterns){const m=s.match(p);if(m)return m[1].toUpperCase();}
  return null;
 };
+// Aprovação de relatório final e confirmação de resultado contam apenas quando uma
+// missão do protagonista está ligada ao contexto, não quando o texto é mera intenção.
+const reportSuccess=/\b(?:relatorio(?:\s+final)?|prestacao de contas|resultado(?:s)?|trabalho)\b.{0,95}\b(?:aprovad\w*|aceit\w*|valid\w*|homologad\w*|confirm\w*|reconhec\w*\s+(?:o\s+)?sucesso)\b|\b(?:aprov\w*|aceit\w*|valid\w*|homolog\w*|confirm\w*)\b.{0,80}\b(?:relatorio|prestacao de contas|sucesso da missao)\b/u;
+const taskCompleted=/\b(?:objetivo(?:s)?|trabalho|servico|encargo)\b.{0,95}\b(?:alcancad\w*|atingid\w*|concluid\w*|cumprid\w*|finalizad\w*)\b/u;
+const submittedReport=/\b(?:entrego|entregou|apresento|apresentou|relato|relatou|presto|prestou|encaminho|encaminhou)\b.{0,90}\b(?:relatorio|resultados?|prestacao de contas|documentos?)\b/u;
 const actors={team:/\b(?:equipe|time|grupo|esquadrao|todos|nos|voces|voc[eê]s)\b/u};
 function otherActor(text,first){
  const s=norm(text);
@@ -37,24 +42,42 @@ function playerLinked(s,first,hasAssignment){
  if(direct||/\b(?:voce|voces|seu grupo|sua equipe|seu time|o protagonista|a protagonista)\b/u.test(s))return true;
  return hasAssignment&&(name||actors.team.test(s)||/\bmissao\b/u.test(s));
 }
+// O resultado estruturado fica anexado à resposta *aceita*, e não apenas
+// na chamada transitória da IA. O registro pode ser reconstituído após reabrir
+// a ficha, restaurar um backup ou corrigir outras partes da interface.
+function verifiedMissionProof(message,first,active,preceding){
+ const p=message?.missionProof||message?.missionCompletion;
+ if(!p||!ranks.has(p.rank)||p.rank==='?'||typeof p.evidence!=='string'||typeof message.text!=='string')return null;
+ const proof=norm(p.evidence.trim()),scene=norm(message.text);
+ if(proof.length<20||!scene.includes(proof)||rejection.test(proof)||future.test(proof)||otherActor(proof,first))return null;
+ if(!finish.test(proof)&&!reportSuccess.test(proof)&&!taskCompleted.test(proof)&&!otherFinish.test(proof))return null;
+ const subject=first&&new RegExp('\\b'+first+'\\b','u').test(scene);
+ const reported=submittedReport.test(preceding);
+ if(!playerLinked(proof,first,Boolean(active))&&!subject&&!reported)return null;
+ return p;
+}
 function complete(s,first,active,scene,lastPlayer){
  if(rejection.test(s)||future.test(s)||otherActor(s,first))return false;
  const remoteNews=/\b(?:noticias|noticia|rumor|soube|ouviu|informaram|outro pais|outra vila|distante)\b/u.test(scene);
+ const sceneReferencesPlayer=first&&new RegExp('(?:^|[^a-z0-9])'+first+'(?:[^a-z0-9]|$)','u').test(scene);
+ const playerReported=submittedReport.test(lastPlayer);
  if(finish.test(s)){
   if(playerLinked(s,first,Boolean(active)))return true;
-  // Passive announcements without actor need a player connection, not merely a rank.
-  const sceneReferencesPlayer=first&&new RegExp('(?:^|[^a-z0-9])'+first+'(?:[^a-z0-9]|$)','u').test(scene);
-  const playerPerformedTask=/\b(?:missao|relatorio|objetivo|entreg\w*|conclu\w*|cumpr\w*|finaliz\w*|termin\w*)\b/u.test(lastPlayer);
-  return Boolean(rankOf(s)&&(sceneReferencesPlayer||playerPerformedTask)&&!remoteNews);
+  // A missão pode ser encerrada de modo passivo, sem repetir nome e rank na frase.
+  // Exigimos conexão comprovada com protagonista, especialmente no relatório entregue.
+  return Boolean(!remoteNews&&(active||sceneReferencesPlayer||playerReported)&&
+    (active||sceneReferencesPlayer||Boolean(rankOf(s)&&playerReported)));
  }
- // Only an established, still-active mission may finish via "objetivo cumprido".
- if(active&&otherFinish.test(s))return playerLinked(s,first,true);
+ // Uma missão já atribuída pode terminar pela aprovação do relatório ou pelo
+ // cumprimento de seus objetivos, mesmo sem a palavra "concluída".
+ if(active&&(otherFinish.test(s)||taskCompleted.test(s)||reportSuccess.test(s))&&
+   !remoteNews&&(sceneReferencesPlayer||playerReported||playerLinked(s,first,true)))return true;
  return false;
 }
 
 // Memórias Marcantes são acontecimentos da campanha confirmados pelo jogador.
 // Elas sobrevivem à compactação do histórico narrativo e são fontes válidas para a ficha.
-const nounCompletion=/\b(?:conclusao|finalizacao|cumprimento)\b.{0,95}\bmissao\b|\bmissao\b.{0,95}\b(?:conclusao|finalizacao|cumprimento)\b/u;
+const nounCompletion=/\b(?:conclusao|finalizacao|cumprimento|sucesso)\b.{0,95}\bmissao\b|\bmissao\b.{0,95}\b(?:conclusao|finalizacao|cumprimento|sucesso)\b/u;
 const missionOrdinals=/\b(?:primeir[ao]|segund[ao]|terceir[ao]|quart[ao]|quint[ao])\s+(?:missao|designacao)\b/u;
 const stopMissionWords=new Set('a o as os de da do das dos em no na nos nas com por para sua seu primeira segunda terceir terceira missao rank classe nivel categoria oficial sucesso retornou reporte reportar relatou concluiu concluiu cumprimento cumprida concluida finalizada hokage konoha personagem ate apos quando recebeu ficou muito mais ja nesta naquela durante nova'.split(' '));
 
@@ -71,7 +94,10 @@ function sameMission(existing,incoming,first){
  const overlap=[...newWords].some(word=>oldWords.has(word));
  if(oldOrdinal&&newOrdinal&&oldOrdinal===newOrdinal)return true;
  if(overlap)return true;
- return distance<=1&&!/\b(?:outra|segunda|terceira|nova)\s+missao\b/u.test(newText);
+ // Proximidade de dia e rank sozinha não identifica uma missão.
+ if(existing.missionId&&incoming.missionId&&existing.missionId!==incoming.missionId)return false;
+ if(distance<=1&&(existing.rank==='?'||incoming.rank==='?')&&(oldOrdinal||newOrdinal))return true;
+ return distance<=1&&(oldWords.size===0||newWords.size===0)&&!/\b(?:outra|segunda|terceira|nova)\s+missao\b/u.test(newText);
 }
 
 function savedMissionRecords(c,first,already){
@@ -81,7 +107,8 @@ function savedMissionRecords(c,first,already){
  for(const m of memories){
   if(m?.status!=='saved'||typeof m.description!=='string')continue;
   const description=m.description.trim(),text=norm(description);
-  if(!/\bmissao\b/u.test(text)||!(finish.test(text)||nounCompletion.test(text))||rejection.test(text)||future.test(text)||otherActor(text,first))continue;
+  const reportApproved=/\bmissao\b.{0,110}\b(?:relatorio|resultados?|trabalho|objetivo)\b.{0,120}\b(?:aprovado|aprovada|aceito|aceita|validado|validada|confirmado|confirmada|concluido|concluida)\b|\b(?:relatorio|resultados?)\b.{0,110}\bmissao\b.{0,120}\b(?:aprovado|aprovada|aceito|aceita|confirmado|confirmada|concluido|concluida)\b/u.test(text)||/\brelatorio\b.{0,100}\bmissao\b.{0,100}\baprovad\w*\b/u.test(text);
+  if(!/\bmissao\b/u.test(text)||!(finish.test(text)||nounCompletion.test(text)||reportApproved)||rejection.test(text)||future.test(text)||otherActor(text,first))continue;
   // Ex.: "Kaien concluiu tarefas burocráticas e recebeu proposta para uma missão"
   // NÃO significa que concluiu a missão recém-proposta.
   const verbToMission=text.match(new RegExp('\\b(?:'+completedActs+')\\b(.{0,110})\\bmissao\\b','u'));
@@ -90,7 +117,8 @@ function savedMissionRecords(c,first,already){
   // Requer que o desfecho confirmado se refira ao protagonista, não a terceiros.
   const direct=playerLinked(norm(description),first,false);
   const indirect=first&&new RegExp('\\b'+first+'\\b.{0,105}\\b(?:conclusao|cumprimento|finalizacao)\\b.{0,85}\\bmissao\\b','u').test(norm(description));
-  if(!direct&&!indirect)continue;
+  const personalReport=Boolean(first&&reportApproved&&new RegExp('\\b(?:missao\\b.{0,65}\\b(?:de|do|da)\\s+)?'+first+'\\b','u').test(text));
+  if(!direct&&!indirect&&!personalReport)continue;
   const rank=rankOf(text)||'?';
   const day=Number.isInteger(m.day)?m.day:c.day||0;
   const memoryId=typeof m.id==='string'?m.id:null;
@@ -105,6 +133,19 @@ function savedMissionRecords(c,first,already){
    // Memória pode dar o rank correto a uma conclusão antes registrada sem rank.
    if(records[match].rank==='?'&&rank!=='?')records[match]=candidate;
   }else records.push(candidate);
+ }
+ // Uma pendência de missão marcada DONE pela própria campanha é outra fonte
+ // persistente, independente da redação do Gemini no último turno.
+ for(const task of Array.isArray(c.pendingTasks)?c.pendingTasks:[]){
+  if(task?.status!=='done'||typeof task.description!=='string')continue;
+  const description=task.description,text=norm(description);
+  if(!/\bmissao\b/u.test(text)||rejection.test(text)||future.test(text)||
+     !(finish.test(text)||nounCompletion.test(text)||otherFinish.test(text)))continue;
+  if(!playerLinked(text,first,false)&&!(first&&new RegExp('\\b'+first+'\\b','u').test(text)&&rankOf(text)&&taskCompleted.test(text)))continue;
+  const rank=rankOf(text)||'?',day=Number.isInteger(task.day)?task.day:c.day||0;
+  const candidate={rank,day,summary:description.slice(0,180),source:'completed-task',taskId:task.id||null};
+  const duplicate=records.some(x=>(x.rank===rank||x.rank==='?'||rank==='?')&&sameMission(x,candidate,first));
+  if(!duplicate)records.push(candidate);
  }
  return records.sort((a,b)=>(a.day||0)-(b.day||0)||(a.messageIndex??Number.MAX_SAFE_INTEGER)-(b.messageIndex??Number.MAX_SAFE_INTEGER)).slice(-200);
 }
@@ -130,22 +171,42 @@ export function reconciledMissions(c,stored=[]){
   }
   const preceding=norm(messages[index-1]?.role==='user'?messages[index-1].text:'');
   const match=parts.find(s=>complete(s,first,active,norm(message.text),preceding));
-  if(!match)continue;
-  const explicit=rankOf(match);
-  const rank=explicit||active?.rank||ranked||'?';
+  const proof=verifiedMissionProof(message,first,active,preceding);
+  if(!match&&!proof)continue;
+  const explicit=match?rankOf(match):null;
+  const rank=explicit||active?.rank||ranked||proof?.rank||'?';
   if(!ranks.has(rank))continue;
   // Do not count repeated victory announcements for the same mission.
   const assignment=active?.rank===rank?active.source:null;
   const repeated=lastCompletion?.rank===rank&&(
    (assignment!==null&&lastCompletion.assignment===assignment)||
-   (assignment===null&&index-lastCompletion.index<=4)
+   (assignment===null&&index-lastCompletion.index<=4&&sameMission(
+    {rank,summary:lastCompletion.summary,day:lastCompletion.day},
+    {rank,summary:message.text,day:message.day},first))
   );
   if(!seen.has(index)&&!repeated){
-   out.push({rank,summary:message.text.replace(/\s+/g,' ').slice(0,180),day:Number.isInteger(message.day)?message.day:c.day||0,messageIndex:index,source:'accepted-narration'});
+   out.push({rank,summary:message.text.replace(/\s+/g,' ').slice(0,180),day:Number.isInteger(message.day)?message.day:c.day||0,messageIndex:index,missionId:assignment!==null?'assignment-'+assignment:'scene-'+index,source:proof?'verified-mission-event':'accepted-narration'});
    seen.add(index);
   }
-  lastCompletion={rank,index,assignment};
+  lastCompletion={rank,index,assignment,summary:message.text,day:message.day};
   active=null;
  }
  return savedMissionRecords(c,first,out.sort((a,b)=>a.messageIndex-b.messageIndex).slice(-200));
+}
+
+
+// Provide a focused current mission reminder to the AI, independent of the
+// current narration's choice of wording.
+export function missionStatus(c){
+ const history=Array.isArray(c.messages)?c.messages:[];
+ const completed=reconciledMissions(c,c.databook?.missions);
+ const latest=Math.max(-1,...completed.filter(m=>Number.isInteger(m.messageIndex)).map(m=>m.messageIndex));
+ let active=null;
+ history.forEach((m,index)=>{
+  if(index<=latest||m?.role!=='ai'||typeof m.text!=='string')return;
+  const r=rankOf(m.text),story=norm(m.text);
+  if(r&&assignments.test(story)&&!finish.test(story)&&!rejection.test(story))
+   active={rank:r,assignedAt:index,description:m.text.slice(0,180)};
+ });
+ return {active,recentlyCompleted:completed.slice(-4).map(m=>({rank:m.rank,day:m.day,summary:m.summary.slice(0,130)}))};
 }
