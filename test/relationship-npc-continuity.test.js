@@ -147,3 +147,44 @@ test('a relação pode se tornar importante mais tarde sem apagar contatos incid
  commitRelationships(c,[{name:'Kenji',description:'Kenji tornou-se amigo íntimo e aliado duradouro de Kaien.'}]);
  assert.match(c.relations.Kenji,/amigo/);
 });
+
+test('guarda de continuidade corrige um novo nome inventado para o mesmo comerciante',()=>{
+ const c=game();
+ c.messages.push({role:'ai',text:'Na loja de pergaminhos, o comerciante Daisuke vendeu papel e explicou que trabalhava ali há anos.',day:2});
+ const next=apply(c,turn('Volto à loja de pergaminhos.'),res('O comerciante Takumi reconheceu Kaien e mostrou os pergaminhos.',{
+   facts:['O comerciante Takumi reconheceu Kaien.'],
+   npcKnowledge:[{name:'Takumi',fact:'Takumi conhece Kaien da visita anterior.'}]
+ }));
+ assert.match(next.messages.at(-1).text,/Daisuke/);
+ assert.doesNotMatch(next.messages.at(-1).text,/Takumi/);
+ assert.equal(next.npcAgents.Takumi,undefined);
+ assert.ok(next.npcKnowledge.Daisuke);
+ assert.ok(next.facts.some(x=>x.text.includes('Daisuke')));
+});
+
+test('não altera o nome quando outra pessoa é apresentada claramente como funcionário novo',()=>{
+ const c=game();
+ c.messages.push({role:'ai',text:'Na loja de pergaminhos, o comerciante Daisuke atendeu Kaien.',day:2});
+ const next=apply(c,turn('Volto à loja de pergaminhos.'),res('Um novo comerciante Takumi, contratado ontem, assumiu o balcão porque Daisuke está ausente.',{
+  npcKnowledge:[{name:'Takumi',fact:'Takumi é o novo funcionário.'}]
+ }));
+ assert.match(next.messages.at(-1).text,/Takumi/);
+ assert.match(next.messages.at(-1).text,/Daisuke/);
+ assert.ok(next.npcAgents.Takumi);
+});
+
+test('não transfere comerciante de uma loja anterior para um estabelecimento diferente',()=>{
+ const c=game();
+ c.messages.push({role:'ai',text:'Na loja de pergaminhos, o comerciante Daisuke atendeu Kaien.',day:2});
+ const next=apply(c,turn('Entro na loja de armas.'),res('O comerciante Takumi atende os clientes na loja de armas.'));
+ assert.match(next.messages.at(-1).text,/Takumi/);
+ assert.doesNotMatch(next.messages.at(-1).text,/Daisuke/);
+});
+
+test('guarnições e mercenários continuam fora da agenda de NPCs individuais',()=>{
+ const c=game();
+ c.npcKnowledge={'Guarnição de Konoha':['Patrulhou o portão'],'Mercenários da floresta':['Encontrados na estrada']};
+ const ctx=context(c,turn('Observo a guarnição de Konoha.'));
+ assert.equal(ctx.socialDynamics.namedNPCs.some(p=>p.name.includes('Guarnição')),false);
+ assert.equal(ctx.motor.intentions.some(p=>/Guarnição|Mercenários/u.test(p.name)),false);
+});
