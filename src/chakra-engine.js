@@ -43,9 +43,22 @@ function activeInterval(i,r){
  return /\b(?:trein|pratic|lut|batalh|combate|corr|persegu|exercit|uso(?:u|ando)\s+chakra|travessia exaustiva)\w*/.test(text);
 }
 
+
+function confirmedChakraUse(c,i,r){
+ const actions=norm((i.segments||[]).filter(x=>x.type==='AGIR').map(x=>x.text).join(' '));
+ const magic=/\b(?:chakra|jutsu|ninjutsu|genjutsu|fuinjutsu|selos de mao|bunshin|clon(?:e|es)|rasengan|chidori|sharingan|byakugan|katon|suiton|doton|raiton|futon|invocacao|tecnica ninja)\b/u;
+ const casting=/\b(?:uso|usa|usou|utilizo|utiliza|utilizou|executo|executa|executou|ativo|ativa|ativou|canalizo|canaliza|canalizou|concentro|concentra|concentrou|moldo|molda|moldou|libero|libera|liberou|invoco|invoca|invocou|crio|cria|criou|treino|treina|treinou|pratico|pratica|praticou|realizo|realiza|realizou|fa[cç]o|fiz|lan[cç]o|lan[cç]a|lan[cç]ou|controle|controlo|controla|controlou)\b/u;
+ if(magic.test(actions)&&casting.test(actions))return true;
+ const narrative=norm(r.narrative),name=norm(c.character?.name).split(/\s+/)[0].replace(/[^a-z0-9]/g,'');
+ if(!name)return false;
+ const actor=name+'|voce|o protagonista|a protagonista|seu personagem|sua personagem';
+ const nameCast=new RegExp('(?:^|[^a-z0-9])(?:'+actor+')\\s+(?:\\w+\\s+){0,3}(?:usou|utilizou|executou|ativou|canalizou|consumiu|gastou|concentrou|liberou|invocou|criou|moldou|perdeu|teve|drenou)\\b','u');
+ return magic.test(narrative)&&nameCast.test(narrative);
+}
+
 export function chakraBalance(c,i,r,tick){
  const before=clamp(c.chakra),previousStrain=clamp(c.chakraStrain,20);
- const costProposed=clamp(-Math.min(0,r.chakraDelta||0),20);
+ const costProposed=confirmedChakraUse(c,i,r)?clamp(-Math.min(0,r.chakraDelta||0),20):0;
  const experience=chakraExperience(c);
  // Mesmo com reservas especiais, ataques grandes continuam custosos.
  const heavy=costProposed>=14;
