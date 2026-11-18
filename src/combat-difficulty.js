@@ -67,7 +67,8 @@ function enemiesContext(c,i){
 export function combatForecast(c,i){
  const action=(i.segments||[]).filter(s=>s.type==='AGIR').map(s=>norm(s.text)).join(' ');
  const prior=(c.messages||[]).filter(m=>m.role==='ai').slice(-3).map(m=>norm(m.text)).join(' ');
- const active=actualFight.test(action)&&!planned.test(action)&&!training.test(action);
+ const combatTechnique=/\b(?:uso|executo|faco|aplico|lanco|canalizo)\b.{0,32}\b(?:jutsu|ninjutsu|taijutsu|genjutsu|golpe|tecnica|chakra)\b/u;
+ const active=(actualFight.test(action)||combatTechnique.test(action))&&!planned.test(action)&&!training.test(action);
  const enemyNearby=/\b(?:inimig|adversari|oponent|atacant|agressor|ninjas?\s+hostil|mercenari|confront|luta|batalha|combate)\w*/u.test(action+' '+prior);
  const opposition=enemiesContext(c,i),rank=rankOf(c.profile?.affiliation||c.character?.affiliation);
  const levels=Object.values(c.progress||{}).filter(Number.isFinite);
@@ -91,9 +92,12 @@ export function combatForecast(c,i){
 }
 const playerVictorious=(text,first)=>{
  const s=norm(text),name=norm(first).split(/\s+/)[0].replace(/[^a-z0-9]/g,'');
- if(!victory.test(s))return false;
- const subject=name&&new RegExp('\\b'+name+'\\b.{0,85}\\b(?:derrotou|venceu|neutralizou|nocauteou|subjugou|imobilizou|derrubou|eliminou|conseguiu vencer)\\b','u');
+ if(!victory.test(s)&&!/\bconseguiu\s+(?:derrotar|vencer|neutralizar)\b/u.test(s))return false;
+ const subject=name&&new RegExp('\\b'+name+'\\b.{0,85}\\b(?:derrotou|venceu|neutralizou|nocauteou|subjugou|imobilizou|derrubou|eliminou|conseguiu\\s+(?:derrotar|vencer|neutralizar))\\b','u');
  if(subject?.test(s))return true;
+ // Quando o texto atribui a vitória explicitamente a aliados, não confundir o feito.
+ const aid=/\b(?:foram derrotados|foram neutralizados|foram vencidos)\s+(?:por|pelos|pelas)\s+(?:hiruzen|kakashi|aliados|reforcos|equipe)\b/u.test(s);
+ if(aid)return false;
  const passive=/\b(?:todos os|os|seus)\s+(?:inimigos|adversarios|oponentes)\b.{0,45}\b(?:foram derrotados|foram neutralizados|cairam|se renderam)\b/u;
  const completion=/\b(?:a batalha|o confronto|o combate)\b.{0,40}\b(?:terminou|acabou|foi vencido)\b/u;
  return passive.test(s)||completion.test(s);
