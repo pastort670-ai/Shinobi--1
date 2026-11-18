@@ -172,8 +172,14 @@ export function reconciledMissions(c,stored=[]){
   const parts=sliceSentences(message.text);
   const ranked=rankOf(message.text);
   const pastLinked=Boolean(first&&messages.slice(Math.max(0,index-3),index).some(m=>m?.role==='ai'&&new RegExp('\\b'+first+'\\b','u').test(norm(m.text))&&/\bmissao\b/u.test(norm(m.text))));
-  if(ranked&&parts.some(s=>assignments.test(s)&&!finish.test(s)&&assignmentLinked(s,first,pastLinked))){
-   active={rank:ranked,source:index,opened:index};
+  const assignment=parts.find(sentence=>rankOf(sentence)&&assignments.test(sentence)&&!finish.test(sentence)&&assignmentLinked(sentence,first,pastLinked));
+  const eventAssigned=message.missionAssignment;
+  const quoted=typeof eventAssigned?.evidence==='string'?norm(eventAssigned.evidence):'';
+  const verifiedEvent=Boolean(quoted.length>=20&&norm(message.text).includes(quoted)&&
+    rankOf(quoted)===eventAssigned.rank&&assignments.test(quoted)&&!finish.test(quoted)&&
+    assignmentLinked(quoted,first,pastLinked));
+  if(assignment||verifiedEvent){
+   active={rank:assignment?rankOf(assignment):eventAssigned.rank,source:index,opened:index};
   }
   const preceding=norm(messages[index-1]?.role==='user'?messages[index-1].text:'');
   const narrated=norm(message.text);
@@ -191,7 +197,7 @@ export function reconciledMissions(c,stored=[]){
   }
   if(!match)continue;
   const explicit=rankOf(match);
-  const rank=explicit||active?.rank||ranked||'?';
+  const rank=explicit||active?.rank||(ranked&&!/\b(?:kakashi|hiruzen|outro ninja|outra equipe)\b.{0,90}\bmissao\b/u.test(norm(message.text))?ranked:null)||'?';
   if(!ranks.has(rank))continue;
   // Do not count repeated victory announcements for the same mission.
   const assignment=active?.rank===rank?active.source:null;
