@@ -34,7 +34,7 @@ function playerPerformed(clause,name,verb){
  if(/(?:\b(?:a|ao|para|de|do|diante de|perante|sobre|com|informou a|contou a|disse a)\s+)$/iu.test(before))return false;
  // Only the first named actor in the clause may earn the achievement.
  const firstActor=v.match(/\b([\p{L}][\p{L}'-]*)\s+(?:foi\s+)?(?:aprendeu|dominou|usou|utilizou|executou|realizou|conseguiu|tornou-se|passou|graduou-se|formou-se|recebeu|é|foi|sabe)\b/iu);
- if(firstActor&&firstActor[1]!==name)return false;
+ if(firstActor&&firstActor.index<nameAt&&firstActor[1]!==name)return false;
  const after=v.slice(nameAt+name.length);
  return new RegExp('^\\s*(?:,\\s*)?(?:foi\\s+)?(?:'+verb+')(?=\\s|$|[.,!?])','iu').test(after);
 }
