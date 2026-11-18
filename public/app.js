@@ -349,48 +349,49 @@ function renderDatabook(c){
  const toggle=$('db-show-numbers'),numbers=saved('shinobi-databook-numbers','off')==='on';
  toggle.checked=numbers;
  toggle.onchange=()=>{remember('shinobi-databook-numbers',toggle.checked?'on':'off');renderDatabook(current);};
- const rawName=c.character?.name||'Personagem';
- $('db-name').textContent=rawName;
+ $('db-name').textContent=c.character?.name||'Personagem';
  $('db-meta').textContent=[c.character?.village||'Sem vila',c.profile?.affiliation||c.character?.affiliation||'Sem graduação',c.age+' anos'].join(' · ');
- const attrs=stats.slice(0,8);
- const center=128,radius=100;
+ const attrs=stats.slice(0,8),center=180,radius=105,cy=173;
+ const valid=x=>typeof x.value==='number'&&Number.isFinite(x.value)&&x.value>=.5&&x.value<=5;
  const p=(index,value)=>{
   const angle=-Math.PI/2+index*Math.PI/4;
-  return [(center+radius*Math.cos(angle)*value/5).toFixed(1),(center+radius*Math.sin(angle)*value/5).toFixed(1)];
+  return [(center+radius*Math.cos(angle)*value/5).toFixed(1),(cy+radius*Math.sin(angle)*value/5).toFixed(1)];
  };
- const vertices=count=>attrs.map((_,i)=>p(i,count).join(',')).join(' ');
- const grid=[1,2,3,4,5].map(k=>'<polygon class="db-grid-ring" points="'+vertices(k)+'"></polygon>').join('');
- const axes=attrs.map((_,i)=>'<line class="db-axis" x1="'+center+'" y1="'+center+'" x2="'+p(i,5)[0]+'" y2="'+p(i,5)[1]+'"></line>').join('');
- const valid=x=>typeof x.value==='number'&&Number.isFinite(x.value)&&x.value>=.5&&x.value<=5;
+ const outline=count=>attrs.map((_,i)=>p(i,count).join(',')).join(' ');
+ const rings=[1,2,3,4,5].map(k=>'<polygon class="db-grid-ring" points="'+outline(k)+'"></polygon>').join('');
+ const axes=attrs.map((_,i)=>'<line class="db-axis" x1="'+center+'" y1="'+cy+'" x2="'+p(i,5)[0]+'" y2="'+p(i,5)[1]+'"></line>').join('');
  const complete=attrs.length===8&&attrs.every(valid);
- const filled=complete?'<polygon class="db-data-area" points="'+attrs.map((x,i)=>p(i,x.value).join(',')).join(' ')+'"></polygon>':'';
- const links=attrs.map((stat,i)=>{
+ const area=complete?'<polygon class="db-data-area" points="'+attrs.map((x,i)=>p(i,x.value).join(',')).join(' ')+'"></polygon>':'';
+ const lines=attrs.map((stat,i)=>{
   const next=attrs[(i+1)%8];
   if(!valid(stat)||!valid(next)||(!complete&&i===7))return '';
-  const a=p(i,stat.value),b=p((i+1)%8,next.value);
-  return '<line class="db-data-line" x1="'+a[0]+'" y1="'+a[1]+'" x2="'+b[0]+'" y2="'+b[1]+'"></line>';
+  const x=p(i,stat.value),y=p((i+1)%8,next.value);
+  return '<line class="db-data-line" x1="'+x[0]+'" y1="'+x[1]+'" x2="'+y[0]+'" y2="'+y[1]+'"></line>';
  }).join('');
- const points=attrs.map((stat,i)=>valid(stat)?'<circle class="db-data-point" cx="'+p(i,stat.value)[0]+'" cy="'+p(i,stat.value)[1]+'" r="4.2"></circle>':'').join('');
- container.innerHTML='<svg viewBox="0 0 256 256" role="img" aria-label="Gráfico de oito atributos; dados parciais não são preenchidos com notas inventadas.">'+axes+grid+filled+links+points+'<circle cx="128" cy="128" r="2.5" class="db-center"></circle></svg>';
- const attributeEvidence=data.attributeEvidence||{};
- $('db-attributes').innerHTML=attrs.map(stat=>{
-  const known=valid(stat),display=known?(stat.description+(numbers?' · '+stat.value.toLocaleString('pt-BR')+'/5':'')):'Não avaliado';
-  const width=known?(stat.value/5*100).toFixed(0):0;
-  const records=Math.max(0,Number(attributeEvidence[stat.key]?.records)||0);
-  const proof=records?'<small class="db-stat-proof">'+records+' registro(s) de prática confirmado(s)</small>':'';
-  return '<div class="db-stat"><div class="db-stat-head"><strong>'+esc(stat.label)+'</strong><span>'+esc(display)+'</span></div><div class="db-meter" aria-label="'+esc(stat.label)+': '+esc(display)+'"><i style="width:'+width+'%"></i></div>'+proof+'</div>';
+ const dots=attrs.map((stat,i)=>valid(stat)?'<circle class="db-data-point" cx="'+p(i,stat.value)[0]+'" cy="'+p(i,stat.value)[1]+'" r="4.2"></circle>':'').join('');
+ const labels=attrs.map((stat,i)=>{
+  const radians=-Math.PI/2+i*Math.PI/4;
+  const x=(center+147*Math.cos(radians)).toFixed(1);
+  const y=(cy+147*Math.sin(radians)).toFixed(1);
+  const detail=valid(stat)?numbers?stat.value.toLocaleString('pt-BR')+' / 5':stat.description:'—';
+  const positions=[-3,0,4,0,8,0,4,0];
+  return '<g class="db-radar-label" aria-label="'+esc(stat.label+': '+detail)+'"><title>'+esc(stat.label+': '+detail)+'</title><text x="'+x+'" y="'+(Number(y)+positions[i])+'" text-anchor="middle"><tspan x="'+x+'" class="db-radar-name">'+esc(stat.label)+'</tspan><tspan x="'+x+'" dy="15" class="db-radar-grade">'+esc(detail)+'</tspan></text></g>';
  }).join('');
- const intelligenceEvidence=data.intelligenceEvidence||{};
- if(intelligenceEvidence.sourceCount>0){
-  const count=Number(intelligenceEvidence.studyCount)||0,plans=Number(intelligenceEvidence.tacticCount)||0;
-  $('db-attributes').innerHTML+='<p class="db-intelligence-evidence">Inteligência: avaliação baseada em '+count+' estudo(s) confirmado(s) e '+plans+' estratégia(s) registrada(s) na campanha.</p>';
- }
+ const plain=attrs.map(stat=>stat.label+': '+(valid(stat)?numbers?stat.value+' de 5':stat.description:'não avaliado')).join('; ');
+ container.innerHTML='<svg viewBox="0 0 360 352" role="img" aria-label="'+esc(plain)+'">'+axes+rings+area+lines+dots+'<circle cx="'+center+'" cy="'+cy+'" r="2.4" class="db-center"></circle>'+labels+'</svg>';
+ $('db-attributes').textContent=plain;
  const missionRanks=['D','C','B','A','S'],totals=data.missions||{};
  $('db-missions').innerHTML=missionRanks.map(rank=>'<div class="db-mission"><small>RANK</small><strong>'+rank+'</strong><span>'+Math.max(0,Number(totals[rank])||0)+'</span></div>').join('')+(totals.unranked?'<div class="db-mission db-mission-unranked"><small>SEM RANK</small><strong>?</strong><span>'+Math.max(0,Number(totals.unranked)||0)+'</span></div>':'');
- const log=Array.isArray(data.missionLog)?data.missionLog.slice(-5).reverse():[];
- $('db-mission-log').innerHTML=log.length?'<div class="db-log">'+log.map(m=>'<div class="fact"><b>'+(m.rank==='?'?'Missão sem rank':'Missão rank '+esc(m.rank))+'</b><p>'+esc(m.summary)+'</p></div>').join('')+'</div>':'';
- const history=Array.isArray(data.history)?data.history.slice(-6).reverse():[];
- $('db-history').innerHTML=history.length?history.map(h=>'<div class="fact"><small>Ano '+(1+Math.floor(h.day/365))+' · Dia '+h.day+'</small><p>'+esc(h.reason||'Avaliação registrada')+'</p></div>').join(''):'<p class="caption">Novas avaliações aparecerão após treinamentos e feitos comprovados.</p>';
+ $('db-mission-total').textContent=Object.values(totals).reduce((sum,n)=>sum+(Number(n)||0),0)+' registradas';
+ const log=Array.isArray(data.missionLog)?data.missionLog.slice().reverse():[];
+ $('db-mission-log').innerHTML=compactRecords(log,entry=>({
+  title:entry.rank==='?'?'Missão sem rank':'Missão rank '+entry.rank,
+  subtitle:'Dia '+(entry.day??'—'),text:entry.summary
+ }),3);
+ const history=Array.isArray(data.history)?data.history.slice().reverse():[];
+ $('db-history').innerHTML=compactRecords(history,item=>({
+  title:'Avaliação atualizada',subtitle:'Ano '+(1+Math.floor(item.day/365))+' · Dia '+item.day,text:item.reason||'Evolução registrada'
+ }),3);
 }
 function render(){const c=current;if(!c)return;const stop=$('timestatus');stop.hidden=!c.lastTimeInterruption;stop.textContent=c.lastTimeInterruption?'⏳ O avanço foi interrompido: '+c.lastTimeInterruption.reason:'';updateVillageSymbol(c.character?.village);const date=c.calendar;$('calendar').firstElementChild.textContent=`${String(date.day).padStart(2,'0')}/${String(date.month).padStart(2,'0')} · Ano ${date.year} · ${c.clockTime||'08:00'}`;updateEraUI(date);drawCalendar();$('hero').textContent=c.character.name;$('origin').textContent=`${c.age} anos · ${c.character.village||'Origem livre'}`;$('conditions').innerHTML=`<div class="condition">Energia<b>${esc(c.conditions.energy)}</b></div><div class="condition">Chakra<b>${esc(c.conditions.chakra)}</b></div>${c.chakraActivity?`<p class="chakra-feedback" role="status">${esc(c.chakraActivity)}</p>`:''}`;$('abilities').innerHTML=Object.entries(c.abilities).map(([k,v])=>`<div class="condition">${esc(k)}<b>${esc(v)}</b></div>`).join('');$('chat').innerHTML=c.messages.map((m,localIndex)=>`<article class="bubble ${m.role==='user'?'user':'ai'} ${localIndex>=c.messages.length-2?(m.sceneType==='combat'?'combat-glow':m.sceneType==='time'?'time-glow':''):''} ${m.memoryCandidate?'has-memory':''}"><div class="who">${m.role==='user'?esc(c.character.name):'忍 SHINOBI'}${m.role==='user'&&c.undoableMessages?.includes(localIndex+(c.messageOffset||0))?`<button class="undo-message" data-undo-message="${localIndex+(c.messageOffset||0)}" aria-label="Excluir mensagem e voltar a história" title="Excluir mensagem e voltar a história">✕ Excluir</button>`:''}</div><div class="message-text">${esc(m.role==='user'?m.text.replace(/^AGIR:/gm,'NARRAR:'):m.text)}</div>${m.memoryCandidate?`<div class="memory-proposal"><strong>✦ Memória Marcante: ${esc(m.memoryCandidate.title)}</strong><p>${esc(m.memoryCandidate.description)}</p><button type="button" data-memory-save="${esc(m.memoryCandidate.id)}">Salvar na ficha</button><button type="button" data-memory-dismiss="${esc(m.memoryCandidate.id)}">Ignorar</button></div>`:''}${m.sources?.length?`<div class="sources">Referências: ${m.sources.map(s=>`<a href="${esc(s.url)}" target="_blank" rel="noopener noreferrer">${esc(s.title)}</a>`).join('')}</div>`:''}</article>`).join('')+(c.introConfirmed===false&&c.messages.length===1?'<div class="intro-choices"><strong>Introdução personalizada</strong><p>Aceite esta abertura ou gere outra antes de iniciar.</p><button type="button" id="acceptintro">✓ Aceitar abertura</button><button type="button" id="retryintro">↻ Gerar outra introdução</button></div>':'');$('chat').querySelectorAll('[data-undo-message]').forEach(btn=>btn.onclick=()=>rewindMessage(Number(btn.dataset.undoMessage)));$('chat').querySelectorAll('[data-memory-save],[data-memory-dismiss]').forEach(b=>b.onclick=()=>run(async()=>{current=await api('campaigns/'+current.id+'/memory',{revision:current.revision,candidateId:b.dataset.memorySave||b.dataset.memoryDismiss,decision:b.dataset.memorySave?'saved':'dismissed'});render();if(b.dataset.memorySave)await auditCurrentMemories();}));if($('acceptintro'))$('acceptintro').onclick=()=>run(async()=>{current=await api('campaigns/'+current.id+'/intro-confirm',{revision:current.revision});render();});if($('retryintro'))$('retryintro').onclick=()=>run(async()=>{current=await api('campaigns/'+current.id+'/intro',{revision:current.revision});calendarSelected=current.day;render();},true);$('chat').scrollTop=$('chat').scrollHeight;renderDatabook(c);$('sheetcontent').innerHTML=['name','age','village','clan','affiliation','appearance','personality','skills','history'].map(k=>`<div class="fact"><b>${esc(({name:'Nome',age:'Idade inicial',village:'Vila de origem',clan:'Clã',appearance:'Aparência',personality:'Personalidade',skills:'Aptidões',history:'História',affiliation:'Afiliação atual'})[k])}</b><p>${esc(k==='age'?c.age:(c.profile?.[k]||c.character[k]||'Não definido'))}</p></div>`).join('');$('jutsus').innerHTML=(c.jutsus||[]).map(j=>`<div class="fact"><b>${esc(j.name)}</b><p>${esc(j.description||'Técnica aprendida')}</p></div>`).join('')||'<p class="caption">Nenhum jutsu aprendido foi registrado ainda.</p>';$('relations').innerHTML=Object.entries(c.relations).map(([k,v])=>`<div class="fact"><b>${esc(k)}</b><p>${esc(v)}</p></div>`).join('')||'<p class="caption">Ainda não há vínculos registrados.</p>';$('memorable').innerHTML=(c.memories||[]).slice().reverse().map(m=>'<div class="fact memory-saved"><small>Ano '+(1+Math.floor(m.day/365))+' · Memória Marcante</small><b>'+esc(m.title)+'</b><p>'+esc(m.description)+'</p></div>').join('')||'<p class="caption">Momentos importantes que você confirmar aparecerão aqui.</p>';$('pendingTasks').innerHTML=(c.pendingTasks||[]).filter(t=>t.status==='open').slice().reverse().map(t=>'<div class="fact"><small>Em andamento</small><p>'+esc(t.description)+'</p></div>').join('')||'<p class="caption">Nenhum compromisso pendente.</p>';$('consequences').innerHTML=(c.consequences||[]).slice().reverse().map(t=>'<div class="fact"><small>'+esc(t.status==='resolved'?'Resolvida':'Em andamento')+'</small><p>'+esc(t.description)+'</p></div>').join('')||'<p class="caption">As consequências das decisões importantes aparecerão aqui.</p>';$('facts').innerHTML=c.facts.slice().reverse().map(f=>`<div class="fact"><small>Dia ${f.day}</small><p>${esc(f.text)}</p></div>`).join('')||'<p class="caption">Suas decisões deixarão marcas aqui.</p>';$('events').innerHTML=c.timeline.map(e=>`<div class="fact"><small>Dia ${e.day} · data aproximada</small><h2>${esc(e.title)}</h2><p>${esc(e.outcome==='referência'?e.detail:e.outcome)}</p></div>`).join('');renderDrafts();freeze();void backupCurrent();}
 async function startConnection(){
