@@ -225,7 +225,10 @@ function updateEraUI(date){
  $('era-progress').value=era.next?Math.min(100,Math.round(100*era.elapsedDays/total)):100;
  const item=e=>'<div class="era-item'+(e.active?' era-active':'')+(e.reached?' era-past':' era-future')+'"><b>'+esc(e.name)+'</b><small>'+esc(e.active?'Era atual':e.reached?'Concluída':'A partir do ano '+Math.floor(e.start/365))+'</small></div>';
  $('era-list').innerHTML=date.eras.map(item).join('');
- $('era-timeline').innerHTML='<div class="era-overview"><strong>'+esc(era.name)+'</strong><p>'+esc(era.description)+'</p><p>'+esc(era.next?'Faltam '+until+' para '+era.next.name+'.':'Última era planejada.')+'</p></div>'+date.eras.map(e=>'<div class="era-timeline-item'+(e.active?' era-active':'')+'"><b>'+esc(e.name)+'</b><small>Início aproximado: '+Math.floor(e.start/365)+' anos após o nascimento de Naruto</small><p>'+esc(e.reached?e.description:'Os detalhes deste período serão revelados conforme a campanha avançar.')+'</p></div>').join('');
+ $('era-timeline').innerHTML='<div class="era-summary"><small>ERA ATUAL</small><strong>'+esc(era.name)+'</strong><span>'+esc(era.next?'Próxima era: '+era.next.name+' em '+until:'Última era planejada')+'</span></div>'+
+  '<details class="panel-fold"><summary>Explorar eras <span class="panel-count">'+date.eras.length+'</span></summary><div class="panel-inner">'+
+  date.eras.map(e=>'<details class="compact-entry"><summary><span class="compact-entry-title">'+esc(e.name)+'</span><small>'+(e.active?'Era atual':e.reached?'Concluída':'Futura')+' · Ano '+(1+Math.floor(e.start/365))+'</small></summary><div class="compact-entry-body"><p>'+esc(e.reached?e.description:'Os detalhes serão revelados conforme a campanha avançar.')+'</p></div></details>').join('')+
+  '</div></details>';
 }
 const monthNames=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 const monthLengths=[31,28,31,30,31,30,31,31,30,31,30,31];
@@ -290,7 +293,8 @@ function drawCalendar(repositionYears=true){
  $('calcurrent').textContent=home.day+' de '+monthNames[home.month-1].toLowerCase()+' · Ano '+home.year;
  $('calcurrent-sub').textContent='Hora atual: '+(current.clockTime||'08:00')+' · consultar o calendário não avança a história.';
  const isHomeMonth=year===home.year&&month===home.month;
- $('calbrowsing').textContent=isHomeMonth?'Você está no mês atual do personagem.':'Consultando '+monthNames[month-1]+' do Ano '+year+'. Sua história continua em '+String(home.day).padStart(2,'0')+'/'+String(home.month).padStart(2,'0')+' · Ano '+home.year+'.';
+ $('calbrowsing').hidden=isHomeMonth;
+ $('calbrowsing').textContent=isHomeMonth?'':'Você está consultando outra data. A história continua em '+String(home.day).padStart(2,'0')+'/'+String(home.month).padStart(2,'0')+' · Ano '+home.year+'.';
  $('calbrowsing').classList.toggle('away',!isHomeMonth);
  $('calprev').disabled=year===1&&month<=10;
  $('calnext').disabled=year>=100&&month===12;
@@ -302,7 +306,7 @@ function drawCalendar(repositionYears=true){
  const monthEras=(c.calendarEraEvents||[]).filter(e=>e.year===year&&e.month===month);
  const days=monthLengths[month-1];
  const first=(displayedDay(year,month,1)+1)%7;
- const headers=['D','S','T','Q','Q','S','S'].map(d=>'<span class="cal-weekday">'+d+'</span>').join('');
+ const headers=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'].map(d=>'<span class="cal-weekday">'+d+'</span>').join('');
  const blanks='<span class="cal-blank"></span>'.repeat((first+7)%7);
  const cells=Array.from({length:days},(_,i)=>{
   const n=i+1,absolute=displayedDay(year,month,n);
