@@ -139,7 +139,7 @@ test('apenas eventos sugeridos mudam: as memórias já salvas não são apagadas
 
 test('estrutura da interface expõe as evidências em lugar de exibir não avaliado indiscriminadamente',()=>{
  const js=readFileSync(new URL('../public/app.js',import.meta.url),'utf8');
- assert.match(js,/db-intelligence-evidence/);
+ assert.match(js,/intelligenceEvidence.studyCount/); // O gráfico acessível preserva o motivo da avaliação
  assert.match(js,/attributeEvidence/);
 });
 

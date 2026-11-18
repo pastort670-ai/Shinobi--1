@@ -66,6 +66,8 @@ try{
  assert.match(await page.locator('#calmonth').innerText(),/Novembro.*Ano 1/);
  await page.locator('#calprev').click();
  assert.match(await page.locator('#calmonth').innerText(),/Outubro.*Ano 1/);
+ await page.locator('.calendar-advanced > summary').click();
+ assert.equal(await page.locator('#calyearnext').isVisible(),true,'Navegação avançada aparece ao expandir o calendário');
  await page.locator('#calyearnext').click();
  assert.match(await page.locator('#calmonth').innerText(),/Ano 2/);
  await page.locator('#calyearprev').click();
@@ -74,7 +76,7 @@ try{
  assert.match(await page.locator('#calmonth').innerText(),/Ano 35/);
  assert.equal(await page.locator('#calyears button.selected').innerText(),'Ano 35');
  assert.match(await page.locator('#calcurrent').innerText(),/13 de outubro · Ano 1/);
- assert.match(await page.locator('#calbrowsing').innerText(),/Sua história continua em 13\/10 · Ano 1/);
+ assert.match(await page.locator('#calbrowsing').innerText(),/história continua em 13\/10 · Ano 1/);
  await page.locator('#caljumpnow').click();
  assert.equal(await page.locator('#calgrid .cal-today[aria-current="date"]').count(),1);
  assert.match(await page.locator('#calselectedheading').innerText(),/Hoje na história/);
@@ -82,6 +84,14 @@ try{
  assert.equal(await page.locator('#calgrid .cal-today').count(),0,'Data atual não deve se mover para o ano consultado');
  await page.locator('#caljumpnow').click();
  assert.match(await page.locator('#calmonth').innerText(),/Ano 1/);
+ await page.locator('#menutoggle').click();
+ await page.locator('#sidebar [data-tab="sheet"]').click();
+ assert.equal(await page.locator('#db-graphic .db-radar-label').count(),8,'O radar deve mostrar oito rótulos no próprio gráfico');
+ const srOnlyBox=await page.locator('#db-attributes').boundingBox();
+ assert.ok(srOnlyBox&&srOnlyBox.width<=1.5&&srOnlyBox.height<=1.5,'A leitura acessível permanece reduzida a 1 pixel, sem segunda lista visual');
+ assert.equal(await page.locator('#sheet-missions').evaluate(e=>e.open),false,'Detalhes da ficha ficam recolhidos');
+ await page.locator('#sheet-missions > summary').click();
+ assert.equal(await page.locator('#db-missions').isVisible(),true,'Missões ainda podem ser abertas ao toque');
  await page.locator('#menutoggle').click();
  await page.locator('#sidebar [data-tab="story"]').click();
  await page.locator('#more summary').click();
@@ -109,7 +119,8 @@ try{
  await page.locator('#menutoggle').click();
  await page.locator('#sidebar [data-tab="memory"]').click();
  await page.locator('#memorable').getByText('Defesa do portão').waitFor();
- await page.locator('#pendingTasks').getByText('Voltar ao portão amanhã.').waitFor();
+ await page.locator('#memory .panel-fold > summary').filter({hasText:'Compromissos'}).click();
+ await page.locator('#pendingTasks .compact-entry-preview').getByText('Voltar ao portão amanhã.').waitFor();
  await page.locator('#menutoggle').click();
  await page.locator('#sidebar [data-tab="story"]').click();
  assert.equal(await page.locator('#time').isVisible(),false,'TEMPO fica oculto durante o combate');

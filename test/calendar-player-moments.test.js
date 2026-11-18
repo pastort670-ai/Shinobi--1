@@ -12,7 +12,7 @@ const base={narrative:'Hiruzen concorda com Akira.',facts:[],relations:[],traini
 test('data atual do personagem é independente da navegação do calendário',()=>{
  for(const id of ['calcurrent','calcurrent-sub','caljumpnow','calbrowsing','calselectedheading'])assert.match(html,new RegExp('id="'+id+'"'));
  assert.match(js,/absolute===c\.day\?'aria-current="date"/);
- assert.match(js,/cal-player-marker/);
+ assert.match(js,/class="cal-dot /); // Evento/era identificados por ponto discreto em vez de marcadores grandes
  assert.match(js,/year-current/);
  assert.match(js,/calendarSelected=displayedDay\(yr,mo/);
  assert.match(js,/caljumpnow'\)\.onclick/);

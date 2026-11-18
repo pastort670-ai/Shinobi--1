@@ -129,7 +129,8 @@ test('falha automática não concede aprendizagem, promoção ou missão indevid
 
 test('interface mostra origem da avaliação de Inteligência e Gemini recebe regras de combate',async()=>{
  const js=readFileSync(new URL('../public/app.js',import.meta.url),'utf8');
- assert.match(js,/db-intelligence-evidence/);
+ assert.match(js,/const attributeEvidence=data.attributeEvidence/);
+ assert.match(js,/intelligenceEvidence.studyCount/); // Fundamentação fica acessível no texto do gráfico
  const s=(await import('../src/gemini.js')).system;
  assert.match(s,/COMBATE MAIS RIGOROSO/);
  assert.ok(context(c(),move('Ataco o inimigo.')).combatDifficulty);
