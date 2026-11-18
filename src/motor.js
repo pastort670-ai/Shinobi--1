@@ -1,3 +1,4 @@
+import {visibleRelationships,isGroupNpc} from './relationship-engine.js';
 // Motor Shinobi 2.0: event-driven NPC intentions and persistent goals, no extra model calls.
 // Simulation suggestions do not become canon until a completed turn is accepted.
 const MAX_AGENTS=24;
@@ -14,8 +15,8 @@ function relationPriority(value=''){
 }
 function relevantNames(c,i){
  const textInput=[...(i.segments||[]).map(s=>s.text),...c.messages.slice(-2).map(m=>m.text?.slice(-850))].join(' ').toLocaleLowerCase('pt-BR');
- const all=distinct([...Object.keys(c.npcKnowledge||{}),...Object.keys(c.relations||{}),...Object.keys(c.npcAgents||{})]);
- return all.filter(name=>name.length>1&&textInput.includes(name.toLocaleLowerCase('pt-BR'))).slice(0,8);
+ const all=distinct([...Object.keys(c.npcKnowledge||{}),...Object.keys(visibleRelationships(c)),...Object.keys(c.npcAgents||{})]);
+ return all.filter(name=>name.length>1&&!isGroupNpc(name)&&textInput.includes(name.toLocaleLowerCase('pt-BR'))).slice(0,8);
 }
 function dueTask(c,name,target){
  return (c.pendingTasks||[]).filter(t=>t.status==='open'&&t.description?.toLocaleLowerCase('pt-BR').includes(name.toLocaleLowerCase('pt-BR'))).sort((a,b)=>(a.dueDay??999999)-(b.dueDay??999999)).find(t=>t.dueDay===null||t.dueDay===undefined||t.dueDay<=target);
@@ -27,7 +28,7 @@ export function planNpcTurn(c,i){
  // NPCs conhecidos podem cuidar de compromissos durante períodos longos,
  // mas não precisam aparecer fisicamente nem conhecer segredos do jogador.
  if(target>c.day){
-  const candidates=[...new Set([...Object.keys(c.npcAgents||{}),...Object.keys(c.relations||{}),...Object.keys(c.npcKnowledge||{})])];
+  const candidates=[...new Set([...Object.keys(c.npcAgents||{}),...Object.keys(visibleRelationships(c)),...Object.keys(c.npcKnowledge||{})])].filter(name=>!isGroupNpc(name));
   for(const name of candidates){
    if(named.length>=8)break;
    const hasDatedTask=(c.pendingTasks||[]).some(t=>t.status==='open'&&Number.isInteger(t.dueDay)&&t.dueDay>c.day&&t.dueDay<=target&&t.description?.toLocaleLowerCase('pt-BR').includes(name.toLocaleLowerCase('pt-BR'))) || (c.npcAgents?.[name]?.goals||[]).some(g=>Number.isInteger(g.dueDay)&&g.dueDay>c.day&&g.dueDay<=target);
