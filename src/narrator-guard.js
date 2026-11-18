@@ -21,20 +21,22 @@ function echoRegex(s){
  const sep='[\\s.,!?;:—–"“”«»…-]*';
  return new RegExp('(?<![\\p{L}\\p{N}])'+t.map(escapeRegex).join(sep)+'(?![\\p{L}\\p{N}])','giu');
 }
-function findEcho(text,quote){
+function findEcho(text,quote,characterName){
  const phrase=clean(quote),long=phrase.length>=18&&tokens(phrase).length>=3;
  const pattern=echoRegex(phrase);if(!pattern)return null;
  for(const m of text.matchAll(pattern)){
   const before=text.slice(0,m.index),after=text.slice(m.index+m[0].length);
   const quotedBefore=/[“"«]\s*$/u.test(before),quotedAfter=/^[.!?…]*\s*[”"»]/u.test(after);
   const linePrefix=before.slice(before.lastIndexOf('\n')+1);
-  const attributed=/\b(?:diz|disse|fala|falou|declara|declarou|responde|respondeu|sussurra|sussurrou)\b[^\n]{0,25}$/iu.test(linePrefix)||/^[\p{L}\s.'-]{2,90}:\s*["“«]?$/iu.test(linePrefix);
-  if(long||(phrase.length>=3&&(attributed||(phrase.length>=5&&quotedBefore&&quotedAfter))))return m;
+  const owner=String(characterName||'').trim().split(/\s+/u)[0];
+  const owned=owner&&new RegExp('(?<![\\p{L}])'+escapeRegex(owner)+'(?![\\p{L}])','iu').test(linePrefix);
+  const attributed=owned&&(/\b(?:diz|disse|fala|falou|declara|declarou|responde|respondeu|sussurra|sussurrou|repetiu)\b[^\n]{0,35}$/iu.test(linePrefix)||/^[\p{L}\s.'-]{2,90}:\s*["“«]?$/iu.test(linePrefix));
+  if(long||(phrase.length>=3&&attributed))return m;
  }
  return null;
 }
 export function narrativeEchoes(c,i,narrative){
- return playerDialogue(c,i).filter(phrase=>!!findEcho(String(narrative||''),phrase));
+ return playerDialogue(c,i).filter(phrase=>!!findEcho(String(narrative||''),phrase,c.character?.name));
 }
 function removeSpan(text,start,end){
  const before=text.slice(0,start),after=text.slice(end),lineStart=before.lastIndexOf('\n')+1;
@@ -53,7 +55,7 @@ export function stripPlayerEcho(c,i,narrative){
  let result=String(narrative||''),removed=0;
  for(const phrase of playerDialogue(c,i)){
   for(let guard=0;guard<12;guard++){
-   const match=findEcho(result,phrase);if(!match)break;
+   const match=findEcho(result,phrase,c.character?.name);if(!match)break;
    const previous=result;
    result=removeSpan(result,match.index,match.index+match[0].length);
    if(previous===result)break;
