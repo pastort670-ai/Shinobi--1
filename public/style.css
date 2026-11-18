@@ -650,3 +650,6 @@ html[data-theme=dark] .memory-proposal button[data-memory-save]{color:#f0fff5;ba
 
 /* A avaliação da Inteligência explica a evidência recuperada da campanha */
 .db-intelligence-evidence{grid-column:1/-1;margin:2px 0 0!important;padding:8px 10px;font-size:11px!important;line-height:1.5;color:var(--muted);background:var(--raised);border-left:3px solid var(--accent);border-radius:3px}
+
+/* SHINOBI 2.6 — contexto de evidências sem números obrigatórios */
+.db-stat-proof{display:block;margin-top:3px;font-size:10px;color:var(--muted);line-height:1.4}
