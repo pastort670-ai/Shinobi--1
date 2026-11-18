@@ -16,8 +16,8 @@ function components(name){
 }
 function shopAnchor(name,description=''){
  const t=norm(name+' '+description);
- const m=t.match(/\b(?:loja|banca|oficina|restaurante|taverna|livraria|farmacia|armazem)\s+(?:de|do|da|dos|das)\s+((?:[a-z0-9-]+\s*){1,4})/u);
- return m?m[0].replace(/\s+/g,' ').trim():null;
+ const m=t.match(/\b(loja|banca|oficina|restaurante|taverna|livraria|farmacia|armazem)\s+(?:de|do|da|dos|das)\s+([a-z0-9-]+)/u);
+ return m?m[1]+' '+m[2]:null;
 }
 function aliasMatch(a,b,aDesc='',bDesc=''){
  const x=components(a),y=components(b),one=x.join(' '),two=y.join(' ');
