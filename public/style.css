@@ -644,3 +644,6 @@ html[data-theme=dark] .memory-proposal button[data-memory-save]{color:#f0fff5;ba
  .db-mission{padding:8px 2px}
 }
 @media(max-width:360px){.db-attributes{grid-template-columns:1fr}.db-profile strong{font-size:20px}}
+
+/* 2.4.1 — feedback de chakra após cada turno sem exibir valores internos */
+.chakra-feedback{margin:8px 0 12px;padding:8px 10px;border-left:3px solid var(--accent);background:var(--raised);font-size:12px!important;color:var(--muted);line-height:1.4}
