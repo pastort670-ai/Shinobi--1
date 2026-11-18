@@ -64,7 +64,7 @@ function sortedSuggestions(remainingDays,kind){
   .slice(0,3).map(days=>({hours:days*24,label:verb+' por '+label(days)}));
 }
 export function longTermTimeOpportunity(c){
- if(!c||c.introConfirmed===false||c.timeScene==='combat')return null;
+ if(!c||(c.introConfirmed===false&&(c.messages||[]).length<=1)||c.timeScene==='combat')return null;
  const messages=Array.isArray(c.messages)?c.messages:[];
  const today=Number.isInteger(c.day)?c.day:0;
  // Retroativo para campanhas que já tinham um mês de treino aceito antes do update.
