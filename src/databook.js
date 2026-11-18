@@ -1,5 +1,6 @@
 import {reconciledMissions} from './mission-reconciliation.js';
 import {assessHistoricalIntelligence} from './intelligence-evidence.js';
+import {assessAttributeEvidence} from './attribute-evidence.js';
 // Ficha inspirada nos gráficos de oito parâmetros dos databooks de Naruto.
 // Escalas são estimativas do Shinobi, NÃO notas oficiais para personagens originais.
 // Os campos ausentes permanecem "não avaliados" em vez de receber valores inventados.
@@ -25,8 +26,12 @@ const trainingRating=v=>{
 };
 const confirmedStats=c=>{
  const stored=c.databook?.ratings||{},progress=c.progress||{};
- const historical=assessHistoricalIntelligence(c);
- return Object.fromEntries(DATABOOK_ATTRIBUTES.map(a=>[a.key,a.kind==='training'?trainingRating(progress[a.key]):a.key==='intelligence'?(validRating(stored[a.key])?Math.max(stored[a.key],historical.rating||0):historical.rating):validRating(stored[a.key])?stored[a.key]:null]));
+ const intellectual=assessHistoricalIntelligence(c),observed=assessAttributeEvidence(c);
+ const best=(...values)=>{const available=values.filter(validRating);return available.length?Math.max(...available):null;};
+ return Object.fromEntries(DATABOOK_ATTRIBUTES.map(a=>[
+  a.key,a.key==='intelligence'?best(stored.intelligence,intellectual.rating):
+  best(a.kind==='training'?trainingRating(progress[a.key]):stored[a.key],observed[a.key]?.rating)
+ ]));
 };
 
 export function databookView(c){
@@ -35,6 +40,7 @@ export function databookView(c){
  return {
   version:'1.0',basis:'Avaliações internas aproximadas; não são notas oficiais de databooks.',
   intelligenceEvidence:assessHistoricalIntelligence(c),
+  attributeEvidence:assessAttributeEvidence(c),
   attributes:DATABOOK_ATTRIBUTES.map(a=>({key:a.key,label:a.label,value:ratings[a.key],description:grade(ratings[a.key]),evaluated:ratings[a.key]!==null})),
   ratings,missions,missionLog:log.slice(-12),
   missionPolicy:'Conta missões confirmadas em narrativas aceitas, recuperando cenas anteriores. Missões sem classificação comprovada são marcadas como Sem rank, jamais classificadas arbitrariamente.',
