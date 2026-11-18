@@ -2,13 +2,13 @@
 // Campos opcionais do Gemini ajudam, mas não são a única forma de registrar.
 const norm=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
 const ranks=new Set(['D','C','B','A','S','?']);
-const completionVerbs='concluida|concluidas|concluido|concluidos|cumprida|cumpridas|cumprido|cumpridos|finalizada|finalizadas|finalizado|finalizados|completada|completadas|completado|completados|encerrada|encerradas|encerrado|encerrados|terminada|terminadas|terminado|terminados';
-const completedActs='concluiu|concluiram|cumpriu|cumpriram|finalizou|finalizaram|completou|completaram|encerrou|encerraram|terminou|terminaram';
+const completionVerbs='concluida|concluidas|concluido|concluidos|cumprida|cumpridas|cumprido|cumpridos|finalizada|finalizadas|finalizado|finalizados|completada|completadas|completado|completados|encerrada|encerradas|encerrado|encerrados|terminada|terminadas|terminado|terminados|realizada|realizadas|executada|executadas|bem-sucedida|bem-sucedidas';
+const completedActs='concluiu|concluiram|cumpriu|cumpriram|finalizou|finalizaram|completou|completaram|encerrou|encerraram|terminou|terminaram|realizou|realizaram|executou|executaram';
 const finish=new RegExp('\\bmissao\\b.{0,95}\\b(?:'+completionVerbs+')\\b|\\b(?:'+completedActs+')\\b.{0,90}\\bmissao\\b','u');
-const otherFinish=new RegExp('\\b(?:'+completedActs+')\\b.{0,65}\\b(?:objetivo|tarefa|encargo)\\b|\\b(?:objetivo|tarefa)\\b.{0,65}\\b(?:atingido|cumprido|concluido)\\b','u');
+const otherFinish=new RegExp('\\b(?:'+completedActs+')\\b.{0,65}\\b(?:objetivo|tarefa|encargo)\\b|\\b(?:objetivo|tarefa|trabalho|encargo)\\b.{0,65}\\b(?:atingido|alcancado|cumprido|concluido|completado|realizado|finalizado|executado)\\b','u');
 const rejection=/\b(?:nao|nunca|jamais|ainda nao|sem sucesso|fracassou|falhou|nao conseguiu)\b.{0,80}\b(?:missao|objetivo|tarefa|conclu\w*|cumpr\w*|termin\w*|finaliz\w*|complet\w*)\b|\bmissao\b.{0,45}\b(?:nao|nunca|ainda nao|sem sucesso)\b/u;
 const future=/\b(?:pretende|pretendia|quer|planeja|poderia|tenta|tentara|devera|sera|vai|quando|antes de|espera)\b.{0,35}\b(?:conclu\w*|cumpr\w*|termin\w*|finaliz\w*|complet\w*)\b/u;
-const assignments=/\b(?:receb\w*|aceit\w*|designad\w*|encarreg\w*|atribu\w*|convocad\w*|designou|entregou|inici\w*|comec\w*|parti\w*|missao\s+(?:de\s+)?(?:rank|classe|nivel|categoria))\b/u;
+const assignments=/\b(?:receb\w*|aceit\w*|designad\w*|encarreg\w*|atribu\w*|convocad\w*|confiou|confiad\w*|ofereceu|propo\w*|designou|entregou|inici\w*|comec\w*|parti\w*|missao\s+(?:de\s+)?(?:rank|classe|nivel|categoria))\b/u;
 const sliceSentences=text=>norm(text).split(/(?<=[.!?])\s+|\n+|[;]+/u).map(v=>v.trim()).filter(Boolean).slice(0,65);
 const rankOf=text=>{
  const s=norm(text);
@@ -21,6 +21,11 @@ const rankOf=text=>{
  for(const p of patterns){const m=s.match(p);if(m)return m[1].toUpperCase();}
  return null;
 };
+// Aprovação de relatório final e confirmação de resultado contam apenas quando uma
+// missão do protagonista está ligada ao contexto, não quando o texto é mera intenção.
+const reportSuccess=/\b(?:relatorio(?:\s+final)?|prestacao de contas|resultado(?:s)?|trabalho)\b.{0,95}\b(?:aprovad\w*|aceit\w*|valid\w*|homologad\w*|confirm\w*|reconhec\w*\s+(?:o\s+)?sucesso)\b|\b(?:aprov\w*|aceit\w*|valid\w*|homolog\w*|confirm\w*)\b.{0,80}\b(?:relatorio|prestacao de contas|sucesso da missao)\b/u;
+const taskCompleted=/\b(?:objetivo(?:s)?|trabalho|servico|encargo)\b.{0,95}\b(?:alcancad\w*|atingid\w*|concluid\w*|cumprid\w*|finalizad\w*)\b/u;
+const submittedReport=/\b(?:entrego|entregou|apresento|apresentou|relato|relatou|presto|prestou|encaminho|encaminhou)\b.{0,90}\b(?:relatorio|resultados?|prestacao de contas|documentos?)\b/u;
 const actors={team:/\b(?:equipe|time|grupo|esquadrao|todos|nos|voces|voc[eê]s)\b/u};
 function otherActor(text,first){
  const s=norm(text);
@@ -40,21 +45,25 @@ function playerLinked(s,first,hasAssignment){
 function complete(s,first,active,scene,lastPlayer){
  if(rejection.test(s)||future.test(s)||otherActor(s,first))return false;
  const remoteNews=/\b(?:noticias|noticia|rumor|soube|ouviu|informaram|outro pais|outra vila|distante)\b/u.test(scene);
+ const sceneReferencesPlayer=first&&new RegExp('(?:^|[^a-z0-9])'+first+'(?:[^a-z0-9]|$)','u').test(scene);
+ const playerReported=submittedReport.test(lastPlayer);
  if(finish.test(s)){
   if(playerLinked(s,first,Boolean(active)))return true;
-  // Passive announcements without actor need a player connection, not merely a rank.
-  const sceneReferencesPlayer=first&&new RegExp('(?:^|[^a-z0-9])'+first+'(?:[^a-z0-9]|$)','u').test(scene);
-  const playerPerformedTask=/\b(?:missao|relatorio|objetivo|entreg\w*|conclu\w*|cumpr\w*|finaliz\w*|termin\w*)\b/u.test(lastPlayer);
-  return Boolean(rankOf(s)&&(sceneReferencesPlayer||playerPerformedTask)&&!remoteNews);
+  // A missão pode ser encerrada de modo passivo, sem repetir nome e rank na frase.
+  // Exigimos conexão comprovada com protagonista, especialmente no relatório entregue.
+  return Boolean(!remoteNews&&(active||sceneReferencesPlayer||playerReported)&&
+    (active||sceneReferencesPlayer&&playerReported));
  }
- // Only an established, still-active mission may finish via "objetivo cumprido".
- if(active&&otherFinish.test(s))return playerLinked(s,first,true);
+ // Uma missão já atribuída pode terminar pela aprovação do relatório ou pelo
+ // cumprimento de seus objetivos, mesmo sem a palavra "concluída".
+ if(active&&(otherFinish.test(s)||taskCompleted.test(s)||reportSuccess.test(s))&&
+   !remoteNews&&(sceneReferencesPlayer||playerReported||playerLinked(s,first,true)))return true;
  return false;
 }
 
 // Memórias Marcantes são acontecimentos da campanha confirmados pelo jogador.
 // Elas sobrevivem à compactação do histórico narrativo e são fontes válidas para a ficha.
-const nounCompletion=/\b(?:conclusao|finalizacao|cumprimento)\b.{0,95}\bmissao\b|\bmissao\b.{0,95}\b(?:conclusao|finalizacao|cumprimento)\b/u;
+const nounCompletion=/\b(?:conclusao|finalizacao|cumprimento|sucesso)\b.{0,95}\bmissao\b|\bmissao\b.{0,95}\b(?:conclusao|finalizacao|cumprimento|sucesso)\b/u;
 const missionOrdinals=/\b(?:primeir[ao]|segund[ao]|terceir[ao]|quart[ao]|quint[ao])\s+(?:missao|designacao)\b/u;
 const stopMissionWords=new Set('a o as os de da do das dos em no na nos nas com por para sua seu primeira segunda terceir terceira missao rank classe nivel categoria oficial sucesso retornou reporte reportar relatou concluiu concluiu cumprimento cumprida concluida finalizada hokage konoha personagem ate apos quando recebeu ficou muito mais ja nesta naquela durante nova'.split(' '));
 
