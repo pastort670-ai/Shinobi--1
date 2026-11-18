@@ -1,4 +1,5 @@
 import {events} from './lore.js';
+import {longTermTimeOpportunity} from './long-term-time.js';
 export const HOURS_LIMIT=3650*24;
 export const CLOCK_DEFAULT=8*60;
 export const clockOf=c=>Number.isInteger(c.clockMinutes)&&c.clockMinutes>=0&&c.clockMinutes<1440?c.clockMinutes:CLOCK_DEFAULT;
@@ -17,11 +18,24 @@ export function timePlan(c,i){
  const stop=candidates[0];
  return {requestedHours:requested,allowedHours:stop?stop.hour-origin:requested,interruption:stop?{reason:stop.reason,day:Math.floor(stop.hour/24)}:null};
 }
+export function timeOpportunity(c){
+ return longTermTimeOpportunity(c);
+}
 export function canUseTime(c){
- return c.timeAvailable===true&&c.timeScene!=='combat';
+ return c.timeScene!=='combat'&&c.introConfirmed!==false&&
+   (c.timeAvailable===true||Boolean(timeOpportunity(c)));
+}
+export function timeSuggestions(c){
+ if(!canUseTime(c))return [];
+ const offer=timeOpportunity(c);
+ if(offer)return offer.choices;
+ const explicit=(c.timeChoices||[]).filter(x=>Number.isInteger(x.hours)&&x.hours>0&&x.hours<=HOURS_LIMIT&&typeof x.label==='string');
+ return explicit.length?explicit:(c.timeOptions||[]).filter(n=>Number.isInteger(n)&&n>=1&&n<=3650).map(n=>({hours:n*24,label:n+' dias'})).slice(0,3);
 }
 export function timeMaxHours(c){
  if(!canUseTime(c))return 0;
+ const offer=timeOpportunity(c);
+ if(offer)return Math.min(offer.maximumHours,HOURS_LIMIT);
  const allowed=(c.timeChoices||[]).map(x=>x.hours).filter(n=>Number.isInteger(n)&&n>0&&n<=HOURS_LIMIT);
  return allowed.length?Math.max(...allowed):24;
 }
