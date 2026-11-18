@@ -22,7 +22,7 @@ function loadDraft(){
   timeActive=Boolean(state.timeActive)&&current.timeAvailable===true;
   timeText=typeof state.timeText==='string'?state.timeText.slice(0,2000):'';
   timeAmount=Number.isFinite(Number(state.timeAmount))?Number(state.timeAmount):1;
-  timeUnit=[1,24].includes(Number(state.timeUnit))?Number(state.timeUnit):24;
+  timeUnit=[1,24,168,720,8760].includes(Number(state.timeUnit))?Number(state.timeUnit):24;
  }catch{}
 }
 function clearDraft(id){try{localStorage.removeItem(draftKey(id));}catch{}}
@@ -132,7 +132,25 @@ document.addEventListener('selectionchange',saveCaret);
 function placeCaret(node,position){const range=document.createRange(),sel=window.getSelection();range.setStart(node,position);range.collapse(true);sel.removeAllRanges();sel.addRange(range);saveCaret();}
 function choose(type){
  if(busy)return;
- if(type==='TEMPO'){if(!timeActive&&current?.timeAvailable!==true)return;timeActive=!timeActive;renderTime();saveDraft();return;}
+ if(type==='TEMPO'){
+  if(!timeActive&&current?.timeAvailable!==true)return;
+  timeActive=!timeActive;
+  if(timeActive&&current?.timeOpportunity){
+   const opportunity=current.timeOpportunity;
+   if(!timeText.trim()){
+    const choices={treino:'Continuo o treinamento combinado durante o período escolhido.',
+     estudo:'Dedico o período escolhido aos estudos combinados.',
+     viagem:'Sigo a viagem já planejada durante o período escolhido.',
+     recuperação:'Sigo o período de recuperação combinado.',
+     projeto:'Trabalho no projeto aprovado durante o período escolhido.',
+     espera:'Aguardo durante o período combinado.'};
+    timeText=choices[opportunity.kind]||'Sigo a atividade já combinada durante o período escolhido.';
+   }
+   const defaultDays=Math.min(30,opportunity.remainingDays||1);
+   timeAmount=defaultDays;timeUnit=24;
+  }
+  renderTime();saveDraft();return;
+ }
  const root=$('editor'),previousMode=editorMode;editorMode=type;
  if(!root){renderDrafts();return;}
  const sel=window.getSelection();
@@ -171,12 +189,12 @@ function renderTime(){
  const el=$('timearea');if(!el)return;
  el.hidden=!timeActive;
  if(!timeActive){updateMode();return;}
- el.innerHTML='<p class="time-preflight">O avanço acontece no próximo envio; eventos e compromissos podem interrompê-lo. Limite desta cena: '+(current?.timeMaxHours||24)+' horas.</p><label for="timeactivity">⌛ ATIVIDADE DURANTE O TEMPO</label><textarea id="timeactivity" rows="2" maxlength="2000" placeholder="O que seu personagem faz durante esse período?">'+esc(timeText)+'</textarea><div class="time-inline-controls"><input id="timeamount" aria-label="Quantidade" type="number" min="1" max="3650" value="'+esc(timeAmount)+'"><select id="timeunit" aria-label="Unidade"><option value="1">horas</option><option value="24">dias</option><option value="168">semanas</option><option value="720">meses (30 dias)</option><option value="8760">anos (365 dias)</option></select></div><div class="time-suggestions">'+(current?.timeChoices?.length?current.timeChoices:(current?.timeOptions||[]).map(d=>({hours:d*24,label:d+' dias'}))).map(opt=>'<button type="button" data-hours="'+opt.hours+'">'+esc(opt.label)+'</button>').join('')+'</div>';
+ el.innerHTML='<p class="time-preflight">'+(current?.timeOpportunity?'<strong>'+esc(current.timeOpportunity.label)+' · até '+(current.timeOpportunity.maximumHours/24)+' dia(s) por avanço.</strong> ':'' )+'O avanço acontece no próximo envio; marcos e compromissos existentes podem interrompê-lo. </p><label for="timeactivity">⌛ ATIVIDADE DURANTE O TEMPO</label><textarea id="timeactivity" rows="2" maxlength="2000" placeholder="O que seu personagem faz durante esse período?">'+esc(timeText)+'</textarea><div class="time-inline-controls"><input id="timeamount" aria-label="Quantidade" type="number" min="1" max="3650" value="'+esc(timeAmount)+'"><select id="timeunit" aria-label="Unidade"><option value="1">horas</option><option value="24">dias</option><option value="168">semanas</option><option value="720">meses (30 dias)</option><option value="8760">anos (365 dias)</option></select></div><div class="time-suggestions">'+(current?.timeChoices?.length?current.timeChoices:(current?.timeOptions||[]).map(d=>({hours:d*24,label:d+' dias'}))).map(opt=>'<button type="button" data-hours="'+opt.hours+'">'+esc(opt.label)+'</button>').join('')+'</div>';
  $('timeunit').value=String(timeUnit);
  $('timeactivity').oninput=e=>{timeText=e.target.value;saveDraft();};
  $('timeamount').oninput=e=>{timeAmount=e.target.value;saveDraft();};
  $('timeunit').onchange=e=>{timeUnit=Number(e.target.value);saveDraft();};
- el.querySelectorAll('[data-hours]').forEach(b=>b.onclick=()=>{const h=Number(b.dataset.hours);timeUnit=h>=24&&h%24===0?24:1;timeAmount=h/timeUnit;$('timeamount').value=timeAmount;$('timeunit').value=String(timeUnit);});
+ el.querySelectorAll('[data-hours]').forEach(b=>b.onclick=()=>{const h=Number(b.dataset.hours);timeUnit=h>=8760&&h%8760===0?8760:h>=720&&h%720===0?720:h>=168&&h%168===0?168:h>=24&&h%24===0?24:1;timeAmount=h/timeUnit;$('timeamount').value=timeAmount;$('timeunit').value=String(timeUnit);saveDraft();});
  updateMode();
 }
 function renderDrafts(){
