@@ -15,7 +15,7 @@ export function playerDialogue(c,i){
  return result.slice(-14);
 }
 const escapeRegex=s=>s.replace(/[.*+?^\u0024{}()|[\]\\]/g,'\\$&');
-const tokens=s=>clean(s).match(/[\\p{L}\\p{N}]+/gu)||[];
+const tokens=s=>clean(s).match(/[\p{L}\p{N}]+/gu)||[];
 function echoRegex(s){
  const t=tokens(s);if(!t.length)return null;
  const sep='[\\s.,!?;:—–"“”«»…]*';
