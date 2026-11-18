@@ -1,7 +1,7 @@
 // Memórias marcantes são marcos da história, não um diário de cada atividade.
 // Não apaga memórias que o jogador já confirmou em campanhas antigas.
 const norm=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/\s+/g,' ').trim();
-const significant=/\b(?:missao.{0,38}(?:conclu|cumpr|finaliz)|(?:conclu|cumpr|finaliz)\w*.{0,38}missao|promovido|graduou|nomeado|aprendeu.{0,36}jutsu|dominou.{0,36}jutsu|tecnica nova|tecnica inedita|salvou|resgatou|protegeu|revelou.{0,25}segredo|descobriu.{0,25}segredo|mudou.{0,25}relacao|reconciliou|rompeu.{0,25}(?:vinculo|relacao)|alianca|vitoria decisiva|decisivo|reconhecimento publico|reconhecid\w* por testemunhas|sacrificou|juramento importante|compromisso duradouro|virada importante|protegido foi salvo|desfecho irreversivel)\b/u;
+const significant=/\b(?:missao.{0,38}(?:conclu|cumpr|finaliz)|(?:conclu|cumpr|finaliz)\w*.{0,38}missao|promovido|graduou|nomeado|aprendeu.{0,36}jutsu|dominou.{0,36}jutsu|tecnica nova|tecnica inedita|salvou|resgatou|protegeu|revelou.{0,25}segredo|descobriu.{0,25}segredo|mudou.{0,25}relacao|reconciliou|rompeu.{0,25}(?:vinculo|relacao)|alianca|vitoria decisiva|decisivo|reconhecimento publico|reconhecid\w* por testemunhas|sacrificou|juramento importante|compromisso duradouro|virada importante|protegido foi salvo|desfecho irreversivel|decidiu proteger|passou a ser reconhecido|conquistou a confianca|acordo.{0,50}cumprido|prometeu proteger|jurou proteger)\b/u;
 const subtle=/\b(?:confian[cç]a|lealdade|alian[cç]a|perd[aã]o|reconcilia[cç][aã]o|parentesco|promessa importante|vinculo duradouro|mudan[cç]a permanente|descoberta importante)\b/u;
 const routine=/\b(?:voltou ao|retornou ao|conversou|aguardou|esperou|cumprimentou|relatou|apresentou relat[oó]rio|tarefas? burocr[aá]ticas?|recebeu proposta|treinou|praticou|estudou|pesquisou|acordou|dormiu|foi para|chegou ao)\b/u;
 const uncertain=/\b(?:pretende|planeja|tentou|poderia|gostaria|ainda n[aã]o|n[aã]o conseguiu|falhou|fracassou)\b/u;
@@ -34,9 +34,10 @@ export function curateMoment(c,i,r){
   options.push({title:trivialTitle.test(norm(t))?'Marco da jornada':t,description:d});
  };
  if(r.moment&&typeof r.moment==='object')add(r.moment.title,r.moment.description);
- for(const effect of r.consequences||[])add('Consequência duradoura',effect.description);
+ for(const effect of r.consequences||[])add('Decisão importante',effect.description);
  for(const item of r.development||[])add('Conquista importante',item);
- for(const task of r.pendingTasks||[])if(task.status==='done')add('Objetivo alcançado',task.description);
+ for(const task of r.pendingTasks||[])if(task.status==='done')add('Compromisso cumprido',task.description);
+ for(const task of r.pendingTasks||[])if(task.status==='open'&&/\b(?:promet|jurou|compromiss|prote[gç]|salv|resgat|alian[cç])\w*/iu.test(task.description||''))add('Compromisso importante',task.description);
  for(const rel of r.relations||[])add('Mudança de vínculo com '+String(rel.name||'').slice(0,55),rel.description);
  return options[0]||null;
 }
