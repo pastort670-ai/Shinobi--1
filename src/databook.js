@@ -1,4 +1,5 @@
 import {reconciledMissions} from './mission-reconciliation.js';
+import {assessHistoricalIntelligence} from './intelligence-evidence.js';
 // Ficha inspirada nos gráficos de oito parâmetros dos databooks de Naruto.
 // Escalas são estimativas do Shinobi, NÃO notas oficiais para personagens originais.
 // Os campos ausentes permanecem "não avaliados" em vez de receber valores inventados.
@@ -24,7 +25,8 @@ const trainingRating=v=>{
 };
 const confirmedStats=c=>{
  const stored=c.databook?.ratings||{},progress=c.progress||{};
- return Object.fromEntries(DATABOOK_ATTRIBUTES.map(a=>[a.key,a.kind==='training'?trainingRating(progress[a.key]):validRating(stored[a.key])?stored[a.key]:null]));
+ const historical=assessHistoricalIntelligence(c);
+ return Object.fromEntries(DATABOOK_ATTRIBUTES.map(a=>[a.key,a.kind==='training'?trainingRating(progress[a.key]):a.key==='intelligence'?(validRating(stored[a.key])?Math.max(stored[a.key],historical.rating||0):historical.rating):validRating(stored[a.key])?stored[a.key]:null]));
 };
 
 export function databookView(c){
@@ -32,6 +34,7 @@ export function databookView(c){
  const missions={...Object.fromEntries(MISSION_RANKS.map(rank=>[rank,log.filter(x=>x.rank===rank).length])),unranked:log.filter(x=>x.rank==='?').length};
  return {
   version:'1.0',basis:'Avaliações internas aproximadas; não são notas oficiais de databooks.',
+  intelligenceEvidence:assessHistoricalIntelligence(c),
   attributes:DATABOOK_ATTRIBUTES.map(a=>({key:a.key,label:a.label,value:ratings[a.key],description:grade(ratings[a.key]),evaluated:ratings[a.key]!==null})),
   ratings,missions,missionLog:log.slice(-12),
   missionPolicy:'Conta missões confirmadas em narrativas aceitas, recuperando cenas anteriores. Missões sem classificação comprovada são marcadas como Sem rank, jamais classificadas arbitrariamente.',
@@ -81,7 +84,7 @@ export function commitDatabook(previous,next,result){
    reason=reason||'Missão concluída e confirmada na história.';
   }
  }
- const current=Object.fromEntries(DATABOOK_ATTRIBUTES.map(a=>[a.key,a.kind==='training'?trainingRating(next.progress?.[a.key]):validRating(out.ratings[a.key])?out.ratings[a.key]:null]));
+ const current=confirmedStats({...next,databook:{...next.databook,ratings:out.ratings}});
  const changed=DATABOOK_ATTRIBUTES.some(a=>current[a.key]!==old[a.key]);
  if(changed){out.history.push({day:next.day,ratings:current,reason:reason||'Evolução de treinamento registrada pelo motor.'});}
  next.databook={ratings:out.ratings,missions:reconciledMissions(next,out.missions),history:out.history.slice(-18)};
