@@ -150,10 +150,15 @@ export function npcContinuity(c,i){
  const query=norm(input);
  const shopVisit=place.test(query)||/\b(?:comerciante|vendedor|lojista|mercador|compras?)\b/u.test(query);
  if(!shopVisit)return null;
+ const anchoredShop=shopAnchor(input);
+ const returning=/\b(?:volto|voltei|retorno|retornei|novamente|de novo|revisito|revisitar|mesma loja|outra vez|retornar)\b/u.test(query);
+ // Uma loja DIFERENTE não deve reutilizar um vendedor antigo.
+ if(!anchoredShop&&!returning)return null;
  const recent=(c.messages||[]).filter(x=>x.role==='ai'&&typeof x.text==='string');
- const references=recent.map((m,index)=>({text:m.text,day:m.day,index})).filter(m=>
-  /\b(?:loja|comerciante|vendedor|lojista|mercador|atendente|balcao|mercado|banca|oficina)\b/u.test(norm(m.text))
- );
+ const references=recent.map((m,index)=>({text:m.text,day:m.day,index})).filter(m=>{
+  if(!/\b(?:loja|comerciante|vendedor|lojista|mercador|atendente|balcao|mercado|banca|oficina)\b/u.test(norm(m.text)))return false;
+  return !anchoredShop||shopAnchor(m.text)===anchoredShop;
+ });
  const queryWords=new Set(query.split(' ').filter(t=>t.length>4&&!ignored.has(t)&&!roles.test(t)));
  const ranked=references.map(m=>{
   const words=norm(m.text).split(/\s+/);
@@ -170,5 +175,27 @@ export function npcContinuity(c,i){
  return {visitedPreviously:true,priorScenes:ranked.map(m=>({day:m.day,text:m.text.slice(0,620)})),
   establishedMerchantNames:names,previousNPCs,
   rule:'Ao revisitar uma loja, retome o comerciante ou responsável que já apareceu no histórico, utilizando o mesmo nome, aparência e lembranças. Se houver nome em establishedMerchantNames, preserve-o como identidade. Não invente outra pessoa para o MESMO funcionário sem um motivo narrado (troca de turno, novo empregado, mudança de proprietário). Pessoas distintas na mesma loja podem coexistir: não as funda automaticamente. Não transforme uma compra em vínculo importante.'};
+}
+// Guarda narrativo: reutiliza o ÚNICO comerciante estabelecido na loja,
+// mas permite novos empregados apresentados explicitamente.
+export function protectShopkeeperIdentity(c,i,result){
+ const continuity=npcContinuity(c,i);
+ const originals=continuity?.establishedMerchantNames||[];
+ if(originals.length!==1||typeof result?.narrative!=='string')return result;
+ const established=originals[0],story=result.narrative;
+ const replacement=story.match(/\b(?:comerciante|lojista|vendedor|mercador|atendente)(?:\s+(?:chamado|de nome))?\s+([A-ZÁÉÍÓÚÂÊÔÃÕÇ][\p{L}-]{2,})/u);
+ if(!replacement)return result;
+ const introduced=replacement[1];
+ if(norm(introduced)===norm(established))return result;
+ const exception=/\b(?:novo|nova|outro|outra|substituto|substituta|funcionario|funcionaria|contratado|contratada|diferente|mudou|mudanca de dono|troca de turno|ausente|assumiu a loja|segundo comerciante)\b/u;
+ if(exception.test(norm(story.slice(0,replacement.index+replacement[0].length+150))))return result;
+ const escaped=introduced.replace(/[.*+?^\u0024{}()|[\]\\]/g,'\\export const relationshipPolicy=');
+ const exact=new RegExp('\\b'+escaped+'\\b','gu');
+ const rewrite=s=>typeof s==='string'?s.replace(exact,established):s;
+ return {...result,
+  narrative:rewrite(story),
+  relations:(result.relations||[]).map(x=>({...x,name:rewrite(x.name),description:rewrite(x.description)})),
+  npcKnowledge:(result.npcKnowledge||[]).map(x=>({...x,name:rewrite(x.name),fact:rewrite(x.fact)}))
+ };
 }
 export const relationshipPolicy='A aba Relações mostra apenas indivíduos com vínculo significativo e duradouro: família, mentores, amizades, aliados relevantes ou rivalidades pessoais contínuas. Simples presença, inimigos ocasionais, guardas, guarnições, comerciantes em transações e grupos sem vínculo pessoal NÃO são relações. Os personagens incidentais continuam a existir na memória do mundo, mas não ocupam a ficha. Use o mesmo nome/identidade de um NPC quando ele reaparecer; consulte npcContinuity ao revisitar lojas e locais. Reações novas alteram relações já estabelecidas, não criam uma pessoa diferente.';
