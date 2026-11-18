@@ -53,6 +53,7 @@ try{
  await page.reload({waitUntil:'networkidle'});
  await page.waitForFunction(()=>document.querySelector('#editor')?.innerText?.includes('Meu rascunho de Naruto não deve desaparecer.'),null,{timeout:15000});
  await page.locator('#editor').fill('');
+ assert.doesNotMatch(await page.locator('#era-timeline').innerText(),/Formação do Time 7|Quarta Guerra/,'Cronologia inicial não antecipa detalhes de eras futuras');
  assert.equal(await page.locator('#time').isVisible(),false,'TEMPO permanece oculto após a introdução');
  assert.equal(await page.locator('.headband-plate use').getAttribute('href'),'/village-icons.svg#konohagakure');
  await page.locator('#menutoggle').click();
