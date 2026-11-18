@@ -194,8 +194,13 @@ export function protectShopkeeperIdentity(c,i,result){
  const rewrite=s=>typeof s==='string'?s.replace(exact,established):s;
  return {...result,
   narrative:rewrite(story),
+  facts:(result.facts||[]).map(rewrite),
+  development:(result.development||[]).map(rewrite),
   relations:(result.relations||[]).map(x=>({...x,name:rewrite(x.name),description:rewrite(x.description)})),
-  npcKnowledge:(result.npcKnowledge||[]).map(x=>({...x,name:rewrite(x.name),fact:rewrite(x.fact)}))
+  npcKnowledge:(result.npcKnowledge||[]).map(x=>({...x,name:rewrite(x.name),fact:rewrite(x.fact)})),
+  consequences:(result.consequences||[]).map(x=>({...x,description:rewrite(x.description)})),
+  pendingTasks:(result.pendingTasks||[]).map(x=>({...x,description:rewrite(x.description)})),
+  moment:result.moment?{...result.moment,title:rewrite(result.moment.title),description:rewrite(result.moment.description)}:null
  };
 }
 export const relationshipPolicy='A aba Relações mostra apenas indivíduos com vínculo significativo e duradouro: família, mentores, amizades, aliados relevantes ou rivalidades pessoais contínuas. Simples presença, inimigos ocasionais, guardas, guarnições, comerciantes em transações e grupos sem vínculo pessoal NÃO são relações. Os personagens incidentais continuam a existir na memória do mundo, mas não ocupam a ficha. Use o mesmo nome/identidade de um NPC quando ele reaparecer; consulte npcContinuity ao revisitar lojas e locais. Reações novas alteram relações já estabelecidas, não criam uma pessoa diferente.';
