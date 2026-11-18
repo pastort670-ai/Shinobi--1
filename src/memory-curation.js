@@ -5,7 +5,7 @@ const significant=/\b(?:missao.{0,38}(?:conclu|cumpr|finaliz)|(?:conclu|cumpr|fi
 const subtle=/\b(?:confian[cç]a|lealdade|alian[cç]a|perd[aã]o|reconcilia[cç][aã]o|parentesco|promessa importante|vinculo duradouro|mudan[cç]a permanente|descoberta importante)\b/u;
 const routine=/\b(?:voltou ao|retornou ao|conversou|aguardou|esperou|cumprimentou|relatou|apresentou relat[oó]rio|tarefas? burocr[aá]ticas?|recebeu proposta|treinou|praticou|estudou|pesquisou|acordou|dormiu|foi para|chegou ao)\b/u;
 const uncertain=/\b(?:pretende|planeja|tentou|poderia|gostaria|ainda n[aã]o|n[aã]o conseguiu|falhou|fracassou)\b/u;
-const trivialTitle=/^(?:decisao com consequencias|conquista na jornada|compromisso cumprido|a nova diretriz|memoria marcante)$/u;
+const trivialTitle=/^(?:decisao com consequencias|conquista na jornada|a nova diretriz|memoria marcante)$/u;
 const stopped=new Set('o a os as de do da dos das e em um uma ao com por para seu sua seus suas esse essa foi mais sobre como apos depois por fim durante enquanto nova decisao consequencias'.split(' '));
 const words=s=>new Set((norm(s).match(/[a-z0-9]{4,}/gu)||[]).filter(w=>!stopped.has(w)));
 function duplicate(c,description){
