@@ -213,7 +213,7 @@ function updateEraUI(date){
  $('era-progress').value=era.next?Math.min(100,Math.round(100*era.elapsedDays/total)):100;
  const item=e=>'<div class="era-item'+(e.active?' era-active':'')+(e.reached?' era-past':' era-future')+'"><b>'+esc(e.name)+'</b><small>'+esc(e.active?'Era atual':e.reached?'Concluída':'A partir do ano '+Math.floor(e.start/365))+'</small></div>';
  $('era-list').innerHTML=date.eras.map(item).join('');
- $('era-timeline').innerHTML='<div class="era-overview"><strong>'+esc(era.name)+'</strong><p>'+esc(era.description)+'</p><p>'+esc(era.next?'Faltam '+until+' para '+era.next.name+'.':'Última era planejada.')+'</p></div>'+date.eras.map(e=>'<div class="era-timeline-item'+(e.active?' era-active':'')+'"><b>'+esc(e.name)+'</b><small>Início aproximado: '+Math.floor(e.start/365)+' anos após o nascimento de Naruto</small><p>'+esc(e.description)+'</p></div>').join('');
+ $('era-timeline').innerHTML='<div class="era-overview"><strong>'+esc(era.name)+'</strong><p>'+esc(era.description)+'</p><p>'+esc(era.next?'Faltam '+until+' para '+era.next.name+'.':'Última era planejada.')+'</p></div>'+date.eras.map(e=>'<div class="era-timeline-item'+(e.active?' era-active':'')+'"><b>'+esc(e.name)+'</b><small>Início aproximado: '+Math.floor(e.start/365)+' anos após o nascimento de Naruto</small><p>'+esc(e.reached?e.description:'Os detalhes deste período serão revelados conforme a campanha avançar.')+'</p></div>').join('');
 }
 const monthNames=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 const monthLengths=[31,28,31,30,31,30,31,31,30,31,30,31];
