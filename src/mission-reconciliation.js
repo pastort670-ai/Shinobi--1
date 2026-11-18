@@ -52,7 +52,7 @@ function complete(s,first,active,scene,lastPlayer){
   // A missão pode ser encerrada de modo passivo, sem repetir nome e rank na frase.
   // Exigimos conexão comprovada com protagonista, especialmente no relatório entregue.
   return Boolean(!remoteNews&&(active||sceneReferencesPlayer||playerReported)&&
-    (active||sceneReferencesPlayer&&playerReported));
+    (active||sceneReferencesPlayer&&playerReported||Boolean(rankOf(s)&&playerReported)));
  }
  // Uma missão já atribuída pode terminar pela aprovação do relatório ou pelo
  // cumprimento de seus objetivos, mesmo sem a palavra "concluída".
@@ -124,7 +124,8 @@ function savedMissionRecords(c,first,already){
   const description=task.description,text=norm(description);
   if(!/\bmissao\b/u.test(text)||rejection.test(text)||future.test(text)||
      !(finish.test(text)||nounCompletion.test(text)||otherFinish.test(text)))continue;
-  if(!playerLinked(text,first,false))continue;
+  const named=first&&new RegExp('\\b'+first+'\\b','u').test(text);
+  if(!playerLinked(text,first,false)&&!(named&&rankOf(text)))continue;
   const rank=rankOf(text)||'?',day=Number.isInteger(task.day)?task.day:c.day||0;
   const candidate={rank,day,summary:description.slice(0,180),source:'completed-task',taskId:task.id||null};
   const duplicate=records.some(x=>(x.rank===rank||x.rank==='?'||rank==='?')&&sameMission(x,candidate,first));
