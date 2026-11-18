@@ -128,3 +128,11 @@ test('evento estruturado isolado sem evidência na narração não concede miss�
  });
  assert.equal(view(old).databook.missions.S,0);
 });
+
+test('duas missões D concluídas em locais diferentes não se fundem na mesma data',()=>{
+ const old=c();old.memories=[
+  {id:'one',status:'saved',day:7,title:'Missão na biblioteca',description:'Kaien concluiu a missão de rank D na biblioteca, recuperando documentos perdidos.'},
+  {id:'two',status:'saved',day:7,title:'Missão no hospital',description:'Kaien concluiu a missão de rank D no hospital, entregando suprimentos médicos.'}
+ ];
+ assert.equal(view(old).databook.missions.D,2);
+});
