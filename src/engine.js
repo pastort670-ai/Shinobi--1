@@ -115,6 +115,8 @@ export function suggestMoment(c,i,r){
 export function resolveElapsedDays(i,r){
  if(i.days>0||i.hours>0)return i.days; // TEMPO explícito sempre prevalece.
  const narrative=String(r.narrative||'').toLocaleLowerCase('pt-BR');
+ // Não confundir negação ou plano futuro com um amanhecer ocorrido.
+ if(/\b(?:não|nunca|jamais|ainda não)\s+(?:havia\s+|tinha\s+)?amanhec(?:ido|eu|e)\b|\b(?:ao|até o|para o|no próximo)\s+amanhecer\b/iu.test(narrative)&&!/(?:quando|assim que|depois que)\s+amanheceu|(?:na|a) manhã seguinte|no dia seguinte/iu.test(narrative))return 0;
  const occurred=/(?:na|a) manhã seguinte|no (?:dia|outro dia) seguinte|na noite seguinte|amanhec(?:eu|e)|o sol nasceu|passou a noite|passaram-se [\p{L}\d]+ dias|(?:a noite|o dia) (?:se passou|passou)|acord(?:ou|a) (?:no dia seguinte|na manhã seguinte)|depois de [\p{L}\d]+ dias|após [\p{L}\d]+ dias|horas depois,? já era (?:o )?dia seguinte/iu.test(narrative);
  if(!occurred)return 0;
  if(r.elapsedDays>0)return r.elapsedDays;
