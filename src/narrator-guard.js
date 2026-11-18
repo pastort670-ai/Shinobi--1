@@ -18,7 +18,7 @@ const escapeRegex=s=>s.replace(/[.*+?^\u0024{}()|[\]\\]/g,'\\$&');
 const tokens=s=>clean(s).match(/[\p{L}\p{N}]+/gu)||[];
 function echoRegex(s){
  const t=tokens(s);if(!t.length)return null;
- const sep='[\\s.,!?;:—–"“”«»…]*';
+ const sep='[\\s.,!?;:—–"“”«»…-]*';
  return new RegExp('(?<![\\p{L}\\p{N}])'+t.map(escapeRegex).join(sep)+'(?![\\p{L}\\p{N}])','giu');
 }
 function findEcho(text,quote){
