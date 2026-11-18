@@ -42,6 +42,20 @@ function playerLinked(s,first,hasAssignment){
  if(direct||/\b(?:voce|voces|seu grupo|sua equipe|seu time|o protagonista|a protagonista)\b/u.test(s))return true;
  return hasAssignment&&(name||actors.team.test(s)||/\bmissao\b/u.test(s));
 }
+// O resultado estruturado fica anexado à resposta *aceita*, e não apenas
+// na chamada transitória da IA. O registro pode ser reconstituído após reabrir
+// a ficha, restaurar um backup ou corrigir outras partes da interface.
+function verifiedMissionProof(message,first,active,preceding){
+ const p=message?.missionProof;
+ if(!p||!ranks.has(p.rank)||p.rank==='?'||typeof p.evidence!=='string'||typeof message.text!=='string')return null;
+ const proof=norm(p.evidence.trim()),scene=norm(message.text);
+ if(proof.length<20||!scene.includes(proof)||rejection.test(proof)||future.test(proof)||otherActor(proof,first))return null;
+ if(!finish.test(proof)&&!reportSuccess.test(proof)&&!taskCompleted.test(proof)&&!otherFinish.test(proof))return null;
+ const subject=first&&new RegExp('\\b'+first+'\\b','u').test(scene);
+ const reported=submittedReport.test(preceding);
+ if(!playerLinked(proof,first,Boolean(active))&&!subject&&!reported)return null;
+ return p;
+}
 function complete(s,first,active,scene,lastPlayer){
  if(rejection.test(s)||future.test(s)||otherActor(s,first))return false;
  const remoteNews=/\b(?:noticias|noticia|rumor|soube|ouviu|informaram|outro pais|outra vila|distante)\b/u.test(scene);
@@ -80,7 +94,10 @@ function sameMission(existing,incoming,first){
  const overlap=[...newWords].some(word=>oldWords.has(word));
  if(oldOrdinal&&newOrdinal&&oldOrdinal===newOrdinal)return true;
  if(overlap)return true;
- return distance<=1&&!/\b(?:outra|segunda|terceira|nova)\s+missao\b/u.test(newText);
+ // Proximidade de dia e rank sozinha não identifica uma missão.
+ if(existing.missionId&&incoming.missionId&&existing.missionId!==incoming.missionId)return false;
+ if(distance<=1&&(existing.rank==='?'||incoming.rank==='?')&&(oldOrdinal||newOrdinal))return true;
+ return distance<=1&&(oldWords.size===0||newWords.size===0)&&!/\b(?:outra|segunda|terceira|nova)\s+missao\b/u.test(newText);
 }
 
 function savedMissionRecords(c,first,already){
@@ -154,22 +171,42 @@ export function reconciledMissions(c,stored=[]){
   }
   const preceding=norm(messages[index-1]?.role==='user'?messages[index-1].text:'');
   const match=parts.find(s=>complete(s,first,active,norm(message.text),preceding));
-  if(!match)continue;
-  const explicit=rankOf(match);
-  const rank=explicit||active?.rank||ranked||'?';
+  const proof=verifiedMissionProof(message,first,active,preceding);
+  if(!match&&!proof)continue;
+  const explicit=match?rankOf(match):null;
+  const rank=explicit||active?.rank||ranked||proof?.rank||'?';
   if(!ranks.has(rank))continue;
   // Do not count repeated victory announcements for the same mission.
   const assignment=active?.rank===rank?active.source:null;
   const repeated=lastCompletion?.rank===rank&&(
    (assignment!==null&&lastCompletion.assignment===assignment)||
-   (assignment===null&&index-lastCompletion.index<=4)
+   (assignment===null&&index-lastCompletion.index<=4&&sameMission(
+    {rank,summary:lastCompletion.summary,day:lastCompletion.day},
+    {rank,summary:message.text,day:message.day},first))
   );
   if(!seen.has(index)&&!repeated){
-   out.push({rank,summary:message.text.replace(/\s+/g,' ').slice(0,180),day:Number.isInteger(message.day)?message.day:c.day||0,messageIndex:index,source:'accepted-narration'});
+   out.push({rank,summary:message.text.replace(/\s+/g,' ').slice(0,180),day:Number.isInteger(message.day)?message.day:c.day||0,messageIndex:index,missionId:assignment!==null?'assignment-'+assignment:'scene-'+index,source:proof?'verified-mission-event':'accepted-narration'});
    seen.add(index);
   }
-  lastCompletion={rank,index,assignment};
+  lastCompletion={rank,index,assignment,summary:message.text,day:message.day};
   active=null;
  }
  return savedMissionRecords(c,first,out.sort((a,b)=>a.messageIndex-b.messageIndex).slice(-200));
+}
+
+
+// Provide a focused current mission reminder to the AI, independent of the
+// current narration's choice of wording.
+export function missionStatus(c){
+ const history=Array.isArray(c.messages)?c.messages:[];
+ const completed=reconciledMissions(c,c.databook?.missions);
+ const latest=Math.max(-1,...completed.filter(m=>Number.isInteger(m.messageIndex)).map(m=>m.messageIndex));
+ let active=null;
+ history.forEach((m,index)=>{
+  if(index<=latest||m?.role!=='ai'||typeof m.text!=='string')return;
+  const r=rankOf(m.text),story=norm(m.text);
+  if(r&&assignments.test(story)&&!finish.test(story)&&!rejection.test(story))
+   active={rank:r,assignedAt:index,description:m.text.slice(0,180)};
+ });
+ return {active,recentlyCompleted:completed.slice(-4).map(m=>({rank:m.rank,day:m.day,summary:m.summary.slice(0,130)}))};
 }
