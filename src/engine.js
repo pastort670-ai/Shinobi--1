@@ -113,13 +113,18 @@ export function suggestMoment(c,i,r){
 // O narrador só pode avançar o calendário quando descreve uma transição de dia
 // concluída. Pequenas referências a noite/amanhã não bastam.
 export function resolveElapsedDays(i,r){
- if(i.days>0||i.hours>0)return i.days; // TEMPO explícito sempre prevalece.
- const narrative=String(r.narrative||'').toLocaleLowerCase('pt-BR');
- const occurred=/(?:na|a) manhã seguinte|no (?:dia|outro dia) seguinte|na noite seguinte|amanhec(?:eu|e)|o sol nasceu|passou a noite|passaram-se [\p{L}\d]+ dias|(?:a noite|o dia) (?:se passou|passou)|acord(?:ou|a) (?:no dia seguinte|na manhã seguinte)|depois de [\p{L}\d]+ dias|após [\p{L}\d]+ dias|horas depois,? já era (?:o )?dia seguinte/iu.test(narrative);
- if(!occurred)return 0;
+ if(i.days>0||i.hours>0)return i.days; // O avanço solicitado prevalece.
+ const n=String(r.narrative||'').toLocaleLowerCase('pt-BR');
+ // Futuros hipotéticos e negações NÃO são acontecimentos.
+ // Verificamos a conclusão descrita, não a simples menção a "amanhecer".
+ const complete=/(?:\b(?:na|a) manhã seguinte\b|\bno (?:dia|outro dia) seguinte\b|\bna noite seguinte\b|\bamanheceu\b|\bo sol nasceu\b|\bpassou a noite\b|\bpassaram-se [\p{L}\d]+ dias\b|\ba noite (?:se passou|passou)\b|\bo dia (?:se passou|passou)\b|\bacordou (?:no dia seguinte|na manhã seguinte)\b|\bdepois de [\p{L}\d]+ dias\b|\bapós [\p{L}\d]+ dias\b|\bhoras depois,? já era (?:o )?dia seguinte\b)/iu;
+ if(!complete.test(n))return 0;
+ // A expressão precisa indicar um evento já concluído, não sua negação.
+ const negation=/(?:\b(?:não|nunca|jamais|sem)\s+(?:[\p{L}]+\s+){0,3}(?:amanheceu|nasceu|passou|chegou|acordou)\b|\b(?:ainda não|não era|não tinha)\s+(?:[\p{L}]+\s+){0,3}(?:amanhecido|amanheceu|dia seguinte|manhã seguinte)\b)/iu;
+ if(negation.test(n))return 0;
  if(r.elapsedDays>0)return r.elapsedDays;
- // Fallback conservador: uma noite efetivamente concluída equivale a um dia.
- if(/(?:(?:na|a) manhã seguinte|no dia seguinte|amanhec(?:eu|e)|o sol nasceu|a noite (?:se passou|passou)|passou a noite)/iu.test(narrative))return 1;
+ // Primeiro dia efetivamente concluído, mesmo que o modelo omita a contagem.
+ if(/(?:\b(?:na|a) manhã seguinte\b|\bno dia seguinte\b|\bamanheceu\b|\bo sol nasceu\b|\ba noite (?:se passou|passou)\b|\bpassou a noite\b)/iu.test(n))return 1;
  return 0;
 }
 export function apply(c,i,r){r=validate(r);const quality=narrationQuality(c,i,r.narrative);if(!quality.narrative)fail('O narrador repetiu suas falas sem narrar consequências. Gere outra resposta; o turno não foi salvo.',502);r={...r,narrative:quality.narrative};const moment=suggestMoment(c,i,r);const elapsedDays=resolveElapsedDays(i,r);const tick=actualTime(c,i,r,elapsedDays);const n=structuredClone(c);n.day+=tick.dayDelta;n.clockMinutes=tick.clockMinutes;n.revision++;n.lastInput=i;n.messages.push({role:'user',text:i.segments.map(s=>s.type+': '+s.text).join('\n')+(i.days?`\nTEMPO: ${i.days} dias`:i.hours?`\nTEMPO: ${i.hours} horas`:''),day:n.day,sceneType:tick.hours?'time':r.sceneType},{role:'ai',text:r.narrative,day:n.day,sceneType:tick.hours?'time':r.sceneType,memoryCandidate:moment?{...moment,id:randomUUID()}:null});for(const f of r.facts)n.facts.push({text:f,day:n.day}); // Commit player decisions verbatim, even when the model omits them.
