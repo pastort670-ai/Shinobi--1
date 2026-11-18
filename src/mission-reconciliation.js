@@ -37,9 +37,16 @@ function playerLinked(s,first,hasAssignment){
  if(direct||/\b(?:voce|voces|seu grupo|sua equipe|seu time|o protagonista|a protagonista)\b/u.test(s))return true;
  return hasAssignment&&(name||actors.team.test(s)||/\bmissao\b/u.test(s));
 }
-function complete(s,first,active){
+function complete(s,first,active,scene,lastPlayer){
  if(rejection.test(s)||future.test(s)||otherActor(s,first))return false;
- if(finish.test(s))return playerLinked(s,first,Boolean(active))||Boolean(rankOf(s));
+ const remoteNews=/\b(?:noticias|noticia|rumor|soube|ouviu|informaram|outro pais|outra vila|distante)\b/u.test(scene);
+ if(finish.test(s)){
+  if(playerLinked(s,first,Boolean(active)))return true;
+  // Passive announcements without actor need a player connection, not merely a rank.
+  const sceneReferencesPlayer=first&&new RegExp('(?:^|[^a-z0-9])'+first+'(?:[^a-z0-9]|$)','u').test(scene);
+  const playerPerformedTask=/\b(?:missao|relatorio|objetivo|entreg\w*|conclu\w*|cumpr\w*|finaliz\w*|termin\w*)\b/u.test(lastPlayer);
+  return Boolean(rankOf(s)&&(sceneReferencesPlayer||playerPerformedTask)&&!remoteNews);
+ }
  // Only an established, still-active mission may finish via "objetivo cumprido".
  if(active&&otherFinish.test(s))return playerLinked(s,first,true);
  return false;
@@ -64,7 +71,8 @@ export function reconciledMissions(c,stored=[]){
   if(ranked&&parts.some(s=>assignments.test(s)&&!finish.test(s)&&!otherActor(s,first))){
    active={rank:ranked,source:index,opened:index};
   }
-  const match=parts.find(s=>complete(s,first,active));
+  const preceding=norm(messages[index-1]?.role==='user'?messages[index-1].text:'');
+  const match=parts.find(s=>complete(s,first,active,norm(message.text),preceding));
   if(!match)continue;
   const explicit=rankOf(match);
   const rank=explicit||active?.rank||ranked||'?';
