@@ -40,7 +40,7 @@ export function isGroupNpc(name){return isGroup(name);}
 function isGroup(name){
  const s=norm(name);
  if(!s)return true;
- if(/^(?:guarnicao|patrulha|guardas?|tropas?|soldados?|grupo|equipe|esquadrao|inimigos?|adversarios?|oponentes?|comerciantes?|vendedores?|lojistas?|moradores|aldeoes)(?:\s|$)/u.test(s)){
+ if(/^(?:guarnicao|patrulha|guardas?|tropas?|soldados?|grupo|equipe|esquadrao|inimigos?|adversarios?|oponentes?|mercenarios?|bandidos?|comerciantes?|vendedores?|lojistas?|moradores|aldeoes)(?:\s|$)/u.test(s)){
   return !roles.test(s)||/\b(?:comerciantes|vendedores|lojistas)\b/u.test(s);
  }
  return false;
@@ -58,7 +58,11 @@ function meaningful(c,name,description){
  if(!name||isGroup(name)||isGenericContact(name))return false;
  const d=norm(description);
  if(originLink(c,name))return true;
- // Avoid unrelated single encounters despite dramatic adjectives.
+ // Um comerciante cordial/que confia numa compra não é necessariamente um amigo.
+ const storeDeal=/(?:loja|banca|comerciante|vendedor|lojista|mercadoria|comprou|vendeu|atendeu|compra)/u.test(d);
+ const lasting=/\b(?:familia|pai|mae|irm[aã]o|adotiv\w*|mentor|mestre|sensei|amizade|amigo|aliad\w*|rivalidade|inimigo jurado|vinculo duradouro|relacao duradoura|lealdade|tornou-se aliado)\b/u.test(d);
+ if(storeDeal&&!lasting)return false;
+ // Respeito/admiração momentânea não criam vínculo; é necessário compromisso pessoal.
  return significant.test(d)||(
   /\b(?:salvou a vida|passou a confiar|declarou amizade|tornou-se aliado|rompeu relacao)\b/u.test(d)
  );
