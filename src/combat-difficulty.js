@@ -105,7 +105,11 @@ const playerVictorious=(text,first)=>{
 export function enforceCombatOutcome(c,i,r){
  const forecast=combatForecast(c,i);
  if(!forecast.active)return {...r,combatForecast:forecast};
- const veto=forecast.blockEasyVictory&&playerVictorious(r.narrative,c.character?.name);
+ const story=norm(r.narrative);
+ const partial=/(?:\b(?:um|uma|primeiro|primeira|apenas|somente)\b.{0,22}\b(?:inimigo|adversario|oponente|atacante|ninja)\b|\bum\s+dos\s+(?:tres|quatro|cinco|seis|sete|oito|nove|dez|\d+)\b)/u.test(story);
+ const sweeping=/\b(?:todos|todas|restantes|grupo inteiro|esquadrao inteiro|os tres|os quatro|os cinco|os seis|os sete|os oito|os nove|os dez|todos os inimigos|todos os adversarios)\b/u.test(story);
+ const onlyOne=forecast.enemyCount>=3&&partial&&!sweeping;
+ const veto=forecast.blockEasyVictory&&!onlyOne&&playerVictorious(r.narrative,c.character?.name);
  if(veto){
   const name=String(c.character?.name||'O protagonista').split(/\s+/)[0];
   const penalty=clamp(6+forecast.enemyCount*2+(forecast.opponentRank>forecast.playerRank?3:0),6,16);
