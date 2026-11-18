@@ -64,6 +64,13 @@ test('sem evidência, menção à habilidade de NPC não atribui poderes ao prot
  assert.equal(view(apply(c,i,{...response,databookUpdates:[fake]})).databook.ratings.strength,null);
 });
 
+test('menção ao protagonista não transforma o feito de Hiruzen em atributo do jogador',()=>{
+ const c=create('Agentes distintos',character);
+ const sentence='Hiruzen demonstrou grande velocidade enquanto Akira Sarutobi apenas observou.';
+ const n=apply(c,i,{...response,narrative:sentence,databookUpdates:[{attribute:'speed',rating:5,evidence:sentence}]});
+ assert.equal(view(n).databook.ratings.speed,null);
+});
+
 test('missão só entra na contagem se for rankeada e concluída pelo protagonista',()=>{
  const c=create('Missões',character);
  const narrative='Akira Sarutobi concluiu a missão rank C depois de entregar a correspondência na vila.';
