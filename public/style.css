@@ -625,7 +625,7 @@ html[data-theme=dark] .memory-proposal button[data-memory-save]{color:#f0fff5;ba
 .db-meter{height:6px;margin-top:4px;background:var(--line);border-radius:10px;overflow:hidden}
 .db-meter i{display:block;height:100%;background:var(--accent);border-radius:10px}
 .db-note{font-size:12px!important;line-height:1.5;color:var(--muted);margin:16px 0 1px!important;border-top:1px solid var(--line);padding-top:10px}
-.db-missions{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px}
+.db-missions{display:grid;grid-template-columns:repeat(auto-fit,minmax(55px,1fr));gap:6px}
 .db-mission{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:9px 5px;background:var(--raised);border:1px solid var(--line);border-radius:4px}
 .db-mission small{font-size:9px;letter-spacing:1px}
 .db-mission strong{font-size:18px;color:var(--accent)}
