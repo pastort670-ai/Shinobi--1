@@ -312,7 +312,7 @@ function drawCalendar(repositionYears=true){
   const n=i+1,absolute=displayedDay(year,month,n);
   const event=monthEvents.some(e=>e.day===n),era=monthEras.some(e=>e.day===n);
   const classes=['cal-cell',absolute<0?'cal-before-start':'',absolute===c.day?'cal-today':'',absolute===calendarSelected?'cal-selected':'',event?'cal-event':'',era?'cal-era':''].filter(Boolean).join(' ');
-  return '<button type="button" '+(absolute<0?'disabled ':'')+'class="'+classes+'" data-calendar-day="'+absolute+'" '+(absolute===c.day?'aria-current="date" ':'')+'aria-label="Dia '+n+(absolute===c.day?', data atual de '+esc(c.character?.name||'personagem'):'')+(event?', '+monthEvents.filter(e=>e.day===n).length+' eventos':'')+'">'+n+(absolute===c.day?'<span class="cal-player-marker" aria-hidden="true">◎</span>':'')+(event?'<span class="cal-marker">●</span>':era?'<span class="cal-marker">◆</span>':'')+'</button>';
+  return '<button type="button" '+(absolute<0?'disabled ':'')+'class="'+classes+'" data-calendar-day="'+absolute+'" '+(absolute===c.day?'aria-current="date" ':'')+'aria-pressed="'+(absolute===calendarSelected)+'" aria-label="Dia '+n+(absolute===c.day?', data atual de '+esc(c.character?.name||'personagem'):'')+(event?', '+monthEvents.filter(e=>e.day===n).length+' eventos':'')+'"><span class="cal-day-number">'+n+'</span>'+(event||era?'<span class="cal-dot '+(era?'era-dot':'')+'" aria-hidden="true"></span>':'')+'</button>';
  }).join('');
  $('calgrid').innerHTML=headers+blanks+cells;
  $('calgrid').querySelectorAll('[data-calendar-day]').forEach(btn=>btn.onclick=()=>{calendarSelected=Number(btn.dataset.calendarDay);drawCalendar(false);});
@@ -320,13 +320,15 @@ function drawCalendar(repositionYears=true){
  const dayNumber=Array.from({length:days},(_,index)=>index+1).find(n=>displayedDay(year,month,n)===chosenDay);
  $('calselectedheading').textContent=dayNumber?'Dia '+dayNumber+' de '+monthNames[month-1].toLowerCase()+' · Ano '+year+(chosenDay===c.day?' · Hoje na história':''):'Detalhes do dia selecionado';
  const onDay=(c.calendarEvents||[]).filter(e=>e.dayIndex===calendarSelected);
- const items=onDay.map(e=>'<div class="fact"><b>'+esc(e.title)+'</b><small>'+esc(e.confirmedDate?'Data documentada':'Período estimado; referência da obra')+'</small><p>'+esc(e.overridden||e.detail)+'</p></div>').join('');
  const era=(c.calendarEraEvents||[]).find(e=>e.start===calendarSelected);
- const eraInfo=era?'<div class="fact"><b>◆ '+esc(era.name)+'</b><p>Começo aproximado desta era.</p></div>':'';
- $('caldayinfo').innerHTML=items+eraInfo||'<p class="caption">Toque numa data marcada para ver o acontecimento. Outros eventos podem estar em anos mais distantes.</p>';
- const horizon=c.day+730;
- const future=(c.calendarEvents||[]).filter(e=>e.dayIndex>=c.day&&e.dayIndex<=horizon);
- $('calupcoming').innerHTML=future.map(e=>'<div class="fact"><small>'+String(e.day).padStart(2,'0')+'/'+String(e.month).padStart(2,'0')+' · Ano '+e.year+' · '+(e.confirmedDate?'data confirmada':'aproximada')+' · '+(e.dayIndex===c.day?'Hoje':'Em '+timeUntilEra(e.dayIndex-c.day))+'</small><b>'+esc(e.title)+'</b><p>'+esc(e.overridden||e.detail)+'</p></div>').join('')||'<p class="caption">Nenhum acontecimento registrado nos próximos dois anos.</p>';
+ const events=onDay.map(e=>({title:e.title,subtitle:e.confirmedDate?'Data documentada':'Data estimada',text:e.overridden||e.detail||''}));
+ if(era)events.push({title:'Início da era '+era.name,subtitle:'Marco aproximado',text:'A campanha acompanha a passagem das eras.'});
+ $('caldayinfo').innerHTML=events.length?compactRecords(events,e=>e,2):'<p class="empty-compact">Sem eventos registrados neste dia.</p>';
+ const horizon=c.day+730,future=(c.calendarEvents||[]).filter(e=>e.dayIndex>=c.day&&e.dayIndex<=horizon);
+ $('calupcoming').innerHTML=compactRecords(future,e=>({
+  title:e.title,subtitle:String(e.day).padStart(2,'0')+'/'+String(e.month).padStart(2,'0')+' · Ano '+e.year,
+  text:e.overridden||e.detail||''
+ }),4);
 }
 $('calprev').onclick=()=>calendarGo(calendarCursor.year,calendarCursor.month-1);
 $('calnext').onclick=()=>calendarGo(calendarCursor.year,calendarCursor.month+1);
