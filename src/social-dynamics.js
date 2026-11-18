@@ -1,6 +1,7 @@
 import {hasExceptionalTalent} from './progression.js';
 import {assessAttributeEvidence} from './attribute-evidence.js';
 import {assessHistoricalIntelligence} from './intelligence-evidence.js';
+import {visibleRelationships} from './relationship-engine.js';
 
 // A atitude de um NPC não depende apenas da patente do protagonista.
 // Relações, prestígio demonstrado e metas individuais importam.
@@ -18,10 +19,11 @@ export function buildSocialDynamics(c,i){
  const traits=[...Object.values(experience).map(x=>x.records),intelligence.sourceCount];
  const demonstrations=traits.reduce((sum,count)=>sum+count,0);
  const exceptional=hasExceptionalTalent(c);
- const mentioned=new Set([...Object.keys(c.relations||{}),...Object.keys(c.npcKnowledge||{}),...Object.keys(c.npcAgents||{})]);
+ const relationships=visibleRelationships(c);
+ const mentioned=new Set([...Object.keys(relationships),...Object.keys(c.npcKnowledge||{}),...Object.keys(c.npcAgents||{})]);
  for(const name of ['Hiruzen','Asuma','Kakashi','Iruka','Jiraiya','Tsunade','Orochimaru'])if(new RegExp('\\b'+name+'\\b','i').test(input))mentioned.add(name);
  const people=[...mentioned].filter(name=>norm(input).includes(norm(name))).slice(0,6).map(name=>{
-  const relation=c.relations?.[name]||c.npcAgents?.[name]?.relationship||'';
+  const relation=relationships[name]||c.npcAgents?.[name]?.relationship||'';
   const witnessed=[...(c.npcKnowledge?.[name]||[]),...(c.npcAgents?.[name]?.knowledge||[])].slice(-6);
   const backstory=norm(c.character?.history||'');
   const knownFromOrigin=backstory.includes(norm(name))&&/\b(?:adotad\w*|criad\w*|treinad\w*|mentor|mestre|filh\w*)\b/u.test(backstory);
