@@ -366,9 +366,9 @@ function renderDatabook(c){
   return '<div class="db-stat"><div class="db-stat-head"><strong>'+esc(stat.label)+'</strong><span>'+esc(display)+'</span></div><div class="db-meter" aria-label="'+esc(stat.label)+': '+esc(display)+'"><i style="width:'+width+'%"></i></div></div>';
  }).join('');
  const missionRanks=['D','C','B','A','S'],totals=data.missions||{};
- $('db-missions').innerHTML=missionRanks.map(rank=>'<div class="db-mission"><small>RANK</small><strong>'+rank+'</strong><span>'+Math.max(0,Number(totals[rank])||0)+'</span></div>').join('');
+ $('db-missions').innerHTML=missionRanks.map(rank=>'<div class="db-mission"><small>RANK</small><strong>'+rank+'</strong><span>'+Math.max(0,Number(totals[rank])||0)+'</span></div>').join('')+(totals.unranked?'<div class="db-mission db-mission-unranked"><small>SEM RANK</small><strong>?</strong><span>'+Math.max(0,Number(totals.unranked)||0)+'</span></div>':'');
  const log=Array.isArray(data.missionLog)?data.missionLog.slice(-5).reverse():[];
- $('db-mission-log').innerHTML=log.length?'<div class="db-log">'+log.map(m=>'<div class="fact"><b>Missão rank '+esc(m.rank)+'</b><p>'+esc(m.summary)+'</p></div>').join('')+'</div>':'';
+ $('db-mission-log').innerHTML=log.length?'<div class="db-log">'+log.map(m=>'<div class="fact"><b>'+(m.rank==='?'?'Missão sem rank':'Missão rank '+esc(m.rank))+'</b><p>'+esc(m.summary)+'</p></div>').join('')+'</div>':'';
  const history=Array.isArray(data.history)?data.history.slice(-6).reverse():[];
  $('db-history').innerHTML=history.length?history.map(h=>'<div class="fact"><small>Ano '+(1+Math.floor(h.day/365))+' · Dia '+h.day+'</small><p>'+esc(h.reason||'Avaliação registrada')+'</p></div>').join(''):'<p class="caption">Novas avaliações aparecerão após treinamentos e feitos comprovados.</p>';
 }
