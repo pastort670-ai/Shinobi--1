@@ -1,3 +1,4 @@
+import {reconciledMissions} from './mission-reconciliation.js';
 // Ficha inspirada nos gráficos de oito parâmetros dos databooks de Naruto.
 // Escalas são estimativas do Shinobi, NÃO notas oficiais para personagens originais.
 // Os campos ausentes permanecem "não avaliados" em vez de receber valores inventados.
@@ -27,13 +28,13 @@ const confirmedStats=c=>{
 };
 
 export function databookView(c){
- const ratings=confirmedStats(c),log=Array.isArray(c.databook?.missions)?c.databook.missions.filter(m=>m&&MISSION_RANKS.includes(m.rank)).slice(-200):[];
- const missions=Object.fromEntries(MISSION_RANKS.map(rank=>[rank,log.filter(x=>x.rank===rank).length]));
+ const ratings=confirmedStats(c),log=reconciledMissions(c,c.databook?.missions);
+ const missions={...Object.fromEntries(MISSION_RANKS.map(rank=>[rank,log.filter(x=>x.rank===rank).length])),unranked:log.filter(x=>x.rank==='?').length};
  return {
   version:'1.0',basis:'Avaliações internas aproximadas; não são notas oficiais de databooks.',
   attributes:DATABOOK_ATTRIBUTES.map(a=>({key:a.key,label:a.label,value:ratings[a.key],description:grade(ratings[a.key]),evaluated:ratings[a.key]!==null})),
   ratings,missions,missionLog:log.slice(-12),
-  missionPolicy:'Só conta missões concluídas e registradas a partir desta versão; números anteriores não são presumidos.',
+  missionPolicy:'Conta missões confirmadas em narrativas aceitas, recuperando cenas anteriores. Missões sem classificação comprovada são marcadas como Sem rank, jamais classificadas arbitrariamente.',
   history:(Array.isArray(c.databook?.history)?c.databook.history:[]).filter(h=>h&&Number.isInteger(h.day)&&h.day>=0).slice(-18),
   hasPartialData:Object.values(ratings).some(v=>v===null)
  };
@@ -83,6 +84,6 @@ export function commitDatabook(previous,next,result){
  const current=Object.fromEntries(DATABOOK_ATTRIBUTES.map(a=>[a.key,a.kind==='training'?trainingRating(next.progress?.[a.key]):validRating(out.ratings[a.key])?out.ratings[a.key]:null]));
  const changed=DATABOOK_ATTRIBUTES.some(a=>current[a.key]!==old[a.key]);
  if(changed){out.history.push({day:next.day,ratings:current,reason:reason||'Evolução de treinamento registrada pelo motor.'});}
- next.databook={ratings:out.ratings,missions:out.missions.slice(-200),history:out.history.slice(-18)};
+ next.databook={ratings:out.ratings,missions:reconciledMissions(next,out.missions),history:out.history.slice(-18)};
  return next;
 }
