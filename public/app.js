@@ -397,7 +397,8 @@ function renderDatabook(c){
   const positions=[-3,0,4,0,8,0,4,0];
   return '<g class="db-radar-label" aria-label="'+esc(stat.label+': '+detail)+'"><title>'+esc(stat.label+': '+detail)+'</title><text x="'+x+'" y="'+(Number(y)+positions[i])+'" text-anchor="middle"><tspan x="'+x+'" class="db-radar-name">'+esc(stat.label)+'</tspan><tspan x="'+x+'" dy="15" class="db-radar-grade">'+esc(detail)+'</tspan></text></g>';
  }).join('');
- const plain=attrs.map(stat=>stat.label+': '+(valid(stat)?numbers?stat.value+' de 5':stat.description:'não avaliado')).join('; ');
+ const attributeEvidence=data.attributeEvidence||{},intelligenceEvidence=data.intelligenceEvidence||{};
+ const plain=attrs.map(stat=>stat.label+': '+(valid(stat)?numbers?stat.value+' de 5':stat.description:'não avaliado')+(attributeEvidence[stat.key]?.records?' ('+attributeEvidence[stat.key].records+' práticas comprovadas)':'')).join('; ')+(intelligenceEvidence.sourceCount?' · Inteligência: '+intelligenceEvidence.studyCount+' estudos e '+intelligenceEvidence.tacticCount+' estratégias documentadas.':'');
  container.innerHTML='<svg viewBox="0 0 360 352" role="img" aria-label="'+esc(plain)+'">'+axes+rings+area+lines+dots+'<circle cx="'+center+'" cy="'+cy+'" r="2.4" class="db-center"></circle>'+labels+'</svg>';
  $('db-attributes').textContent=plain;
  const missionRanks=['D','C','B','A','S'],totals=data.missions||{};
