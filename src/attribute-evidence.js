@@ -46,7 +46,9 @@ export function assessAttributeEvidence(c){
    const prolonged=length.test(clause);
    for(const key of keys){
     const match=matchers[key].test(clause)||
-     key==='stamina'&&prolonged&&physical.test(clause);
+     key==='stamina'&&prolonged&&physical.test(clause)||
+     key==='strength'&&prolonged&&/\b(?:taijutsu|treino fisico|treinamento fisico|luta corporal|artes marciais|flexoes|agachamentos|escalada|escalou)\b/u.test(clause)||
+     key==='speed'&&prolonged&&/\b(?:taijutsu|treino de combate|exercicios de esquiva|esquiva)\b/u.test(clause);
     if(!match)continue;
     const day=Number.isInteger(source.day)?source.day:Math.max(0,c.day||0);
     const compact=clause.replace(/\b(?:kaien|akira|o|a|os|as|um|uma|de|do|da|em|com|por|para)\b/g,'').trim().slice(0,95);
