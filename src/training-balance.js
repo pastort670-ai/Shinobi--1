@@ -19,7 +19,13 @@ export function balancedTrainingProgress(c,i,r,tick){
  const hours=Math.max(0,Number(tick.hours)||0),days=Math.floor(hours/24);
  const skip=i.hours>0||i.days>0;
  const narrated=norm(r.narrative);
- if(skip&&days>=LONG_TRAINING_DAYS&&(!specificPractice.test(narrated)||!done.test(narrated))){
+ // O relato precisa dizer que o protagonista PRATICOU, não apenas que se
+ // falou de uma "prática" ou que o instrutor demonstrou uma técnica.
+ const first=norm(c.character?.name).split(/\s+/)[0].replace(/[^a-z0-9]/g,'');
+ const actor=first?first+'|voce|o protagonista|a protagonista':'voce|o protagonista|a protagonista';
+ const practiced=new RegExp('\\b(?:'+actor+')\\b\\s+(?:(?:ja|tambem|finalmente|consistentemente|intensamente)\\s+){0,3}(?:treinou|treina|praticou|pratica|exercitou|aprimorou|aprimora|aperfeicoou|estudou|estuda|aprendeu|concluiu|conclui|completou|completa|realizou|realiza|executou|evoluiu|desenvolveu|dedicou|terminou|finalizou)\\b','u').test(narrated);
+ const cancelled=/\b(?:treino|treinamento|pratica|atividade)\\s+(?:ainda\\s+)?nao\\s+(?:comecou|iniciou|ocorreu|foi realizada)\b|\b(?:nao treinou|nao praticou|apenas observou|somente observou)\b/u.test(narrated);
+ if(skip&&days>=LONG_TRAINING_DAYS&&(!specificPractice.test(narrated)||!practiced||cancelled)){
   return {skill,before:old,after:old,gain:0,limited:true};
  }
  const base=Math.min(proposal,trainingGainLimit(c,i,tick,r));
