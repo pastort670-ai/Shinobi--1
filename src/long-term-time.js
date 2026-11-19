@@ -1,17 +1,18 @@
 // Oportunidades de passagem de tempo confirmadas pela própria história.
 // O narrador não precisa lembrar de abrir o botão: as cenas ACEITAS bastam.
 // Consultar esta função não modifica a campanha e funciona em saves antigos.
-export const MAX_LONG_SKIP_DAYS=3650; // até dez anos por escolha, repetível se o acordo permanecer.
+export const MAX_LONG_SKIP_DAYS=3650; // outras atividades seguem podendo durar mais anos
+export const MAX_TRAINING_SKIP_DAYS=730; // até dois anos de treino por escolha
 const normalize=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/\s+/g,' ').trim();
 const numbers={um:1,uma:1,dois:2,duas:2,tres:3,quatro:4,cinco:5,seis:6,sete:7,oito:8,nove:9,dez:10,onze:11,doze:12,quinze:15,vinte:20,trinta:30,quarenta:40,cinquenta:50,cento:100};
-const activity=/\b(?:trein\w*|ensin\w*|taijutsu|ninjutsu|genjutsu|aulas?|instruc\w*|estud\w*|pesquis\w*|investig\w*|aprend\w*|aprendiz\w*|pratic\w*|prepar\w*|aperfeico\w*|recuper\w*|reabilit\w*|tratament\w*|repous\w*|descans\w*|constru\w*|fabric\w*|produ\w*|projet\w*|trabalh\w*|expedic\w*|viaj\w*|travess\w*|jornad\w*|aguard\w*|esper\w*|servic\w*|disciplin\w*|formac\w*)\b/u;
+const activity=/\b(?:trein\w*|ensin\w*|mentoria|mentor|mestre|sensei|aprendiz\w*|discipul\w*|alun\w*|taijutsu|ninjutsu|genjutsu|aulas?|instruc\w*|estud\w*|pesquis\w*|investig\w*|aprend\w*|aprendiz\w*|pratic\w*|prepar\w*|aperfeico\w*|recuper\w*|reabilit\w*|tratament\w*|repous\w*|descans\w*|constru\w*|fabric\w*|produ\w*|projet\w*|trabalh\w*|expedic\w*|viaj\w*|travess\w*|jornad\w*|aguard\w*|esper\w*|servic\w*|disciplin\w*|formac\w*)\b/u;
 const acceptance=/\b(?:aceit\w*|concord\w*|confirm\w*|compromet\w*|promet\w*|combinad\w*|acertad\w*|permit\w*|autoriz\w*|aprov\w*|ficou combinado|esta combinado|esta decidido|esta bem|fechado|certamente|de acordo|dispost\w* a|inici\w*|comec\w*|parti\w*|treinaremos|treinarei|treinarao|estudaremos|prepararemos|vamos treinar|vamos estudar|sera seu mestre|sera seu instrutor|sera sua instrutora)\b/u;
 const declined=/\b(?:sem (?:aceitar|concordar|confirmar|autorizar)|recus\w*|rejeit\w*|negou|adiou indefinidamente|cancel\w*|desist\w*|nao aceitou|nao concordou|nao autorizou|nao permitiu|nao podera|nao vai aceitar|sem acordo|ainda nao aceitou|talvez aceite|considerara|se aceitar)\b/u;
 const ended=/\b(?:treinamento|treino|estudo|pesquisa|projeto|expedicao|viagem|tratamento|obra|contrato|aprendizado|aprendizagem|compromisso)\b.{0,62}\b(?:foi cancelad\w*|foi encerrad\w*|terminou|acabou|concluiu-se|foi concluid\w*|foi interrompid\w* definitivamente|foi suspens\w*)\b|\b(?:cancelou|encerrou|abandonou|desistiu)\b.{0,40}\b(?:treinamento|treino|estudo|projeto|expedicao|viagem|tratamento|obra|contrato)\b/u;
 const durationRe=/(?:\b(?:por|durante|pelos?|pelas?|ao longo de|nos proximos|nas proximas|pelos proximos|pelas proximas|cerca de|aproximadamente|ate completar)\s+)?(?:(?:os|as|proximos|proximas)\s+)?(\d{1,4}|um|uma|dois|duas|tres|quatro|cinco|seis|sete|oito|nove|dez|onze|doze|quinze|vinte|trinta|quarenta|cinquenta)\s+(anos?|mes(?:es)?|semanas?|dias?)\b/gu;
 const indefinite=/\b(?:por anos|durante anos|varios anos|muitos anos|quantos anos|tempo indeterminado|tempo indefinido|tempo que for necessario|pelo tempo que precisar|pelo tempo que quiser|ate quando quiser)\b/u;
 const kindOf=text=>{
- if(/\b(?:trein\w*|pratic\w*|taijutsu|ninjutsu|genjutsu|sensei|instrutor|mestre|disciplina)\b/u.test(text))return 'treino';
+ if(/\b(?:trein\w*|pratic\w*|taijutsu|ninjutsu|genjutsu|sensei|instrutor|mestre|mentor|aprendiz\w*|discipul\w*|disciplina)\b/u.test(text))return 'treino';
  if(/\b(?:estud\w*|pesquis\w*|investig\w*|aprend\w*|formac\w*)\b/u.test(text))return 'estudo';
  if(/\b(?:viag\w*|expedic\w*|travess\w*|jornad\w*)\b/u.test(text))return 'viagem';
  if(/\b(?:recuper\w*|tratament\w*|reabilit\w*|repous\w*|descans\w*)\b/u.test(text))return 'recuperação';
@@ -59,11 +60,13 @@ function referenceText(scene,index,all,protagonist=''){
  // Evita liberar o treinamento de Naruto ou de outro NPC porque Kaien estava perto.
  const otherTrainee=current.match(/\b(?:treinar|instruir|ensinar|orientar)\s+(?:o\s+|a\s+)?([a-z]{3,})\b/u)?.[1];
  if(otherTrainee&&![first,'voce','me','mim','com','por','durante'].includes(otherTrainee))return null;
- const promise=period(current,first)||period(prev,first);
+ const kind=kindOf(activity.test(current)?current:prev);
+ const lastingMentorship=/\b(?:ser (?:seu |sua |o |a )?(?:mentor|mestre|sensei|instrutor)|como (?:seu |sua |o |a )?(?:mentor|mestre|sensei|instrutor|aprendiz|aluno|discipulo)|sob (?:sua |a )?(?:tutela|orientacao)|formacao prolongada|treinamento prolongado|por tempo indeterminado|treinar pelos proximos anos|treinar por anos)\b/u.test(current+' '+prev);
+ const promise=period(current,first)||period(prev,first)||
+   (kind==='treino'&&lastingMentorship?{days:MAX_TRAINING_SKIP_DAYS,indefinite:true}:null);
  if(!promise)return null;
  // "Se" e outras possibilidades não constituem aceitação confirmada.
  if(/\b(?:talvez|poderia|hipotese|consideraria|caso aceite|se ele aceitar|se ela aceitar|ainda depende|teria aceitado|desde que|somente se|so se)\b/u.test(current))return null;
- const kind=kindOf(activity.test(current)?current:prev);
  return {kind,days:promise.days,indefinite:promise.indefinite,description:String(scene.text).replace(/\s+/g,' ').slice(0,220),
   sourceMessageIndex:index,startDay:Number.isInteger(scene.day)?scene.day:0};
 }
@@ -97,7 +100,7 @@ export function longTermTimeOpportunity(c){
   if(later.some(x=>ended.test(normalize(x.text))))continue;
   const remainingDays=offer.startDay+offer.days-today;
   if(remainingDays<=0)continue;
-  const limit=Math.min(remainingDays,MAX_LONG_SKIP_DAYS,Math.max(0,36500-today));
+  const limit=Math.min(remainingDays,offer.kind==='treino'?MAX_TRAINING_SKIP_DAYS:MAX_LONG_SKIP_DAYS,Math.max(0,36500-today));
   if(limit<=0)return null;
   return {...offer,remainingDays,maximumHours:limit*24,choices:sortedSuggestions(limit,offer.kind),
    label:offer.kind==='treino'?'Treinamento combinado':offer.kind==='estudo'?'Estudos combinados':offer.kind==='viagem'?'Viagem programada':offer.kind==='recuperação'?'Recuperação autorizada':offer.kind==='projeto'?'Projeto em andamento':'Período combinado'};
