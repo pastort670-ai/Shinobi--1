@@ -1,5 +1,6 @@
 import {combatForecast} from './combat-difficulty.js';
 import {chakraExperience} from './chakra-engine.js';
+import {itachiStage} from './itachi-stage.js';
 
 const plain = value => String(value || '').normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
 const tokens = value => plain(value).replace(/[^a-z0-9]+/g,' ').trim();
@@ -22,7 +23,8 @@ const labels = {
 };
 
 function findOpponent(c, moves, latest, forecast, previous){
- const itachi = forecast.namedOpponent || (previous?.opponent==='Itachi Uchiha' ? {name:previous.opponent, techniques:(c.day||0)>=972?['Sharingan']:[]} : null);
+ const stage=itachiStage(c.day||0);
+ const itachi = forecast.namedOpponent || (previous?.opponent==='Itachi Uchiha' ? {name:previous.opponent, techniques:stage.sharingan?['Sharingan']:[]} : null);
  if(itachi){
   return {name:itachi.name, technique:itachi.techniques.includes('Sharingan')?'Sharingan':null};
  }

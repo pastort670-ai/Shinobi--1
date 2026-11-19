@@ -160,6 +160,13 @@ try{
  await page.locator('#more summary').click();
  await page.locator('#restorelocal').click();
  await page.waitForFunction(()=>document.getElementById('hero')?.textContent==='Akira Sarutobi',null,{timeout:15000});
+ await page.waitForFunction(()=>!document.getElementById('regen').disabled);
+ const restoreRegen=page.waitForResponse(r=>r.url().endsWith('/regenerate')&&r.ok());
+ await page.locator('#regen').click();
+ await restoreRegen;
+ const restoreUndo=page.waitForResponse(r=>r.url().endsWith('/rewind')&&r.ok());
+ await page.locator('[data-undo-message]').last().click();
+ await restoreUndo;
  assert.deepEqual(errors,[],'Nenhum erro JavaScript no navegador');
  // Uma sessão isolada verifica a ficha de genin e o objetivo, pelo fluxo visível no celular.
  const teamPage = await browser.newPage({viewport:{width:360,height:780},isMobile:true,hasTouch:true});
@@ -213,7 +220,7 @@ try{
   await loginPage.goto(secureUrl);
   await loginPage.locator('#password').fill(secretPassword);
   await loginPage.locator('#enter').click();
-  await loginPage.locator('#connection').getByText(/Servidor e Gemini disponíveis/).waitFor({timeout:15000});
+  await loginPage.locator('#connection').getByText(/Servidor conectado · Gemini configurado/).waitFor({timeout:15000});
   assert.equal(await loginPage.locator('#start').isVisible(),true,'Entrar com senha abre o jogo no celular');
   const denied=async route=>{if(route.request().url().endsWith('/api/status'))await route.abort('failed');else await route.continue();};
   await loginPage.route('**/api/status',denied);
@@ -222,7 +229,7 @@ try{
   assert.match(await loginPage.locator('#connection').innerText(),/Falha/);
   await loginPage.unroute('**/api/status',denied);
   await loginPage.locator('#reconnect').click();
-  await loginPage.locator('#connection').getByText(/Servidor e Gemini disponíveis/).waitFor({timeout:15000});
+  await loginPage.locator('#connection').getByText(/Servidor conectado · Gemini configurado/).waitFor({timeout:15000});
   assert.deepEqual(loginErrors,[],'Inicialização, falha e recuperação não geram erros JavaScript');
   await loginPage.close();
   console.log('Mobile access smoke passed: password, session and reconnect.');

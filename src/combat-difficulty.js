@@ -1,3 +1,5 @@
+import {itachiStage} from './itachi-stage.js';
+
 // Motor de dificuldade do SHINOBI. Regras de consequência, não de violência real.
 // Aplica limites de plausibilidade às vitórias propostas pelo narrador.
 const norm=x=>String(x||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
@@ -42,11 +44,12 @@ function namedOpponent(c, action, latest, wasCombat) {
  if(!itachiName.test(action) && !(itachiName.test(latest)&&(wasCombat||duel.test(latest))&&!duelEnded.test(latest)))return null;
  // Dia 0 é 10 de outubro. O aniversário de 9 de junho fica 242 dias adiante.
  // Usamos o aniversário como limite aproximado quando a campanha não especifica o despertar.
- const elapsed=c.day||0;
- const sharingan=elapsed>=242+2*365;
+ const stage=itachiStage(c.day||0);
+ const sharingan=stage.sharingan;
  return {
   name:'Itachi Uchiha',
-  threat:elapsed>=242+4*365?2:1,
+  threat:stage.age>=10?2:1,
+  age:stage.age,stage:stage.stage,
   techniques:sharingan?['Sharingan','taijutsu','técnicas de distração e fintas']:['taijutsu','técnicas de distração e fintas'],
   restriction:sharingan?'Quando pressionado, use o Sharingan para ler movimentos visíveis e reagir. Isso não prevê o futuro nem torna Itachi invencível.':'Itachi ainda não despertou o Sharingan nesta data de referência. Use leitura de ritmo, fintas e taijutsu de acordo com sua experiência.'
  };
