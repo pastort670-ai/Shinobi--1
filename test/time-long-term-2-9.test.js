@@ -186,3 +186,15 @@ test('janela de tempo não toma controle da campanha: só o clique TEMPO avança
  assert.equal(c.day,12);
  assert.equal(JSON.stringify(c),before);
 });
+
+test('a idade do protagonista não vira duração fictícia de treinamento',()=>{
+ const c=scene(campaign(),{ai:'Hiruzen aceitou treinar Kaien, de quatro anos de idade, durante um mês.'});
+ assert.equal(view(c).timeMaxHours,30*24);
+ const b=scene(campaign(),{user:'Posso treinar com você?',ai:'Hiruzen aceita o treinamento de Kaien, que tem 4 anos de idade.'});
+ assert.equal(view(b).timeAvailable,false,'a idade não pode autorizar um salto de 4 anos');
+});
+
+test('promessa condicional ainda não autoriza o avanço do tempo',()=>{
+ const c=scene(campaign(),{ai:'Hiruzen aceitaria treinar Kaien por um ano somente se Kaien passasse em um exame.'});
+ assert.equal(view(c).timeAvailable,false);
+});
