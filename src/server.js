@@ -4,7 +4,8 @@ import {randomBytes,createHash,randomUUID} from 'node:crypto';
 import {mkdirSync,readFileSync} from 'node:fs';
 import {resolve,dirname} from 'node:path';
 import {fileURLToPath} from 'node:url';
-import {create,input,apply,view,fail} from './engine.js';
+import {create,input,apply,view,validate,fail} from './engine.js';
+import {narrationQuality} from './narrator-guard.js';
 import {encounterPlan} from './encounter.js';
 import {canUseTime,timeMaxHours} from './time-engine.js';
 import {provider,milestoneAuditor} from './gemini.js';
@@ -24,9 +25,22 @@ export function app({dbPath=process.env.DB_PATH||resolve(root,'data/shinobi.sqli
   return c.messages.flatMap((m,index)=>m.role==='user'&&(checkpoints.has(index)||(index===c.messages.length-2&&!!row.previous))?[index]:[]);
  };
  const readSavedInput=value=>{try{return value?input(value):null;}catch{return null;}};
+ const lastPlayerText=c=>c.messages.at(-2)?.role==='user'&&c.messages.at(-1)?.role==='ai'?c.messages.at(-2).text:null;
+ function rewriteInput(c){
+  const text=lastPlayerText(c);
+  if(!text?.trim())return null;
+  const lines=text.split(/\n(?=AGIR:|NARRAR:|FALAR:|TEMPO:)/u);
+  const segments=lines.map(line=>{
+   const match=line.match(/^(AGIR|NARRAR|FALAR|TEMPO):\s*/u);
+   return {type:match?.[1]==='FALAR'?'FALAR':'AGIR',text:line.slice(match?.[0].length||0).slice(0,2000)};
+  }).slice(0,8);
+  return readSavedInput({segments});
+ }
  const turnState=(c,owner,row)=>{
   const undoableMessages=canUndo(c.id,owner,c,row);
-  return {...view(c),undoableMessages,canRegenerate:!!c.lastInput&&undoableMessages.includes(c.messages.length-2)};
+  const exact=!!c.lastInput&&undoableMessages.includes(c.messages.length-2);
+  const rewrite=!exact&&!c.messages.at(-1)?.awaitingNarrator&&!!rewriteInput(c);
+  return {...view(c),undoableMessages,canRegenerate:exact||rewrite,regenerateMode:exact?'turn':rewrite?'text':null};
  };
  const server=http.createServer(async(req,res)=>{res.setHeader('X-Content-Type-Options','nosniff');res.setHeader('Referrer-Policy','no-referrer');res.setHeader('Content-Security-Policy',"default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'");res.setHeader('Cache-Control','no-store');
  const json=(data,status=200)=>{res.writeHead(status,{'Content-Type':'application/json; charset=utf-8'});res.end(JSON.stringify(data));};let lock;
@@ -179,17 +193,34 @@ export function app({dbPath=process.env.DB_PATH||resolve(root,'data/shinobi.sqli
       db.exec('COMMIT');}catch(error){db.exec('ROLLBACK');throw error;}
   return json(turnState(restored,owner,{previous:null}));
  }
- let i,base;if(action==='regenerate'){const prior=row.previous||((c.messages.length>=3&&c.messages.at(-2)?.role==='user')?db.prepare('SELECT state FROM checkpoints WHERE campaign=? AND owner=? AND message_index=?').get(id,owner,c.messages.length-2)?.state:null);if(!prior||!c.lastInput)fail('Nenhum turno para regenerar.');base=JSON.parse(prior);base.personalGoal=c.personalGoal||'';if(base.id!==c.id||base.messages.length!==c.messages.length-2)fail('Ponto anterior inconsistente; nenhuma alteração foi feita.',409);i=c.lastInput;
+ let i,base,rewriteOnly=false;
+ if(action==='regenerate'){
+ const prior=row.previous||(lastPlayerText(c)?db.prepare('SELECT state FROM checkpoints WHERE campaign=? AND owner=? AND message_index=?').get(id,owner,c.messages.length-2)?.state:null);
+ const exact=prior&&c.lastInput;
+ if(exact){
+  base=JSON.parse(prior);
+  base.personalGoal=c.personalGoal||'';
+  if(base.id!==c.id||base.messages.length!==c.messages.length-2)fail('Ponto anterior inconsistente; nenhuma alteração foi feita.',409);
+  i=c.lastInput;
+ }else{
+  i=rewriteInput(c);
+  if(!i||c.messages.at(-1)?.awaitingNarrator)fail('Nenhuma resposta disponível para reescrever.',409);
+  base=c;
+  rewriteOnly=true;
+ }
  const rejected=[...(Array.isArray(c.regenerationHistory)?c.regenerationHistory.slice(-4):[]),c.messages.at(-1)?.text].filter(x=>typeof x==='string'&&x.trim()).slice(-5);
  const words=t=>new Set(t.toLowerCase().match(/[\p{L}\p{N}]+/gu)||[]);
  const a=words(rejected.at(-1)||''),b=words(rejected.at(-2)||'');
  const similarity=a.size&&b.size?[...a].filter(w=>b.has(w)).length/new Set([...a,...b]).size:0;
  i={...i,regeneration:{rejected:rejected.slice(-2).map(v=>v.slice(0,1000)),attempt:rejected.length,requireDifferentApproach:rejected.length>=2&&(similarity>=0.4||rejected.length>=3),constraint:'Mudar a narração dentro da mesma cena, sem adicionar acontecimentos aleatórios nem transformar respostas descartadas em fatos.'}};
+ if(rewriteOnly){
+  i={...i,days:0,hours:0,legacyRewrite:{original:c.messages.at(-1).text,displayed:c.messages.at(-1).rewriteText||null}};
+ }
  }else{
   if(c.messages.at(-1)?.awaitingNarrator)fail('O último turno aguarda narração. Use Refazer resposta ou Excluir.',409);
   base=c;i=input(raw);if(i.hours>0&&!canUseTime(base))fail('TEMPO indisponível nesta cena. Aguarde uma oportunidade segura para avançar.',409);if(i.hours>timeMaxHours(base))fail('A duração excede o intervalo seguro disponível nesta cena.',409);
  }
- const exchange=encounterPlan(base,i);
+ const exchange=rewriteOnly?null:encounterPlan(base,i);
  const speech=i.segments.some(segment=>segment.type==='FALAR');
  const usesNarrator=!exchange||speech;
  const now=Date.now(),day=new Date(now).toISOString().slice(0,10);
@@ -205,6 +236,24 @@ export function app({dbPath=process.env.DB_PATH||resolve(root,'data/shinobi.sqli
    else if(action==='regenerate')fail('O Gemini ainda não respondeu. Tente Refazer resposta novamente em instantes.',error.status||502);
    else awaitingNarrator=true;
   }
+ }
+ if(rewriteOnly){
+  const proposed=validate(r).narrative;
+  const quality=narrationQuality(base,i,proposed);
+  const message=c.messages.at(-1);
+  if(!quality.narrative||quality.narrative.trim()===(message.rewriteText||message.text).trim()){
+   fail('O narrador não produziu uma versão diferente. A resposta anterior foi mantida.',502);
+  }
+  // Sem o estado anterior, trocar a prosa não pode modificar os fatos confirmados.
+  message.rewriteText=quality.narrative;
+  c.revision++;
+  db.exec('BEGIN IMMEDIATE');
+  try{
+   db.prepare('UPDATE campaigns SET state=? WHERE id=? AND owner=?').run(JSON.stringify(c),id,owner);
+   db.prepare('INSERT OR REPLACE INTO usage VALUES(?,?,?,?)').run(owner,now,day,usage?.day===day?usage.count+1:1);
+   db.exec('COMMIT');
+  }catch(error){db.exec('ROLLBACK');throw error;}
+  return json(turnState(c,owner,row));
  }
  const next=awaitingNarrator?structuredClone(base):apply(base,i,r,exchange);
  if(awaitingNarrator){

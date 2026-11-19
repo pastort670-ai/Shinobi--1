@@ -75,8 +75,13 @@ export function provider({key=process.env.GEMINI_API_KEY,model=process.env.GEMIN
   const agePolicy='A ficha itachiStage determina a idade, patente e técnicas do Itachi nesta data. Ela tem prioridade sobre descrições antigas de outra idade. ';
   const extended=complexTurn||i.opening||i.days>0||i.hours>0;
   const flexibleSchema={...schema,required:['narrative']};
-  const payload=makePayload(agePolicy+(extended?system:compactSystem),ctx,extended?schema:flexibleSchema,complexTurn?4000:2400);
-  const fallback=makePayload(compactSystem,compactContext(ctx),flexibleSchema,1400);
+  const rewrite=i.legacyRewrite;
+  const rewriteInstructions='Reescreva em português a narração original do último turno, deixando-a mais clara e usando frases diferentes. Preserve falas relevantes de NPCs, acontecimentos, resultados, posição e tempo. Não dê continuidade à cena, não controle o jogador, não repita as falas dele e não invente ações ou consequências. Use a idade de itachiStage se ele aparecer. Retorne apenas a nova narração em narrative.';
+  const rewritePayload=rewrite?makePayload(rewriteInstructions,{...rewrite,itachiStage:ctx.itachiStage}, {
+   type:'OBJECT',properties:{narrative:{type:'STRING'}},required:['narrative']
+  },2600):null;
+  const payload=rewritePayload||makePayload(agePolicy+(extended?system:compactSystem),ctx,extended?schema:flexibleSchema,complexTurn?4000:2400);
+  const fallback=rewritePayload||makePayload(compactSystem,compactContext(ctx),flexibleSchema,1400);
   let result;
   try{
    result=await recoverGeminiResponse(fetcher,`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,

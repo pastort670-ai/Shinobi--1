@@ -51,9 +51,20 @@ test('backup conserva estado anterior, permite regenerar e depois excluir múlti
  assert.equal(start.canRegenerate,false);
  assert.equal(start.messages.length,1);
  assert.equal((await b(copy+'/export')).campaign.energy,100);
- const old=await client()('import',{format:backup.format,campaign:backup.campaign},201);
- assert.equal(old.canRegenerate,false);
+ const legacy=client();
+ const old=await legacy('import',{format:backup.format,campaign:{...backup.campaign,lastInput:null}},201);
+ assert.equal(old.canRegenerate,true);
+ assert.equal(old.regenerateMode,'text');
  assert.deepEqual(old.messages,c.messages);
+ const oldPath='campaigns/'+old.id;
+ const rewritten=await legacy(oldPath+'/regenerate',{revision:0});
+ assert.match(rewritten.messages.at(-1).rewriteText,/resposta 4/);
+ assert.equal(rewritten.messages.at(-1).text,c.messages.at(-1).text);
+ assert.deepEqual(rewritten.undoableMessages,[]);
+ const legacySave=(await legacy(oldPath+'/export')).campaign;
+ assert.equal(legacySave.energy,92);
+ assert.equal(legacySave.day,backup.campaign.day);
+ assert.deepEqual(legacySave.facts,backup.campaign.facts);
 });
 
 test('timeout guarda o turno sem mudar o mundo e, após restauração, refazer completa uma vez',async t=>{
