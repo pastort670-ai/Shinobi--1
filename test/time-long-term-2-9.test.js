@@ -51,7 +51,7 @@ test('recusa explícita e acordo hipotético não habilitam saltos longos',()=>{
  }
 });
 
-test('cenário de 1 ano, 3 anos e acordo sem prazo oferece saltos extensos, respeitando 10 anos por escolha',()=>{
+test('um acordo aberto de treino oferece até dois anos por salto, estudos podem durar mais',()=>{
  const a=scene(campaign(),{ai:'Hiruzen aceita treinar Kaien durante um ano.'});
  assert.equal(view(a).timeMaxHours,365*24);
  assert.ok(view(a).timeChoices.some(x=>x.hours===365*24));
@@ -59,8 +59,8 @@ test('cenário de 1 ano, 3 anos e acordo sem prazo oferece saltos extensos, resp
  assert.equal(view(b).timeMaxHours,3*365*24);
  assert.equal(view(b).timeOpportunity.kind,'estudo');
  const c=scene(campaign(),{user:'Posso passar muitos anos praticando com o mestre?',ai:'Hiruzen aceita e promete treinar Kaien por quantos anos forem necessários.'});
- assert.equal(view(c).timeMaxHours,MAX_LONG_SKIP_DAYS*24);
- assert.ok(view(c).timeChoices.some(x=>x.hours===MAX_LONG_SKIP_DAYS*24));
+ assert.equal(view(c).timeMaxHours,2*365*24);
+ assert.ok(view(c).timeChoices.some(x=>x.hours===2*365*24));
 });
 
 test('consultar uma campanha antiga recupera acordo anterior sem reescrever mensagens',()=>{

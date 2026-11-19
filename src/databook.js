@@ -1,6 +1,7 @@
 import {reconciledMissions} from './mission-reconciliation.js';
 import {assessHistoricalIntelligence} from './intelligence-evidence.js';
 import {assessAttributeEvidence} from './attribute-evidence.js';
+import {isLongTrainingSkip} from './training-balance.js';
 // Ficha inspirada nos gráficos de oito parâmetros dos databooks de Naruto.
 // Escalas são estimativas do Shinobi, NÃO notas oficiais para personagens originais.
 // Os campos ausentes permanecem "não avaliados" em vez de receber valores inventados.
@@ -22,7 +23,8 @@ const grade=v=>v===null?'Ainda não avaliado':v<=1?'Iniciante':v<=1.5?'Básico':
 const trainingRating=v=>{
  if(!Number.isFinite(v)||v<=0)return null;
  const clamped=Math.min(100,Math.max(0,v));
- return Math.max(.5,Math.min(5,Math.round((.5+clamped/100*4.5)*2)/2));
+ const rating=Math.max(.5,Math.min(5,Math.round((.5+clamped/100*4.5)*2)/2));
+ return clamped<100?Math.min(4.5,rating):rating;
 };
 const confirmedStats=c=>{
  const stored=c.databook?.ratings||{},progress=c.progress||{};
@@ -70,12 +72,14 @@ export function commitDatabook(previous,next,result){
  const narrative=result.narrative||'';
  let reason=null;
  const updates=Array.isArray(result.databookUpdates)?result.databookUpdates.slice(0,2):[];
+ const confirmedTrainingSkip=isLongTrainingSkip(next.lastInput,result,{hours:Math.max(0,next.day-previous.day)*24});
  for(const update of updates){
   if(!update||!assessmentKeys.has(update.attribute)||!validRating(update.rating))continue;
   if(!hasNarrativeEvidence(narrative,update.evidence,name))continue;
   if(!/\b(trein|aprend|estud|pratic|demonstr|mostr|complet|execut|aprimor|aperfei|resist|conclu|desenvolv|realiz)\w*/u.test(normal(update.evidence)))continue;
   const prior=validRating(out.ratings[update.attribute])?out.ratings[update.attribute]:null;
-  const score=prior===null?Math.min(update.rating,2.5):Math.min(update.rating,prior+.5);
+  const projected=prior===null?Math.min(update.rating,2.5):Math.min(update.rating,prior+.5);
+  const score=confirmedTrainingSkip?Math.min(projected,4.5):projected;
   if(prior===null||score>prior){out.ratings[update.attribute]=score;reason='Aptidão observada e confirmada na história.';}
  }
  const mission=result.missionCompletion;
