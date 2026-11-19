@@ -1,9 +1,9 @@
-import {trainingGainLimit} from './progression.js';
+import {trainingGainLimit,hasExceptionalTalent} from './progression.js';
 
 // Treinamento longo oferece progresso real, nunca maestria instantânea.
 // 100 é reservado a conquista específica fora de repetição de exercícios.
 export const TRAINING_ONLY_MAX=99;
-export const MAX_LONG_TRAINING_GAIN=20;
+export const MAX_LONG_TRAINING_GAIN=30;
 export const LONG_TRAINING_DAYS=30;
 const norm=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
 
@@ -26,9 +26,10 @@ export function balancedTrainingProgress(c,i,r,tick){
  // Progresso extra moderado nos períodos longos, com retornos decrescentes.
  // Duração sozinha não concede nada: a qualidade base vem do resultado narrado.
  const extra=days>=LONG_TRAINING_DAYS
-  ?Math.min(12,Math.round(Math.log2(1+days/LONG_TRAINING_DAYS)*3*base/8))
+  ?Math.min(19,Math.round(Math.log2(1+days/LONG_TRAINING_DAYS)*4*base/8))
   :0;
- const potential=Math.min(MAX_LONG_TRAINING_GAIN,base+extra);
+ const talentBonus=days>=90&&hasExceptionalTalent(c)?Math.min(3,Math.floor(days/90)):0;
+ const potential=Math.min(MAX_LONG_TRAINING_GAIN,base+extra+talentBonus);
  const multiplier=old>=85?.25:old>=60?.50:old>=35?.75:1;
  const increment=Math.max(1,Math.floor(potential*multiplier));
  const after=Math.min(TRAINING_ONLY_MAX,old+increment);
@@ -45,7 +46,9 @@ export function verifiedLongTrainingJutsus(r,i,tick){
  const list=Array.isArray(r.learnedJutsus)?r.learnedJutsus:[];
  const days=Math.floor(Math.max(0,tick.hours||0)/24);
  if(days<LONG_TRAINING_DAYS||!(i.hours>0||i.days>0))return list;
- const narrative=norm(r.narrative);
- // Aprender técnicas é possível; só não criar repertório ilimitado em um único salto.
- return list.filter(j=>j?.name&&narrative.includes(norm(j.name))).slice(0,2);
+ const clauses=norm(r.narrative).split(/[.!?;\n]+/u).filter(Boolean);
+ const attained=/\b(?:aprendeu|aprendida|aprendido|dominou|executou|realizou|conseguiu executar|passou a usar|utilizou com sucesso|usou com sucesso)\b/u;
+ const failed=/\b(?:nao|nunca|jamais|sem conseguir|ainda nao|apenas tentou|fracassou|falhou)\b/u;
+ // Só técnicas explicitamente aprendidas na cena, sem aceitar meras tentativas.
+ return list.filter(j=>j?.name&&clauses.some(clause=>clause.includes(norm(j.name))&&attained.test(clause)&&!failed.test(clause))).slice(0,2);
 }
