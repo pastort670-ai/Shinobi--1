@@ -135,20 +135,8 @@ function choose(type){
  if(type==='TEMPO'){
   if(!timeActive&&current?.timeAvailable!==true)return;
   timeActive=!timeActive;
-  if(timeActive&&current?.timeOpportunity){
-   const opportunity=current.timeOpportunity;
-   if(!timeText.trim()){
-    const choices={treino:'Continuo o treinamento combinado durante o período escolhido.',
-     estudo:'Dedico o período escolhido aos estudos combinados.',
-     viagem:'Sigo a viagem já planejada durante o período escolhido.',
-     recuperação:'Sigo o período de recuperação combinado.',
-     projeto:'Trabalho no projeto aprovado durante o período escolhido.',
-     espera:'Aguardo durante o período combinado.'};
-    timeText=choices[opportunity.kind]||'Sigo a atividade já combinada durante o período escolhido.';
-   }
-   const defaultDays=Math.min(30,opportunity.remainingDays||1);
-   timeAmount=defaultDays===30?1:defaultDays;timeUnit=defaultDays===30?720:24;
-  }
+  // Abrir TEMPO não impõe treino nem escreve uma ação pelo jogador.
+  // O rascunho só é preenchido ao tocar numa sugestão.
   renderTime();saveDraft();return;
  }
  const root=$('editor'),previousMode=editorMode;editorMode=type;
@@ -189,14 +177,41 @@ function renderTime(){
  const el=$('timearea');if(!el)return;
  el.hidden=!timeActive;
  if(!timeActive){updateMode();return;}
- const offer=current?.timeOpportunity,limit=current?.timeMaxHours||24,days=Math.floor(limit/24);
+ const longMode=current?.timeSuggestionMode==='long',offer=longMode?current?.timeOpportunity:null;
+ const limit=current?.timeMaxHours||24,days=Math.floor(limit/24);
  const intervalLabel=limit%8760===0?limit/8760+' ano(s)':limit%720===0?limit/720+' mês(es)':days>0?days+' dia(s)':limit+' hora(s)';
- el.innerHTML='<p class="time-preflight">'+(offer?'<strong>'+esc(offer.label)+' · até '+intervalLabel+' por avanço.</strong> ':'Limite desta cena: '+intervalLabel+'. ')+'O tempo só avança quando você enviar. Compromissos e acontecimentos importantes podem interrompê-lo.</p><label for="timeactivity">⌛ ATIVIDADE DURANTE O TEMPO</label><textarea id="timeactivity" rows="2" maxlength="2000" placeholder="O que seu personagem faz durante esse período?">'+esc(timeText)+'</textarea><div class="time-inline-controls"><input id="timeamount" aria-label="Quantidade" type="number" min="1" max="3650" value="'+esc(timeAmount)+'"><select id="timeunit" aria-label="Unidade"><option value="1">horas</option><option value="24">dias</option><option value="168">semanas</option><option value="720">meses (30 dias)</option><option value="8760">anos (365 dias)</option></select></div><div class="time-suggestions">'+(current?.timeChoices?.length?current.timeChoices:(current?.timeOptions||[]).map(d=>({hours:d*24,label:d+' dias'}))).map(opt=>'<button type="button" data-hours="'+opt.hours+'">'+esc(opt.label)+'</button>').join('')+'</div>';
+ const choices=Array.isArray(current?.timeChoices)?current.timeChoices.filter(opt=>opt&&Number.isInteger(opt.hours)&&opt.hours>0&&opt.hours<=limit).slice(0,3):[];
+ el.innerHTML='<p class="time-preflight">'+(offer?'<strong>'+esc(offer.label)+' · até '+intervalLabel+' por avanço.</strong> ':'Tempo disponível nesta cena: '+intervalLabel+'. ')+'O calendário só avança quando você enviar; acontecimentos importantes podem interrompê-lo.</p>'+
+  '<div class="time-suggestions-label">Sugestões para esta cena <small>Toque para preencher a ação</small></div>'+
+  '<div class="time-suggestions">'+choices.map((opt,index)=>'<button type="button" data-time-choice="'+index+'" aria-pressed="false">'+esc(opt.label)+'</button>').join('')+'</div>'+
+  '<label for="timeactivity">⌛ O QUE ACONTECE DURANTE ESSE TEMPO?</label>'+
+  '<textarea id="timeactivity" rows="2" maxlength="2000" placeholder="Escolha uma sugestão acima ou escreva sua própria ação.">'+esc(timeText)+'</textarea>'+
+  '<div class="time-inline-controls"><input id="timeamount" aria-label="Quantidade" type="number" min="1" max="3650" value="'+esc(timeAmount)+'"><select id="timeunit" aria-label="Unidade"><option value="1">horas</option><option value="24">dias</option><option value="168">semanas</option><option value="720">meses (30 dias)</option><option value="8760">anos (365 dias)</option></select></div>';
  $('timeunit').value=String(timeUnit);
- $('timeactivity').oninput=e=>{timeText=e.target.value;saveDraft();};
- $('timeamount').oninput=e=>{timeAmount=e.target.value;saveDraft();};
- $('timeunit').onchange=e=>{timeUnit=Number(e.target.value);saveDraft();};
- el.querySelectorAll('[data-hours]').forEach(b=>b.onclick=()=>{const h=Number(b.dataset.hours);timeUnit=h>=8760&&h%8760===0?8760:h>=720&&h%720===0?720:h>=168&&h%168===0?168:h>=24&&h%24===0?24:1;timeAmount=h/timeUnit;$('timeamount').value=timeAmount;$('timeunit').value=String(timeUnit);saveDraft();});
+ const markSelected=()=>el.querySelectorAll('[data-time-choice]').forEach(b=>{
+  const opt=choices[Number(b.dataset.timeChoice)];
+  const selected=Number(timeAmount)*Number(timeUnit)===opt.hours&&timeText.trim()===String(opt.action||opt.label||'').trim();
+  b.setAttribute('aria-pressed',String(selected));
+  b.classList.toggle('selected',selected);
+ });
+ $('timeactivity').oninput=e=>{timeText=e.target.value;markSelected();saveDraft();};
+ $('timeamount').oninput=e=>{timeAmount=e.target.value;markSelected();saveDraft();};
+ $('timeunit').onchange=e=>{timeUnit=Number(e.target.value);markSelected();saveDraft();};
+ el.querySelectorAll('[data-time-choice]').forEach(button=>button.onclick=()=>{
+  const opt=choices[Number(button.dataset.timeChoice)];
+  if(!opt)return;
+  const h=opt.hours;
+  timeUnit=h>=8760&&h%8760===0?8760:h>=720&&h%720===0?720:h>=168&&h%168===0?168:h>=24&&h%24===0?24:1;
+  timeAmount=h/timeUnit;
+  timeText=String(opt.action||opt.label||'').trim().slice(0,2000);
+  $('timeamount').value=timeAmount;
+  $('timeunit').value=String(timeUnit);
+  $('timeactivity').value=timeText;
+  markSelected();
+  saveDraft();
+  $('timeactivity').focus();
+ });
+ markSelected();
  updateMode();
 }
 function renderDrafts(){
