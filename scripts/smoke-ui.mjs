@@ -161,6 +161,34 @@ try{
  await page.locator('#restorelocal').click();
  await page.waitForFunction(()=>document.getElementById('hero')?.textContent==='Akira Sarutobi',null,{timeout:15000});
  assert.deepEqual(errors,[],'Nenhum erro JavaScript no navegador');
+ // Uma sessão isolada verifica a ficha de genin e o objetivo, pelo fluxo visível no celular.
+ const teamPage = await browser.newPage({viewport:{width:360,height:780},isMobile:true,hasTouch:true});
+ const uiErrors = [];
+ teamPage.on('pageerror', e => uiErrors.push(e.message));
+ await teamPage.goto('http://127.0.0.1:'+srv.address().port);
+ await teamPage.locator('#start').click();
+ await teamPage.locator('#affiliation').selectOption('Genin');
+ await teamPage.locator('#confirm').check();
+ await teamPage.locator('#createform button[type=submit]').click();
+ await teamPage.locator('#acceptintro').click();
+ await teamPage.locator('#menutoggle').click();
+ await teamPage.locator('[data-tab=sheet]').click();
+ await teamPage.locator('#sheet-team summary').click();
+ assert.match(await teamPage.locator('#team-content').innerText(),/Mizuki Arata/);
+ await teamPage.locator('#menutoggle').click();
+ await teamPage.locator('[data-tab=memory]').click();
+ await teamPage.locator('#goal-panel summary').click();
+ await teamPage.locator('#goal-text').fill('Reconstruir a biblioteca da vila.');
+ await teamPage.locator('#goal-form button[type=submit]').click();
+ await teamPage.getByText('Objetivo salvo.',{exact:true}).waitFor();
+ await teamPage.reload({waitUntil:'networkidle'});
+ await teamPage.locator('#menutoggle').click();
+ await teamPage.locator('[data-tab=memory]').click();
+ assert.equal(await teamPage.locator('#goal-text').inputValue(),'Reconstruir a biblioteca da vila.');
+ assert.equal(await teamPage.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
+ assert.deepEqual(uiErrors,[]);
+ await teamPage.close();
+
  // Mobile real login: verify cookie, application boot, network failure, and retry.
  const secretPassword='SenhaDeTeste!2026';
  const secured=app({dbPath:':memory:',access:{required:true,passwordHash:createHash('sha256').update(secretPassword).digest('hex'),secret:'m'.repeat(64)},rateMs:0,configured:true,generate:async()=>response});

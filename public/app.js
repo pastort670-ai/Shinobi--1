@@ -398,7 +398,49 @@ function compactRecords(items,toCard,visible=3){
  const older=list.slice(visible);
  return initial+(older.length?'<details class="compact-more"><summary>Ver mais '+older.length+' registro'+(older.length===1?'':'s')+'</summary><div class="compact-more-content">'+older.map(card).join('')+'</div></details>':'');
 }
+async function setPersonalGoal(text) {
+ if (!current || busy) return;
+ const ok = await run(async () => {
+  current = await api('campaigns/'+current.id+'/goal', {revision:current.revision, text});
+  render();
+ });
+ if (ok) $('goal-feedback').textContent = text.trim() ? 'Objetivo salvo.' : 'Objetivo retirado.';
+}
+$('goal-form').onsubmit = event => {
+ event.preventDefault();
+ void setPersonalGoal($('goal-text').value);
+};
+$('clear-goal').onclick = () => setPersonalGoal('');
+
+function renderTeam(c) {
+ const panel = $('sheet-team'), content = $('team-content'), team = c.team;
+ panel.hidden = !team;
+ content.replaceChildren();
+ if (!team) return;
+ if (team.status === 'pending') {
+  content.textContent = 'A formação da equipe aguarda confirmação na história.';
+  return;
+ }
+ const add = (role, name) => {
+  const row = document.createElement('div'), title = document.createElement('b');
+  row.className = 'fact';
+  title.textContent = role;
+  const value = document.createElement('p');
+  value.textContent = name;
+  row.append(title, value);
+  content.append(row);
+ };
+ if (team.status === 'disbanded') add('Situação', 'Formação encerrada');
+ add('Jōnin responsável', team.leader);
+ add('Integrantes', team.members.join(' · '));
+ for (const change of team.history.slice(-3)) add('Registro da equipe', change.evidence);
+}
+
 function renderDatabook(c){
+ $('goal-text').value = c.personalGoal || '';
+ $('clear-goal').hidden = !c.personalGoal;
+ $('goal-feedback').textContent = '';
+ renderTeam(c);
  const data=c.databook||{},container=$('db-graphic'),stats=Array.isArray(data.attributes)?data.attributes:[];
  if(!container||!stats.length)return;
  const toggle=$('db-show-numbers'),numbers=saved('shinobi-databook-numbers','off')==='on';
@@ -449,7 +491,7 @@ function renderDatabook(c){
   title:'Avaliação atualizada',subtitle:'Ano '+(1+Math.floor(item.day/365))+' · Dia '+item.day,text:item.reason||'Evolução registrada'
  }),3);
 }
-function render(){const c=current;if(!c)return;const stop=$('timestatus');stop.hidden=!c.lastTimeInterruption;stop.textContent=c.lastTimeInterruption?'⏳ O avanço foi interrompido: '+c.lastTimeInterruption.reason:'';updateVillageSymbol(c.character?.village);const date=c.calendar;$('calendar').firstElementChild.textContent=`${String(date.day).padStart(2,'0')}/${String(date.month).padStart(2,'0')} · Ano ${date.year} · ${c.clockTime||'08:00'}`;updateEraUI(date);drawCalendar();$('hero').textContent=c.character.name;$('origin').textContent=`${c.age} anos · ${c.character.village||'Origem livre'}`;$('conditions').innerHTML=`<div class="condition">Energia<b>${esc(c.conditions.energy)}</b></div><div class="condition">Chakra<b>${esc(c.conditions.chakra)}</b></div>${c.chakraActivity?`<p class="chakra-feedback" role="status">${esc(c.chakraActivity)}</p>`:''}`;$('abilities').innerHTML=Object.entries(c.abilities).map(([k,v])=>`<div class="condition">${esc(k)}<b>${esc(v)}</b></div>`).join('');$('chat').innerHTML=c.messages.map((m,localIndex)=>`<article class="bubble ${m.role==='user'?'user':'ai'} ${localIndex>=c.messages.length-2?(m.sceneType==='combat'?'combat-glow':m.sceneType==='time'?'time-glow':''):''} ${m.memoryCandidate?'has-memory':''}"><div class="who">${m.role==='user'?esc(c.character.name):'忍 SHINOBI'}${m.role==='user'&&c.undoableMessages?.includes(localIndex+(c.messageOffset||0))?`<button class="undo-message" data-undo-message="${localIndex+(c.messageOffset||0)}" aria-label="Excluir mensagem e voltar a história" title="Excluir mensagem e voltar a história">✕ Excluir</button>`:''}</div><div class="message-text">${esc(m.role==='user'?m.text.replace(/^AGIR:/gm,'NARRAR:'):m.text)}</div>${m.memoryCandidate?`<div class="memory-proposal"><strong>✦ Memória Marcante: ${esc(m.memoryCandidate.title)}</strong><p>${esc(m.memoryCandidate.description)}</p><button type="button" data-memory-save="${esc(m.memoryCandidate.id)}">Salvar na ficha</button><button type="button" data-memory-dismiss="${esc(m.memoryCandidate.id)}">Ignorar</button></div>`:''}${m.sources?.length?`<div class="sources">Referências: ${m.sources.map(s=>`<a href="${esc(s.url)}" target="_blank" rel="noopener noreferrer">${esc(s.title)}</a>`).join('')}</div>`:''}</article>`).join('')+(c.introConfirmed===false&&c.messages.length===1?'<div class="intro-choices"><strong>Introdução personalizada</strong><p>Aceite esta abertura ou gere outra antes de iniciar.</p><button type="button" id="acceptintro">✓ Aceitar abertura</button><button type="button" id="retryintro">↻ Gerar outra introdução</button></div>':'');$('chat').querySelectorAll('[data-undo-message]').forEach(btn=>btn.onclick=()=>rewindMessage(Number(btn.dataset.undoMessage)));$('chat').querySelectorAll('[data-memory-save],[data-memory-dismiss]').forEach(b=>b.onclick=()=>run(async()=>{current=await api('campaigns/'+current.id+'/memory',{revision:current.revision,candidateId:b.dataset.memorySave||b.dataset.memoryDismiss,decision:b.dataset.memorySave?'saved':'dismissed'});render();if(b.dataset.memorySave)await auditCurrentMemories();}));if($('acceptintro'))$('acceptintro').onclick=()=>run(async()=>{current=await api('campaigns/'+current.id+'/intro-confirm',{revision:current.revision});render();});if($('retryintro'))$('retryintro').onclick=()=>run(async()=>{current=await api('campaigns/'+current.id+'/intro',{revision:current.revision});calendarSelected=current.day;render();},true);$('chat').scrollTop=$('chat').scrollHeight;renderDatabook(c);$('sheetcontent').innerHTML=['name','age','village','clan','affiliation','appearance','personality','skills','history'].map(k=>`<div class="fact"><b>${esc(({name:'Nome',age:'Idade inicial',village:'Vila de origem',clan:'Clã',appearance:'Aparência',personality:'Personalidade',skills:'Aptidões',history:'História',affiliation:'Afiliação atual'})[k])}</b><p>${esc(k==='age'?c.age:(c.profile?.[k]||c.character[k]||'Não definido'))}</p></div>`).join('');$('jutsus').innerHTML=(c.jutsus||[]).map(j=>`<div class="fact"><b>${esc(j.name)}</b><p>${esc(j.description||'Técnica aprendida')}</p></div>`).join('')||'<p class="caption">Nenhum jutsu aprendido foi registrado ainda.</p>';const bonds=Object.entries(c.relations||{});
+function render(){const c=current;if(!c)return;const stop=$('timestatus');stop.hidden=!c.lastTimeInterruption;stop.textContent=c.lastTimeInterruption?'⏳ O avanço foi interrompido: '+c.lastTimeInterruption.reason:'';updateVillageSymbol(c.character?.village);const date=c.calendar;$('calendar').firstElementChild.textContent=`${String(date.day).padStart(2,'0')}/${String(date.month).padStart(2,'0')} · Ano ${date.year} · ${c.clockTime||'08:00'}`;updateEraUI(date);drawCalendar();$('hero').textContent=c.character.name;$('origin').textContent=`${c.age} anos · ${c.character.village||'Origem livre'}`;$('conditions').innerHTML=`<div class="condition">Energia<b>${esc(c.conditions.energy)}</b></div><div class="condition">Chakra<b>${esc(c.conditions.chakra)}</b></div>${c.chakraActivity?`<p class="chakra-feedback" role="status">${esc(c.chakraActivity)}</p>`:''}`;$('abilities').innerHTML=Object.entries(c.abilities).map(([k,v])=>`<div class="condition">${esc(k)}<b>${esc(v)}</b></div>`).join('');$('chat').innerHTML=c.messages.map((m,localIndex)=>`<article class="bubble ${m.role==='user'?'user':'ai'} ${localIndex>=c.messages.length-2?(m.sceneType==='combat'?'combat-glow':m.sceneType==='time'?'time-glow':''):''} ${m.memoryCandidate?'has-memory':''}"><div class="who">${m.role==='user'?esc(c.character.name):'忍 SHINOBI'}${m.role==='user'&&c.undoableMessages?.includes(localIndex+(c.messageOffset||0))?`<button class="undo-message" data-undo-message="${localIndex+(c.messageOffset||0)}" aria-label="Excluir mensagem e voltar a história" title="Excluir mensagem e voltar a história">✕ Excluir</button>`:''}</div><div class="message-text">${esc(m.role==='user'?m.text.replace(/^AGIR:/gm,'NARRAR:'):m.text)}</div>${m.memoryCandidate?`<div class="memory-proposal"><strong>✦ Memória Marcante: ${esc(m.memoryCandidate.title)}</strong><p>${esc(m.memoryCandidate.description)}</p><button type="button" data-memory-save="${esc(m.memoryCandidate.id)}">Salvar na ficha</button><button type="button" data-memory-dismiss="${esc(m.memoryCandidate.id)}">Ignorar</button></div>`:''}${m.sources?.length?`<div class="sources">Referências: ${m.sources.map(s=>`<a href="${esc(s.url)}" target="_blank" rel="noopener noreferrer">${esc(s.title)}</a>`).join('')}</div>`:''}</article>`).join('')+(c.introConfirmed===false&&c.messages.length===1?'<div class="intro-choices"><strong>Introdução personalizada</strong><p>Aceite esta abertura ou gere outra antes de iniciar.</p><button type="button" id="acceptintro">✓ Aceitar abertura</button><button type="button" id="retryintro">↻ Gerar outra introdução</button></div>':'');$('chat').querySelectorAll('[data-undo-message]').forEach(btn=>btn.onclick=()=>rewindMessage(Number(btn.dataset.undoMessage)));$('chat').querySelectorAll('[data-memory-save],[data-memory-dismiss]').forEach(b=>b.onclick=()=>run(async()=>{current=await api('campaigns/'+current.id+'/memory',{revision:current.revision,candidateId:b.dataset.memorySave||b.dataset.memoryDismiss,decision:b.dataset.memorySave?'saved':'dismissed'});render();if(b.dataset.memorySave)await auditCurrentMemories();}));if($('acceptintro'))$('acceptintro').onclick=()=>run(async()=>{current=await api('campaigns/'+current.id+'/intro-confirm',{revision:current.revision});render();});if($('retryintro'))$('retryintro').onclick=()=>run(async()=>{current=await api('campaigns/'+current.id+'/intro',{revision:current.revision});calendarSelected=current.day;render();},true);$('chat').scrollTop=$('chat').scrollHeight;renderDatabook(c);$('sheetcontent').innerHTML=['name','age','village','clan','affiliation','appearance','personality','skills','history'].map(k=>`<div class="fact"><b>${esc(({name:'Nome',age:'Idade inicial',village:'Vila de origem',clan:'Clã',appearance:'Aparência',personality:'Personalidade',skills:'Aptidões',history:'História',affiliation:'Afiliação atual'})[k])}</b><p>${esc(k==='age'?c.character.age:(c.profile?.[k]||c.character[k]||'Não definido'))}</p></div>`).join('');$('jutsus').innerHTML=(c.jutsus||[]).map(j=>`<div class="fact"><b>${esc(j.name)}</b><p>${esc(j.description||'Técnica aprendida')}</p></div>`).join('')||'<p class="caption">Nenhum jutsu aprendido foi registrado ainda.</p>';const bonds=Object.entries(c.relations||{});
  $('relations-count').textContent=String(bonds.length);
  $('relations').innerHTML=compactRecords(bonds,([name,description])=>({title:name,text:description}),4);
  const moments=(c.memories||[]).filter(m=>m.status==='saved'||!m.status).slice().reverse();
