@@ -33,6 +33,24 @@ const enemyRankFrom=text=>{
 const actualFight=/\b(?:ataco|ataca|atacou|luto|luta|lutou|enfrento|enfrenta|enfrentou|combato|combate|combateu|golpeio|golpeia|golpeou|desvio|desvia|desviou|bloqueio|bloqueia|bloqueou|defendo|defende|defendeu|tento acertar|tento atingir|investida|invisto|faco um jutsu|uso um jutsu|executo um jutsu)\b/u;
 const training=/\b(?:treino simulado|luta amistosa|sparring|combate de treinamento|treino de combate|simulacao)\b/u;
 const planned=/\b(?:vou|pretendo|gostaria|quero|planejo|penso em|estudarei)\b.{0,50}\b(?:lutar|atacar|enfrentar)\b/u;
+const itachiName=/\bitachi\b/u;
+const duel=/\b(?:duelo|luta|combate|enfrent|atac|investid|golpe|sparring|oponent)\w*/u;
+const duelEnded=/\b(?:combate|duelo|luta) (?:terminou|acabou|se encerrou)\b/u;
+
+function namedOpponent(c, action, latest, wasCombat) {
+ if(itachiName.test(norm(c.character?.name)))return null;
+ if(!itachiName.test(action) && !(itachiName.test(latest)&&(wasCombat||duel.test(latest))&&!duelEnded.test(latest)))return null;
+ // Dia 0 é 10 de outubro. O aniversário de 9 de junho fica 242 dias adiante.
+ // Usamos o aniversário como limite aproximado quando a campanha não especifica o despertar.
+ const elapsed=c.day||0;
+ const sharingan=elapsed>=242+2*365;
+ return {
+  name:'Itachi Uchiha',
+  threat:elapsed>=242+4*365?2:1,
+  techniques:sharingan?['Sharingan','taijutsu','técnicas de distração e fintas']:['taijutsu','técnicas de distração e fintas'],
+  restriction:sharingan?'Quando pressionado, use o Sharingan para ler movimentos visíveis e reagir. Isso não prevê o futuro nem torna Itachi invencível.':'Itachi ainda não despertou o Sharingan nesta data de referência. Use leitura de ritmo, fintas e taijutsu de acordo com sua experiência.'
+ };
+}
 const victory=/\b(?:derrotou|venc[eê]u|neutralizou|nocauteou|subjugou|rendeu|imobilizou|derrubou|eliminou|venceu|vit[oó]ria|foram derrotados|foram vencidos|foram neutralizados|todos ca[ií]ram|ultimo inimigo caiu|fim do combate|combate terminou)\b/u;
 const directVictory=new RegExp('\\b(?:derrotou|venceu|neutralizou|nocauteou|subjugou|imobilizou|derrubou|eliminou)\\b','u');
 const tacticalTerms=[
@@ -44,7 +62,7 @@ const tacticalTerms=[
  /\b(?:companheiro|equipe|aliado|ajuda|suporte|coorden\w*|sincroni\w*)\b/u
 ];
 function tacticalMerit(c,i){
- const current=(i.segments||[]).map(x=>norm(x.text)).join(' ');
+ const current=(i.segments||[]).filter(x=>x.type==='AGIR').map(x=>norm(x.text)).join(' ');
  const recent=(c.messages||[]).filter(x=>x.role==='user').slice(-2).map(x=>norm(x.text)).join(' ');
  const terms=tacticalTerms.filter(re=>re.test(current)).length;
  const prepared=tacticalTerms.filter(re=>re.test(recent)).length;
@@ -68,15 +86,23 @@ export function combatForecast(c,i){
  const action=(i.segments||[]).filter(s=>s.type==='AGIR').map(s=>norm(s.text)).join(' ');
  const prior=(c.messages||[]).filter(m=>m.role==='ai').slice(-3).map(m=>norm(m.text)).join(' ');
  const combatTechnique=/\b(?:uso|executo|faco|aplico|lanco|canalizo)\b.{0,32}\b(?:jutsu|ninjutsu|taijutsu|genjutsu|golpe|tecnica|chakra)\b/u;
- const active=(actualFight.test(action)||combatTechnique.test(action))&&!planned.test(action)&&!training.test(action);
- const enemyNearby=/\b(?:inimig|adversari|oponent|atacant|agressor|ninjas?\s+hostil|mercenari|confront|luta|batalha|combate)\w*/u.test(action+' '+prior);
+ const lastReply=(c.messages||[]).findLast(m=>m.role==='ai');
+ const latest=norm(lastReply?.text);
+ const named=namedOpponent(c,action,latest,lastReply?.sceneType==='combat');
+ const sparring=training.test(action+' '+latest);
+ const active=(actualFight.test(action)||combatTechnique.test(action))&&!planned.test(action)&&(!training.test(action)||!!named);
+ const enemyNearby=!!named||lastReply?.sceneType==='combat'||/\b(?:inimig|adversari|oponent|atacant|agressor|ninjas?\s+hostil|mercenari|confront|luta|batalha|combate)\w*/u.test(action+' '+prior);
+ const opening=lastReply?.sceneType==='combat'&&lastReply.day===c.day&&
+  !/\b(?:sem|nenhuma|nenhum|nao)\b.{0,26}\b(?:abertura|brecha|desequilibri|expost)\w*/u.test(latest)&&
+  /\b(?:abriu uma brecha|deixou uma abertura|guarda (?:aberta|exposta|baixa)|ficou desequilibrad[oa]|perdeu o equilibrio)\b/u.test(latest);
  const opposition=enemiesContext(c,i),rank=rankOf(c.profile?.affiliation||c.character?.affiliation);
  const levels=Object.values(c.progress||{}).filter(Number.isFinite);
  const ability=levels.length?Math.max(...levels):0;
  const skillBoost=ability>=65?1:0;
  const tactic=tacticalMerit(c,i);
- const threat=Math.max(0,opposition.count-(rank+1+skillBoost))+Math.max(0,opposition.enemyRank-rank)*2;
- const score=threat-tactic.score*1.2;
+ const threat=Math.max(0,opposition.count-(rank+1+skillBoost))+Math.max(0,opposition.enemyRank-rank)*2+
+  (named?Math.max(0,named.threat*2-rank-skillBoost):0);
+ const score=threat-tactic.score*1.2-(opening?2:0);
  const tooRisky=rank<=1&&(
   opposition.explicitCount&&opposition.count>=3&&tactic.score<2||
   opposition.enemyRank>=2&&opposition.enemyRank>rank+1||
@@ -86,14 +112,19 @@ export function combatForecast(c,i){
   active:active&&enemyNearby,enemyCount:opposition.count,enemyCountConfirmed:opposition.explicitCount,
   opponentRank:opposition.enemyRank,playerRank:rank,skillBoost,tactics:tactic,
   risk:clamp(Math.round(score*10)/10,0,20),
-  blockEasyVictory:active&&enemyNearby&&tooRisky,
+  blockEasyVictory:active&&enemyNearby&&(tooRisky||!!named&&score>=1),
+  openingEstablished:opening,
+  namedOpponent:active?named:null,
+  sparring,
+  opponentAgency:'Faça o oponente agir a cada troca em que puder: tomar a iniciativa, defender, contra-atacar ou avançar um objetivo. Se houver uma técnica disponível e adequada, execute-a e descreva seu efeito em vez de apenas ameaçar usá-la. Use o repertório e o estado do adversário já estabelecidos na campanha. Respeite a data e o acordo de treino.',
+  narrationFormat:'Na narração de combate, use até três parágrafos curtos e concretos, nesta ordem: resultado da jogada do jogador (acertou, raspou ou falhou e por quê), ação do oponente (nome, técnica e efeito observável), situação final (posição, ferimento ou abertura relevante). Use nomes claros em vez de pronomes ambíguos. Não repita falas do jogador nem escolha a próxima ação dele. Um acerto parcial ou uma abertura conquistada deve ter efeito mesmo contra um rival superior. Se o jogador aproveitar uma abertura estabelecida, honre essa vantagem; não repita uma esquiva automática.',
   rule:'Inferir dificuldade apenas de fatos comprovados: adversários, patentes, preparação e terreno. Vantagem numérica e patentes altas representam ameaças reais a iniciantes. Um plano concreto melhora as chances, mas não garante êxito. O narrador não deve conceder a vitória automática; derrotas parciais, retiradas e necessidade de ajuda são possíveis. O jogador escolhe suas próprias ações.'
  };
 }
 const playerVictorious=(text,first)=>{
  const s=norm(text),name=norm(first).split(/\s+/)[0].replace(/[^a-z0-9]/g,'');
  if(!victory.test(s)&&!/\bconseguiu\s+(?:derrotar|vencer|neutralizar)\b/u.test(s))return false;
- const subject=name&&new RegExp('\\b'+name+'\\b.{0,85}\\b(?:derrotou|venceu|neutralizou|nocauteou|subjugou|imobilizou|derrubou|eliminou|conseguiu\\s+(?:derrotar|vencer|neutralizar))\\b','u');
+ const subject=name&&new RegExp('\\b'+name+'\\b[^.!?]{0,85}\\b(?:derrotou|venceu|neutralizou|nocauteou|subjugou|imobilizou|eliminou|conseguiu\\s+(?:derrotar|vencer|neutralizar))\\b','u');
  if(subject?.test(s))return true;
  // Quando o texto atribui a vitória explicitamente a aliados, não confundir o feito.
  const aid=/\b(?:foram derrotados|foram neutralizados|foram vencidos)\s+(?:por|pelos|pelas)\s+(?:hiruzen|kakashi|aliados|reforcos|equipe)\b/u.test(s);
@@ -115,7 +146,11 @@ export function enforceCombatOutcome(c,i,r){
   const penalty=clamp(6+forecast.enemyCount*2+(forecast.opponentRank>forecast.playerRank?3:0),6,16);
   return {
    ...r,
-   narrative:'A investida de '+name+' não encerra o confronto. A vantagem numérica ou a diferença de experiência dos adversários impede uma vitória imediata. O grupo inimigo mantém a pressão, e '+name+' precisa encontrar uma abertura, recuar para se proteger ou contar com apoio antes de conseguir superar a ameaça.',
+   narrative:forecast.namedOpponent
+    ?'A investida de '+name+' não encerra o confronto. '+(forecast.namedOpponent.techniques.includes('Sharingan')
+      ?'Itachi ativa o Sharingan, acompanha o início do movimento e se desloca para fora do alcance.'
+      :'Itachi sai da linha da investida e ameaça uma resposta com uma finta.')+' A troca continua.'
+    :'A investida de '+name+' não encerra o confronto. A vantagem numérica ou a diferença de experiência dos adversários impede uma vitória imediata. O grupo inimigo mantém a pressão, e '+name+' precisa encontrar uma abertura, recuar para se proteger ou contar com apoio antes de conseguir superar a ameaça.',
    sceneType:'combat',energyDelta:Math.min(Number.isInteger(r.energyDelta)?r.energyDelta:0,-penalty),
    facts:[],development:[],moment:null,consequences:[],learnedJutsus:[],profileUpdates:[],missionCompletion:null,databookUpdates:[],
    pendingTasks:(r.pendingTasks||[]).filter(t=>t.status!=='done'),divergences:[],training:null,

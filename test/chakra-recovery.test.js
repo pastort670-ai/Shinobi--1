@@ -55,6 +55,18 @@ test('técnica intensa continua custosa, e combate não regenera chakra',()=>{
  assert.equal(n.chakraStrain,5);
 });
 
+test('jutsus em sequência gastam chakra sem delta do narrador e a reserva já não aparece cheia',()=>{
+ const c=create('Confronto',baseCharacter);
+ const r=narration('Akira lançou o Rasengan contra o adversário.',{sceneType:'combat'});
+ const single=apply(c,action('Uso Rasengan.'),r);
+ const multiple=apply(c,action('Uso Rasengan e uso Rasengan novamente.'),r);
+ assert.ok(single.chakra<100);
+ assert.ok(multiple.chakra<single.chakra);
+ assert.notEqual(view(single).conditions.chakra,'reserva completa');
+ const interrupted=apply(c,action('Uso Rasengan.'),narration('Akira não conseguiu usar o Rasengan.',{sceneType:'combat'}));
+ assert.equal(interrupted.chakra,100);
+});
+
 test('descanso efetivamente narrado recupera chakra mesmo quando o Gemini envia delta zero',()=>{
  const c=create('Descanso',baseCharacter);c.chakra=30;
  const i=input({hours:2,segments:[{type:'AGIR',text:'Akira descansa por duas horas.'}]});
