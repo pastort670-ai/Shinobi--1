@@ -78,7 +78,11 @@ export function timeMaxHours(c){
  const offer=timeOpportunity(c);
  if(offer)return Math.min(offer.maximumHours,HOURS_LIMIT);
  const allowed=(c.timeChoices||[]).map(x=>x.hours).filter(n=>Number.isInteger(n)&&n>0&&n<=HOURS_LIMIT);
- return allowed.length?Math.max(...allowed):24;
+ if(allowed.length)return Math.max(...allowed);
+ // Compatibilidade com sugestões antigas em dias. Elas não podem desaparecer
+ // só porque o Gemini não usou o formato novo de hours/label.
+ const legacy=(c.timeOptions||[]).filter(n=>Number.isInteger(n)&&n>=1&&n<=3650);
+ return legacy.length?Math.min(HOURS_LIMIT,Math.max(...legacy)*24):24;
 }
 export function actualTime(c,i,r,resolvedDays){
  // Legacy saved turns used days directly. Preserve them exactly on regeneration.
