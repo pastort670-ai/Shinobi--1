@@ -220,7 +220,7 @@ try{
   await loginPage.goto(secureUrl);
   await loginPage.locator('#password').fill(secretPassword);
   await loginPage.locator('#enter').click();
-  await loginPage.locator('#connection').getByText(/Servidor e Gemini disponíveis/).waitFor({timeout:15000});
+  await loginPage.locator('#connection').getByText(/Servidor conectado · Gemini configurado/).waitFor({timeout:15000});
   assert.equal(await loginPage.locator('#start').isVisible(),true,'Entrar com senha abre o jogo no celular');
   const denied=async route=>{if(route.request().url().endsWith('/api/status'))await route.abort('failed');else await route.continue();};
   await loginPage.route('**/api/status',denied);
@@ -229,7 +229,7 @@ try{
   assert.match(await loginPage.locator('#connection').innerText(),/Falha/);
   await loginPage.unroute('**/api/status',denied);
   await loginPage.locator('#reconnect').click();
-  await loginPage.locator('#connection').getByText(/Servidor e Gemini disponíveis/).waitFor({timeout:15000});
+  await loginPage.locator('#connection').getByText(/Servidor conectado · Gemini configurado/).waitFor({timeout:15000});
   assert.deepEqual(loginErrors,[],'Inicialização, falha e recuperação não geram erros JavaScript');
   await loginPage.close();
   console.log('Mobile access smoke passed: password, session and reconnect.');
