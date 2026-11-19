@@ -81,8 +81,12 @@ function sortedSuggestions(remainingDays,kind){
    days%30===0?days/30+' mês'+(days===30?'':'es'):
    days%7===0?days/7+' semana'+(days===7?'':'s'):
    days+' dia'+(days===1?'':'s');
+ const activity={treino:'Continuo o treinamento combinado',estudo:'Dedico-me aos estudos combinados',
+  viagem:'Continuo a viagem planejada',recuperação:'Sigo o período de recuperação',
+  projeto:'Trabalho no projeto combinado',espera:'Aguardo conforme o combinado'}[kind]||'Sigo a atividade combinada';
  return [...new Set(choices.filter(x=>Number.isInteger(x)&&x>0&&x<=remainingDays))]
-  .slice(0,3).map(days=>({hours:days*24,label:verb+' por '+label(days)}));
+  .slice(0,3).map(days=>({hours:days*24,label:verb+' por '+label(days),
+    action:activity+' por '+label(days)+'.'}));
 }
 export function longTermTimeOpportunity(c){
  if(!c||(c.introConfirmed===false&&(c.messages||[]).length<=1)||c.timeScene==='combat')return null;
