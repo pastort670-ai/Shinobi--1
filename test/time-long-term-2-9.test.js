@@ -137,7 +137,7 @@ test('interface móvel conserva botão contextual e presets de meses e anos',()=
  assert.match(js,/offer\.label/);
  assert.match(js,/<option value="720">meses/);
  assert.match(js,/<option value="8760">anos/);
- assert.match(js,/Continuo o treinamento combinado durante o período escolhido/);
+ assert.match(js,/timeText=String\(opt\.action\|\|opt\.label/); // Tocar sugestão preenche o texto editável
 });
 
 test('API permite 30 dias quando compromisso foi aceito, mesmo com timeAvailable:false do narrador',async()=>{

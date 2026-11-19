@@ -25,19 +25,64 @@ export function canUseTime(c){
  return c.timeScene!=='combat'&&!(c.introConfirmed===false&&(c.messages||[]).length<=1)&&
    (c.timeAvailable===true||Boolean(timeOpportunity(c)));
 }
+// Um compromisso antigo pode continuar válido, mas só domina as sugestões
+// enquanto a cena atual está falando daquela atividade.
+const topicPattern={
+ treino:/\b(?:trein\w*|pratic\w*|mestre|mentor|sensei|instrutor|taijutsu|ninjutsu|genjutsu)\b/u,
+ estudo:/\b(?:estud\w*|pesquis\w*|aprend\w*|aula|professor|formac\w*)\b/u,
+ viagem:/\b(?:viag\w*|expedic\w*|travess\w*|jornad\w*|partida)\b/u,
+ 'recuperação':/\b(?:recuper\w*|descans\w*|repous\w*|tratament\w*|reabilit\w*)\b/u,
+ projeto:/\b(?:constru\w*|fabric\w*|projet\w*|obra|oficina)\b/u,
+ espera:/\b(?:aguard\w*|esper\w*|prazo|periodo combinado)\b/u
+};
+const normalize=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+export function focusedTimeOpportunity(c){
+ const offer=timeOpportunity(c);
+ if(!offer||!Array.isArray(c.messages))return null;
+ let latest=-1;
+ for(let i=c.messages.length-1;i>=0;i--)if(c.messages[i]?.role==='ai'){latest=i;break;}
+ if(latest<0)return null;
+ if(latest===offer.sourceMessageIndex)return offer;
+ const gap=latest-offer.sourceMessageIndex;
+ if(gap<1||gap>3)return null;
+ const scene=normalize(c.messages[latest]?.text);
+ return (topicPattern[offer.kind]?.test(scene)||false)?offer:null;
+}
+function ordinarySuggestions(maxHours){
+ const choices=[
+  {hours:1,label:'Esperar um pouco',action:'Aguardo por uma hora.'},
+  {hours:3,label:'Passar algumas horas',action:'Aguardo durante três horas.'},
+  {hours:8,label:'Descansar algumas horas',action:'Descanso por oito horas.'},
+  {hours:24,label:'Avançar um dia',action:'Sigo minha rotina durante um dia.'}
+ ];
+ return choices.filter(x=>x.hours<=maxHours).slice(-3);
+}
 export function timeSuggestions(c){
  if(!canUseTime(c))return [];
- const offer=timeOpportunity(c);
- if(offer)return offer.choices;
- const explicit=(c.timeChoices||[]).filter(x=>Number.isInteger(x.hours)&&x.hours>0&&x.hours<=HOURS_LIMIT&&typeof x.label==='string');
- return explicit.length?explicit:(c.timeOptions||[]).filter(n=>Number.isInteger(n)&&n>=1&&n<=3650).map(n=>({hours:n*24,label:n+' dias'})).slice(0,3);
+ const focused=focusedTimeOpportunity(c);
+ if(focused)return focused.choices;
+ // As boas sugestões contextuais do narrador têm prioridade fora de uma
+ // cena de longa duração. Não substituí-las por botões genéricos de treino.
+ const max=timeMaxHours(c);
+ const explicit=(c.timeChoices||[]).filter(x=>
+  Number.isInteger(x.hours)&&x.hours>0&&x.hours<=max&&typeof x.label==='string'&&x.label.trim()
+ ).slice(0,3).map(x=>({hours:x.hours,label:x.label,action:typeof x.action==='string'&&x.action.trim()?x.action.trim():x.label}));
+ if(explicit.length)return explicit;
+ const legacy=(c.timeOptions||[]).filter(n=>Number.isInteger(n)&&n>=1&&n*24<=max)
+  .slice(0,3).map(n=>({hours:n*24,label:n===1?'Avançar um dia':'Avançar '+n+' dias',action:n===1?'Passo um dia seguindo minha rotina.':'Passo '+n+' dias seguindo minha rotina.'}));
+ if(legacy.length)return legacy;
+ return ordinarySuggestions(Math.min(max,24));
 }
 export function timeMaxHours(c){
  if(!canUseTime(c))return 0;
  const offer=timeOpportunity(c);
  if(offer)return Math.min(offer.maximumHours,HOURS_LIMIT);
  const allowed=(c.timeChoices||[]).map(x=>x.hours).filter(n=>Number.isInteger(n)&&n>0&&n<=HOURS_LIMIT);
- return allowed.length?Math.max(...allowed):24;
+ if(allowed.length)return Math.max(...allowed);
+ // Compatibilidade com sugestões antigas em dias. Elas não podem desaparecer
+ // só porque o Gemini não usou o formato novo de hours/label.
+ const legacy=(c.timeOptions||[]).filter(n=>Number.isInteger(n)&&n>=1&&n<=3650);
+ return legacy.length?Math.min(HOURS_LIMIT,Math.max(...legacy)*24):24;
 }
 export function actualTime(c,i,r,resolvedDays){
  // Legacy saved turns used days directly. Preserve them exactly on regeneration.
