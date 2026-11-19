@@ -147,7 +147,7 @@ function choose(type){
     timeText=choices[opportunity.kind]||'Sigo a atividade já combinada durante o período escolhido.';
    }
    const defaultDays=Math.min(30,opportunity.remainingDays||1);
-   timeAmount=defaultDays;timeUnit=24;
+   timeAmount=defaultDays===30?1:defaultDays;timeUnit=defaultDays===30?720:24;
   }
   renderTime();saveDraft();return;
  }
@@ -189,7 +189,9 @@ function renderTime(){
  const el=$('timearea');if(!el)return;
  el.hidden=!timeActive;
  if(!timeActive){updateMode();return;}
- el.innerHTML='<p class="time-preflight">'+(current?.timeOpportunity?'<strong>'+esc(current.timeOpportunity.label)+' · até '+(current.timeOpportunity.maximumHours/24)+' dia(s) por avanço.</strong> ':'' )+'O avanço acontece no próximo envio; marcos e compromissos existentes podem interrompê-lo. </p><label for="timeactivity">⌛ ATIVIDADE DURANTE O TEMPO</label><textarea id="timeactivity" rows="2" maxlength="2000" placeholder="O que seu personagem faz durante esse período?">'+esc(timeText)+'</textarea><div class="time-inline-controls"><input id="timeamount" aria-label="Quantidade" type="number" min="1" max="3650" value="'+esc(timeAmount)+'"><select id="timeunit" aria-label="Unidade"><option value="1">horas</option><option value="24">dias</option><option value="168">semanas</option><option value="720">meses (30 dias)</option><option value="8760">anos (365 dias)</option></select></div><div class="time-suggestions">'+(current?.timeChoices?.length?current.timeChoices:(current?.timeOptions||[]).map(d=>({hours:d*24,label:d+' dias'}))).map(opt=>'<button type="button" data-hours="'+opt.hours+'">'+esc(opt.label)+'</button>').join('')+'</div>';
+ const offer=current?.timeOpportunity,limit=current?.timeMaxHours||24,days=Math.floor(limit/24);
+ const intervalLabel=limit%8760===0?limit/8760+' ano(s)':limit%720===0?limit/720+' mês(es)':days>0?days+' dia(s)':limit+' hora(s)';
+ el.innerHTML='<p class="time-preflight">'+(offer?'<strong>'+esc(offer.label)+' · até '+intervalLabel+' por avanço.</strong> ':'Limite desta cena: '+intervalLabel+'. ')+'O tempo só avança quando você enviar. Compromissos e acontecimentos importantes podem interrompê-lo.</p><label for="timeactivity">⌛ ATIVIDADE DURANTE O TEMPO</label><textarea id="timeactivity" rows="2" maxlength="2000" placeholder="O que seu personagem faz durante esse período?">'+esc(timeText)+'</textarea><div class="time-inline-controls"><input id="timeamount" aria-label="Quantidade" type="number" min="1" max="3650" value="'+esc(timeAmount)+'"><select id="timeunit" aria-label="Unidade"><option value="1">horas</option><option value="24">dias</option><option value="168">semanas</option><option value="720">meses (30 dias)</option><option value="8760">anos (365 dias)</option></select></div><div class="time-suggestions">'+(current?.timeChoices?.length?current.timeChoices:(current?.timeOptions||[]).map(d=>({hours:d*24,label:d+' dias'}))).map(opt=>'<button type="button" data-hours="'+opt.hours+'">'+esc(opt.label)+'</button>').join('')+'</div>';
  $('timeunit').value=String(timeUnit);
  $('timeactivity').oninput=e=>{timeText=e.target.value;saveDraft();};
  $('timeamount').oninput=e=>{timeAmount=e.target.value;saveDraft();};
