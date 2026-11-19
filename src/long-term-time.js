@@ -24,6 +24,12 @@ function period(text){
  for(const m of s.matchAll(durationRe)){
   let amount=/^\d+$/.test(m[1])?Number(m[1]):numbers[m[1]];
   if(!Number.isInteger(amount)||amount<=0)continue;
+  // O protagonista ter "4 anos" não é um acordo de quatro anos.
+  const before=s.slice(Math.max(0,m.index-70),m.index);
+  const after=s.slice(m.index+m[0].length,m.index+m[0].length+50);
+  const durationLead=/^(?:por|durante|pelos?|pelas?|ao longo de|nos proximos|nas proximas|pelos proximos|pelas proximas|cerca de|aproximadamente|ate completar)\b/u.test(m[0]);
+  if(/\b(?:tem|idade|com|de)\s*$/u.test(before)||/^\s+de idade\b/u.test(after))continue;
+  if(!durationLead&&!activity.test(before.slice(-55))&&!activity.test(after.slice(0,35)))continue;
   const unit=m[2];
   const factor=unit.startsWith('ano')?365:unit.startsWith('mes')?30:unit.startsWith('semana')?7:1;
   const days=amount*factor;
@@ -52,7 +58,7 @@ function referenceText(scene,index,all,protagonist=''){
  const promise=period(current)||period(prev);
  if(!promise)return null;
  // "Se" e outras possibilidades não constituem aceitação confirmada.
- if(/\b(?:talvez|poderia|hipotese|consideraria|caso aceite|se ele aceitar|se ela aceitar|ainda depende)\b/u.test(current))return null;
+ if(/\b(?:talvez|poderia|hipotese|consideraria|caso aceite|se ele aceitar|se ela aceitar|ainda depende|teria aceitado|desde que|somente se|so se)\b/u.test(current))return null;
  const kind=kindOf(activity.test(current)?current:prev);
  return {kind,days:promise.days,indefinite:promise.indefinite,description:String(scene.text).replace(/\s+/g,' ').slice(0,220),
   sourceMessageIndex:index,startDay:Number.isInteger(scene.day)?scene.day:0};
@@ -84,9 +90,9 @@ export function longTermTimeOpportunity(c){
   if(!offer)continue;
   const later=messages.slice(index+1).filter(x=>x?.role==='ai'&&typeof x.text==='string');
   // Encerramento explícito em uma cena aceita cancela a janela antiga.
-  if(later.some(x=>ended.test(normalize(x.text))))return null;
+  if(later.some(x=>ended.test(normalize(x.text))))continue;
   const remainingDays=offer.startDay+offer.days-today;
-  if(remainingDays<=0)return null;
+  if(remainingDays<=0)continue;
   const limit=Math.min(remainingDays,MAX_LONG_SKIP_DAYS,Math.max(0,36500-today));
   if(limit<=0)return null;
   return {...offer,remainingDays,maximumHours:limit*24,choices:sortedSuggestions(limit,offer.kind),
