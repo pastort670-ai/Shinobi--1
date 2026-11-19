@@ -131,3 +131,12 @@ test('prompt e esquema permitem sugestões da IA com texto de ação sem impor a
  assert.ok(properties.action);
  assert.deepEqual(schema.properties.timeChoices.items.required,['hours','label']);
 });
+
+test('sugestões antigas de vários dias não somem por causa do limite padrão de 24 horas',()=>{
+ const c=campaign();
+ c.timeAvailable=true;c.timeChoices=[];c.timeOptions=[1,7];
+ const v=view(c);
+ assert.equal(v.timeMaxHours,7*24);
+ assert.deepEqual(v.timeChoices.map(x=>x.hours),[24,7*24]);
+ assert.equal(v.timeChoices[1].action,'Passo 7 dias seguindo minha rotina.');
+});
