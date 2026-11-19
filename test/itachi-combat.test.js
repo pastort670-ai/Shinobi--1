@@ -23,3 +23,12 @@ test('Itachi reage com habilidades compatíveis com a data',()=>{
 test('falar sobre Itachi e um duelo futuro não inicia combate',()=>{
  assert.equal(combatForecast(campaign(972),{segments:[{type:'FALAR',text:'Quero lutar com Itachi.'}]}).active,false);
 });
+
+test('derrubar o rival não encerra o duelo, e a brecha se mantém no turno seguinte',()=>{
+ const c=campaign(972);
+ const hit={narrative:'Akira derrubou Itachi. Itachi ficou desequilibrado.'};
+ assert.equal(enforceCombatOutcome(c,action,hit).narrative,hit.narrative);
+ c.messages.push({role:'ai',sceneType:'combat',day:c.day,text:hit.narrative});
+ assert.equal(combatForecast(c,action).openingEstablished,true);
+ assert.equal(enforceCombatOutcome(c,action,win).combatVetoed,false);
+});

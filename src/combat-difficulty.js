@@ -37,9 +37,9 @@ const itachiName=/\bitachi\b/u;
 const duel=/\b(?:duelo|luta|combate|enfrent|atac|investid|golpe|sparring|oponent)\w*/u;
 const duelEnded=/\b(?:combate|duelo|luta) (?:terminou|acabou|se encerrou)\b/u;
 
-function namedOpponent(c, action, latest) {
+function namedOpponent(c, action, latest, wasCombat) {
  if(itachiName.test(norm(c.character?.name)))return null;
- if(!itachiName.test(action) && !(itachiName.test(latest)&&duel.test(latest)&&!duelEnded.test(latest)))return null;
+ if(!itachiName.test(action) && !(itachiName.test(latest)&&(wasCombat||duel.test(latest))&&!duelEnded.test(latest)))return null;
  // Dia 0 é 10 de outubro. O aniversário de 9 de junho fica 242 dias adiante.
  // Usamos o aniversário como limite aproximado quando a campanha não especifica o despertar.
  const elapsed=c.day||0;
@@ -62,7 +62,7 @@ const tacticalTerms=[
  /\b(?:companheiro|equipe|aliado|ajuda|suporte|coorden\w*|sincroni\w*)\b/u
 ];
 function tacticalMerit(c,i){
- const current=(i.segments||[]).map(x=>norm(x.text)).join(' ');
+ const current=(i.segments||[]).filter(x=>x.type==='AGIR').map(x=>norm(x.text)).join(' ');
  const recent=(c.messages||[]).filter(x=>x.role==='user').slice(-2).map(x=>norm(x.text)).join(' ');
  const terms=tacticalTerms.filter(re=>re.test(current)).length;
  const prepared=tacticalTerms.filter(re=>re.test(recent)).length;
@@ -86,11 +86,15 @@ export function combatForecast(c,i){
  const action=(i.segments||[]).filter(s=>s.type==='AGIR').map(s=>norm(s.text)).join(' ');
  const prior=(c.messages||[]).filter(m=>m.role==='ai').slice(-3).map(m=>norm(m.text)).join(' ');
  const combatTechnique=/\b(?:uso|executo|faco|aplico|lanco|canalizo)\b.{0,32}\b(?:jutsu|ninjutsu|taijutsu|genjutsu|golpe|tecnica|chakra)\b/u;
- const latest=norm((c.messages||[]).findLast(m=>m.role==='ai')?.text);
- const named=namedOpponent(c,action,latest);
+ const lastReply=(c.messages||[]).findLast(m=>m.role==='ai');
+ const latest=norm(lastReply?.text);
+ const named=namedOpponent(c,action,latest,lastReply?.sceneType==='combat');
  const sparring=training.test(action+' '+latest);
  const active=(actualFight.test(action)||combatTechnique.test(action))&&!planned.test(action)&&(!training.test(action)||!!named);
- const enemyNearby=!!named||/\b(?:inimig|adversari|oponent|atacant|agressor|ninjas?\s+hostil|mercenari|confront|luta|batalha|combate)\w*/u.test(action+' '+prior);
+ const enemyNearby=!!named||lastReply?.sceneType==='combat'||/\b(?:inimig|adversari|oponent|atacant|agressor|ninjas?\s+hostil|mercenari|confront|luta|batalha|combate)\w*/u.test(action+' '+prior);
+ const opening=lastReply?.sceneType==='combat'&&lastReply.day===c.day&&
+  !/\b(?:sem|nenhuma|nenhum|nao)\b.{0,26}\b(?:abertura|brecha|desequilibri|expost)\w*/u.test(latest)&&
+  /\b(?:abriu uma brecha|deixou uma abertura|guarda (?:aberta|exposta|baixa)|ficou desequilibrad[oa]|perdeu o equilibrio)\b/u.test(latest);
  const opposition=enemiesContext(c,i),rank=rankOf(c.profile?.affiliation||c.character?.affiliation);
  const levels=Object.values(c.progress||{}).filter(Number.isFinite);
  const ability=levels.length?Math.max(...levels):0;
@@ -98,7 +102,7 @@ export function combatForecast(c,i){
  const tactic=tacticalMerit(c,i);
  const threat=Math.max(0,opposition.count-(rank+1+skillBoost))+Math.max(0,opposition.enemyRank-rank)*2+
   (named?Math.max(0,named.threat*2-rank-skillBoost):0);
- const score=threat-tactic.score*1.2;
+ const score=threat-tactic.score*1.2-(opening?2:0);
  const tooRisky=rank<=1&&(
   opposition.explicitCount&&opposition.count>=3&&tactic.score<2||
   opposition.enemyRank>=2&&opposition.enemyRank>rank+1||
@@ -109,16 +113,18 @@ export function combatForecast(c,i){
   opponentRank:opposition.enemyRank,playerRank:rank,skillBoost,tactics:tactic,
   risk:clamp(Math.round(score*10)/10,0,20),
   blockEasyVictory:active&&enemyNearby&&(tooRisky||!!named&&score>=1),
+  openingEstablished:opening,
   namedOpponent:active?named:null,
   sparring,
-  opponentAgency:'Dê ao adversário uma reação concreta: ajuste de posição, defesa, contra-ataque ou técnica compatível com a cena. Quando houver abertura e motivo, faça-o usar uma técnica própria e mostre seu efeito. Use só habilidades disponíveis nessa data e nessa campanha. Uma vantagem do jogador precisa resultar do que foi estabelecido em cena. Em treino amistoso, mantenha os acordos de segurança e a intensidade combinada.',
+  opponentAgency:'Faça o oponente agir a cada troca em que puder: tomar a iniciativa, defender, contra-atacar ou avançar um objetivo. Se houver uma técnica disponível e adequada, execute-a e descreva seu efeito em vez de apenas ameaçar usá-la. Use o repertório e o estado do adversário já estabelecidos na campanha. Respeite a data e o acordo de treino.',
+  narrationFormat:'Na narração de combate, use até três parágrafos curtos e concretos, nesta ordem: resultado da jogada do jogador (acertou, raspou ou falhou e por quê), ação do oponente (nome, técnica e efeito observável), situação final (posição, ferimento ou abertura relevante). Use nomes claros em vez de pronomes ambíguos. Não repita falas do jogador nem escolha a próxima ação dele. Um acerto parcial ou uma abertura conquistada deve ter efeito mesmo contra um rival superior. Se o jogador aproveitar uma abertura estabelecida, honre essa vantagem; não repita uma esquiva automática.',
   rule:'Inferir dificuldade apenas de fatos comprovados: adversários, patentes, preparação e terreno. Vantagem numérica e patentes altas representam ameaças reais a iniciantes. Um plano concreto melhora as chances, mas não garante êxito. O narrador não deve conceder a vitória automática; derrotas parciais, retiradas e necessidade de ajuda são possíveis. O jogador escolhe suas próprias ações.'
  };
 }
 const playerVictorious=(text,first)=>{
  const s=norm(text),name=norm(first).split(/\s+/)[0].replace(/[^a-z0-9]/g,'');
  if(!victory.test(s)&&!/\bconseguiu\s+(?:derrotar|vencer|neutralizar)\b/u.test(s))return false;
- const subject=name&&new RegExp('\\b'+name+'\\b.{0,85}\\b(?:derrotou|venceu|neutralizou|nocauteou|subjugou|imobilizou|derrubou|eliminou|conseguiu\\s+(?:derrotar|vencer|neutralizar))\\b','u');
+ const subject=name&&new RegExp('\\b'+name+'\\b[^.!?]{0,85}\\b(?:derrotou|venceu|neutralizou|nocauteou|subjugou|imobilizou|eliminou|conseguiu\\s+(?:derrotar|vencer|neutralizar))\\b','u');
  if(subject?.test(s))return true;
  // Quando o texto atribui a vitória explicitamente a aliados, não confundir o feito.
  const aid=/\b(?:foram derrotados|foram neutralizados|foram vencidos)\s+(?:por|pelos|pelas)\s+(?:hiruzen|kakashi|aliados|reforcos|equipe)\b/u.test(s);
