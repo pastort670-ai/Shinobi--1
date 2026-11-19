@@ -36,12 +36,20 @@ async function cycle(index) {
  const path = 'campaigns/'+c.id;
  await other(path,undefined,404);
  c = await active(path+'/intro-confirm',{revision:c.revision});
+ c = await active(path+'/goal',{revision:c.revision,text:'Terminar a entrega '+index+'.'});
  const roster = c.team;
- for(let n=0; n<3+index%12; n++) {
+ const turnCount = index%20===0 ? 55 : 3+index%12;
+ for(let n=0; n<turnCount; n++) {
   const segments = [{type:'AGIR',text:'Entrego o documento '+n+'.'},{type:'FALAR',text:'Posso aguardar a resposta?'}];
   const before = c;
   const hours = n%3===1 && before.timeAvailable ? Math.min(8,before.timeMaxHours) : 0;
-  c = await active(path+'/turn',{revision:before.revision,segments,hours});
+  const payload = {requestId:crypto.randomUUID(),revision:before.revision,segments,hours};
+  c = await active(path+'/turn',payload);
+  if (n%9===0) {
+   const repeated = await active(path+'/turn',payload);
+   assert.equal(repeated.revision,c.revision);
+   assert.equal(repeated.messages.length,c.messages.length);
+  }
   turns++;
   assert.equal(c.revision,before.revision+1);
   assert.ok(c.day>=before.day);
@@ -51,7 +59,7 @@ async function cycle(index) {
  const backup = await active(path+'/export');
  const copy = await other('import',backup,201);
  assert.notEqual(copy.id,c.id);
- for(const field of ['character','team','messages','calendar','conditions','timeChoices','facts'])
+ for(const field of ['character','team','messages','calendar','conditions','timeChoices','facts','personalGoal'])
   assert.deepEqual(copy[field],c[field],field);
  imported++;
  await other('campaigns/'+copy.id+'/close',{revision:copy.revision,confirm:'ENCERRAR'});

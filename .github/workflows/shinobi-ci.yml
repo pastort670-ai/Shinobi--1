@@ -31,3 +31,17 @@ jobs:
       - run: npm install --no-save playwright
       - run: npx playwright install chromium --with-deps
       - run: node scripts/smoke-ui.mjs
+
+  campanha-prolongada:
+    if: github.event_name == 'pull_request' && startsWith(github.head_ref, 'release/') && contains(github.event.pull_request.body, '/ensaio-longo')
+    runs-on: ubuntu-latest
+    timeout-minutes: 95
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Exercitar campanhas, backups e reenvios durante 80 minutos
+        env:
+          SOAK_MINUTES: 80
+        run: node scripts/campaign-soak.mjs

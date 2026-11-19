@@ -8,6 +8,8 @@ Em **Memória → Meu objetivo**, escreva até 240 caracteres. Esse campo dá di
 
 A versão inclui as sugestões contextuais da 2.9.2. Tocar numa sugestão preenche uma ação editável. O tempo passa depois do envio. Treinos longos continuam sujeitos aos limites de progressão e aos compromissos da história.
 
+Cada turno enviado pelo navegador recebe um identificador. Se a conexão cair na volta, o app procura a resposta aceita. Reenviar a mesma tentativa recupera o estado da campanha sem gerar outra resposta nem consumir novamente a cota do Gemini.
+
 ## Referências de design
 
 - [Formação do Time 7 após a Academia](https://naruto-official.com/en/news/01_1282). A campanha usa essa composição como padrão de jogo.

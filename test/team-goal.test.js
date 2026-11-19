@@ -100,3 +100,31 @@ test('HTTP: objetivo e equipe sobrevivem a refazer, desfazer e importar, com iso
  assert.equal(c.personalGoal,'');
  assert.equal(c.messages.length,1);
 });
+
+test('reenvio após perda de resposta usa o recibo mesmo após reiniciar o servidor', async t=>{
+ const {mkdtemp,rm}=await import('node:fs/promises'), {tmpdir}=await import('node:os'), {join}=await import('node:path');
+ const dir=await mkdtemp(join(tmpdir(),'shinobi-delivery-'));
+ let generated=0,srv,url,cookie;
+ async function start(){
+  srv=app({dbPath:join(dir,'save'),access:{required:false},rateMs:0,generate:async()=>{generated++;return result();}});
+  await new Promise(r=>srv.listen(0,'127.0.0.1',r));
+  url='http://127.0.0.1:'+srv.address().port+'/api/';
+ }
+ async function call(path,body,expected=200) {
+  const r=await fetch(url+path,{method:'POST',headers:{cookie:cookie||'','Content-Type':'application/json'},body:JSON.stringify(body)});
+  cookie=r.headers.get('set-cookie')?.split(';')[0]||cookie;
+  assert.equal(r.status,expected);return r.json();
+ }
+ await start();
+ t.after(async()=>{await new Promise(r=>srv.close(r));await rm(dir,{recursive:true,force:true});});
+ const c=await call('campaigns',{title:'Recibo',character:ch},201), path='campaigns/'+c.id;
+ const payload={...act,revision:c.revision,requestId:crypto.randomUUID()};
+ const sent=await call(path+'/turn',payload);
+ await new Promise(r=>srv.close(r));await start();
+ const retry=await call(path+'/turn',payload);
+ assert.equal(retry.messages.length,sent.messages.length);
+ assert.equal(retry.revision,sent.revision);
+ assert.equal(generated,1);
+ await call(path+'/turn',{...payload,segments:[{type:'FALAR',text:'Outro turno.'}]},409);
+ assert.equal(generated,1);
+});

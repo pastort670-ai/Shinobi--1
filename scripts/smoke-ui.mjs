@@ -186,6 +186,19 @@ try{
  await teamPage.locator('[data-tab=memory]').click();
  assert.equal(await teamPage.locator('#goal-text').inputValue(),'Reconstruir a biblioteca da vila.');
  assert.equal(await teamPage.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
+ await teamPage.locator('#menutoggle').click();
+ await teamPage.locator('[data-tab=story]').click();
+ await teamPage.route('**/turn', async route => {
+  // O servidor aceita o POST e a resposta se perde no caminho de volta.
+  const sent = await route.fetch();
+  assert.equal(sent.status(),200);
+  await route.abort('connectionreset');
+ });
+ await teamPage.locator('#editor').fill('Examino o novo pergaminho.');
+ await teamPage.locator('#send').click();
+ await teamPage.locator('#chat .bubble.user').waitFor();
+ assert.equal(await teamPage.locator('#chat .bubble.user').count(),1);
+ assert.equal((await teamPage.locator('#editor').innerText()).replace(/\u200b/g,'').trim(),'');
  assert.deepEqual(uiErrors,[]);
  await teamPage.close();
 
