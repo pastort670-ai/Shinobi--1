@@ -28,7 +28,9 @@ function period(text){
   const before=s.slice(Math.max(0,m.index-70),m.index);
   const after=s.slice(m.index+m[0].length,m.index+m[0].length+50);
   const durationLead=/^(?:por|durante|pelos?|pelas?|ao longo de|nos proximos|nas proximas|pelos proximos|pelas proximas|cerca de|aproximadamente|ate completar)\b/u.test(m[0]);
-  if(/\b(?:tem|idade|com|de)\s*$/u.test(before)||/^\s+de idade\b/u.test(after))continue;
+  const looksLikeAge=/\b(?:tem|idade|com)\s*$/u.test(before)||/^\s+de idade\b/u.test(after)||
+   (m[2].startsWith('ano')&&/\b(?:jovem|menino|crianca|pupilo|aluno|kaien|naruto)(?:,)?\s+de\s*$/u.test(before));
+  if(looksLikeAge)continue;
   if(!durationLead&&!activity.test(before.slice(-55))&&!activity.test(after.slice(0,35)))continue;
   const unit=m[2];
   const factor=unit.startsWith('ano')?365:unit.startsWith('mes')?30:unit.startsWith('semana')?7:1;
