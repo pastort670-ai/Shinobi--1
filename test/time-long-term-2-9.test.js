@@ -166,3 +166,23 @@ test('API permite 30 dias quando compromisso foi aceito, mesmo com timeAvailable
   assert.equal(jumped.body.timeAvailable,false);
  }finally{await new Promise(resolve=>server.close(resolve));}
 });
+
+test('acordo de vinte anos permite séries de saltos de até dez anos sem estourar limite por turno',()=>{
+ const c=scene(campaign(),{user:'Quero trabalhar em pesquisa por vinte anos.',ai:'O instituto concorda que Kaien pode estudar por vinte anos.'});
+ assert.equal(view(c).timeMaxHours,10*365*24);
+ c.day+=3650;
+ assert.equal(view(c).timeMaxHours,10*365*24);
+ c.day+=3650;
+ assert.equal(view(c).timeAvailable,false,'o contrato não deve liberar tempo depois de completado');
+});
+
+test('janela de tempo não toma controle da campanha: só o clique TEMPO avança dias inteiros',()=>{
+ const c=scene(campaign(),{day:12});
+ assert.equal(view(c).timeMaxHours,720);
+ const before=JSON.stringify(c);
+ const n=apply(c,input({segments:[{type:'FALAR',text:'Pergunto sobre a rotina do treino.'}]}),
+  baseResponse('Hiruzen explica que a prática acontecerá diariamente no campo de treinamento.'));
+ assert.equal(n.day,12);
+ assert.equal(c.day,12);
+ assert.equal(JSON.stringify(c),before);
+});
