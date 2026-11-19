@@ -59,6 +59,11 @@ function confirmedChakraUse(c,i,r){
 
 export function chakraBalance(c,i,r,tick){
  const before=clamp(c.chakra),previousStrain=clamp(c.chakraStrain,20);
+ if(r.encounterResolved===true){
+  const spent=Math.min(before,clamp(r.combatChakraSpent));
+  const strain=Math.min(20,previousStrain+(spent>=14?5:spent>=8?3:spent>=5?1:0));
+  return {after:before-spent,spent,gained:0,strain,activity:spent?'Chakra consumido em técnicas.':'',mode:'none'};
+ }
  const used=confirmedChakraUse(c,i,r);
  const proposed=used?clamp(-Math.min(0,r.chakraDelta||0),20):0;
  const costProposed=Math.max(proposed,used&&r.sceneType==='combat'?combatCastCost(i,r):0);
