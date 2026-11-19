@@ -8,7 +8,6 @@ export const LONG_TRAINING_DAYS=30;
 const norm=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
 
 const specificPractice=/\b(?:trein\w*|pratic\w*|exercit\w*|aperfeico\w*|estud\w*|aprend\w*|instruc\w*|ensina\w*|taijutsu|ninjutsu|genjutsu|treinamento|pratica|estudo)\b/u;
-const done=/\b(?:treinou|treina|praticou|pratica|exercitou|aprimorou|aprimora|aperfeicoou|estudou|estuda|aprendeu|concluiu|conclui|completou|completa|realizou|realiza|executou|evoluiu|desenvolveu|passou|dedicou|terminou|finalizou)\b/u;
 
 // Não converte uma intenção do jogador em perícia sem resultado na narração.
 export function balancedTrainingProgress(c,i,r,tick){
@@ -24,7 +23,7 @@ export function balancedTrainingProgress(c,i,r,tick){
  const first=norm(c.character?.name).split(/\s+/)[0].replace(/[^a-z0-9]/g,'');
  const actor=first?first+'|voce|o protagonista|a protagonista':'voce|o protagonista|a protagonista';
  const practiced=new RegExp('\\b(?:'+actor+')\\b\\s+(?:(?:ja|tambem|finalmente|consistentemente|intensamente)\\s+){0,3}(?:treinou|treina|praticou|pratica|exercitou|aprimorou|aprimora|aperfeicoou|estudou|estuda|aprendeu|concluiu|conclui|completou|completa|realizou|realiza|executou|evoluiu|desenvolveu|dedicou|terminou|finalizou)\\b','u').test(narrated);
- const cancelled=/\b(?:treino|treinamento|pratica|atividade)\\s+(?:ainda\\s+)?nao\\s+(?:comecou|iniciou|ocorreu|foi realizada)\b|\b(?:nao treinou|nao praticou|apenas observou|somente observou)\b/u.test(narrated);
+ const cancelled=/\b(?:treino|treinamento|pratica|atividade)\s+(?:ainda\s+)?nao\s+(?:comecou|iniciou|ocorreu|foi realizada)\b|\b(?:nao treinou|nao praticou|apenas observou|somente observou)\b/u.test(narrated);
  if(skip&&days>=LONG_TRAINING_DAYS&&(!specificPractice.test(narrated)||!practiced||cancelled)){
   return {skill,before:old,after:old,gain:0,limited:true};
  }
