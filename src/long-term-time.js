@@ -48,7 +48,7 @@ function referenceText(scene,index,all,protagonist=''){
  if(!protagonistInScene&&!addressed&&!firstPersonRequest)return null;
  // Evita liberar o treinamento de Naruto ou de outro NPC porque Kaien estava perto.
  const otherTrainee=current.match(/\b(?:treinar|instruir|ensinar|orientar)\s+(?:o\s+|a\s+)?([a-z]{3,})\b/u)?.[1];
- if(otherTrainee&&!['kaien',first,'voce','me','mim','com','por','durante'].includes(otherTrainee))return null;
+ if(otherTrainee&&![first,'voce','me','mim','com','por','durante'].includes(otherTrainee))return null;
  const promise=period(current)||period(prev);
  if(!promise)return null;
  // "Se" e outras possibilidades não constituem aceitação confirmada.
