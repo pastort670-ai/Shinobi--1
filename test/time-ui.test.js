@@ -11,7 +11,7 @@ test('TEMPO usa bloco de atividade no compositor, sem aba nem botão próprio',(
  assert.doesNotMatch(html,/id="timebox"/);
  assert.doesNotMatch(html,/id="advance"/);
  assert.match(js,/choose\('TEMPO'\)/);
- assert.match(js,/ATIVIDADE DURANTE O TEMPO/);
+ assert.match(js,/O QUE ACONTECE DURANTE ESSE TEMPO/);
  assert.match(js,/class="time-inline-controls"/);
  assert.doesNotMatch(js,/\$\('timebox'\)/);
 });
