@@ -34,11 +34,11 @@ export function balancedTrainingProgress(c,i,r,tick){
  const after=Math.min(TRAINING_ONLY_MAX,old+increment);
  return {skill,before:old,after,gain:after-old,limited:after<old+increment,days};
 }
-export function isLongTrainingSkip(c,i,tick){
+export function isLongTrainingSkip(i,r,tick){
  const days=Math.floor(Math.max(0,tick.hours||0)/24);
- if(!(i.hours>0||i.days>0)||days<LONG_TRAINING_DAYS)return false;
+ if(!(i?.hours>0||i?.days>0)||days<LONG_TRAINING_DAYS)return false;
  const activity=norm((i.segments||[]).map(s=>s.text).join(' '));
- const narrative=norm(c?.lastTrainingNarrative||'');
+ const narrative=norm(r?.narrative||'');
  return specificPractice.test(activity)||specificPractice.test(narrative);
 }
 export function verifiedLongTrainingJutsus(r,i,tick){
