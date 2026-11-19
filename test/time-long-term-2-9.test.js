@@ -134,7 +134,7 @@ test('treino de outro personagem não libera saltos do protagonista',()=>{
 test('interface móvel conserva botão contextual e presets de meses e anos',()=>{
  const js=readFileSync(new URL('../public/app.js',import.meta.url),'utf8');
  assert.match(js,/current\?\.timeOpportunity/);
- assert.match(js,/current\.timeOpportunity\.label/);
+ assert.match(js,/offer\.label/);
  assert.match(js,/<option value="720">meses/);
  assert.match(js,/<option value="8760">anos/);
  assert.match(js,/Continuo o treinamento combinado durante o período escolhido/);
