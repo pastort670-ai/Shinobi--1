@@ -8,7 +8,7 @@ export const LONG_TRAINING_DAYS=30;
 const norm=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
 
 const specificPractice=/\b(?:trein\w*|pratic\w*|exercit\w*|aperfeico\w*|estud\w*|aprend\w*|instruc\w*|ensina\w*|taijutsu|ninjutsu|genjutsu|treinamento|pratica|estudo)\b/u;
-const done=/\b(?:treinou|praticou|exercitou|aprimorou|aperfeicoou|estudou|aprendeu|concluiu|completou|realizou|executou|evoluiu|desenvolveu|passou|dedicou|terminou|finalizou)\b/u;
+const done=/\b(?:treinou|treina|praticou|pratica|exercitou|aprimorou|aprimora|aperfeicoou|estudou|estuda|aprendeu|concluiu|conclui|completou|completa|realizou|realiza|executou|evoluiu|desenvolveu|passou|dedicou|terminou|finalizou)\b/u;
 
 // Não converte uma intenção do jogador em perícia sem resultado na narração.
 export function balancedTrainingProgress(c,i,r,tick){
