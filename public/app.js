@@ -49,7 +49,23 @@ function drawer(open){document.body.classList.toggle('sidebar-open',open);$('men
 $('menutoggle').onclick=()=>drawer(!document.body.classList.contains('sidebar-open'));$('closemenu').onclick=() =>drawer(false);$('backdrop').onclick=()=>drawer(false);window.addEventListener('resize',()=>drawer(document.body.classList.contains('sidebar-open')));document.addEventListener('keydown',e=>{if(e.key==='Escape'){drawer(false);$('more').open=false;}});
 if(matchMedia('(min-width:1000px)').matches)drawer(true);
 function notice(s=''){for(const id of ['notice','turnnotice']){const el=$(id);if(el){el.textContent=s;el.hidden=!s;}}}
-async function api(path,body,{startup=false}={}){let r;try{r=await fetch('/api/'+path,{method:body?'POST':'GET',credentials:'same-origin',cache:'no-store',signal:AbortSignal.timeout(startup?20000:body&&/\/(turn|regenerate|intro|audit)$/.test(path)?100000:30000),headers:body?{'Content-Type':'application/json'}:{},body:body?JSON.stringify(body):undefined});}catch(e){if(e?.name==='TimeoutError'||e?.name==='AbortError')throw Object.assign(Error('O narrador demorou para responder. Seu texto foi preservado; tente enviar novamente.'),{code:'TRANSPORT'});throw Object.assign(Error('Sem comunicação com o servidor. Verifique a conexão e tente novamente.'),{code:'TRANSPORT'});}let data;try{data=await r.json();}catch{throw Object.assign(Error('O servidor devolveu uma resposta inesperada. Aguarde e tente novamente.'),{code:'TRANSPORT'});}if(r.status===401)throw Object.assign(Error('A sessão expirou ou o navegador bloqueou os cookies. Entre com a senha novamente.'),{code:'AUTH'});if(!r.ok)throw Error(data.error||'Falha na comunicação (HTTP '+r.status+').');return data;}
+async function api(path,body,{startup=false}={}){
+ let response;
+ try{
+  response=await fetch('/api/'+path,{method:body?'POST':'GET',credentials:'same-origin',cache:'no-store',
+   signal:AbortSignal.timeout(startup?20000:55000),headers:body?{'Content-Type':'application/json'}:{},body:body?JSON.stringify(body):undefined});
+ }catch(error){
+  const timeout=error?.name==='TimeoutError'||error?.name==='AbortError';
+  throw Object.assign(Error(timeout?'O servidor demorou para responder. Confira o turno antes de tentar de novo.':'Sem comunicação com o servidor. Verifique a conexão e tente novamente.'),{code:'TRANSPORT'});
+ }
+ let data;
+ try{data=await response.json();}catch{
+  throw Object.assign(Error('O servidor devolveu uma resposta inesperada. Aguarde e tente novamente.'),{code:'TRANSPORT'});
+ }
+ if(response.status===401)throw Object.assign(Error('A sessão expirou ou o navegador bloqueou os cookies. Entre com a senha novamente.'),{code:'AUTH'});
+ if(!response.ok)throw Object.assign(Error(data.error||'Falha na comunicação (HTTP '+response.status+').'),{status:response.status});
+ return data;
+}
 async function backupCurrent(){if(!current?.id)return;const id=current.id,revision=current.revision;try{const r=await fetch('/api/campaigns/'+id+'/export');if(!r.ok)return;const t=await r.text();if(current?.id!==id||current.revision!==revision)return;try{await storeBackup(t);}catch{if(t.length<2500000)remember('shinobi-autobackup',t);}}catch{}}
 // Cópia local maior e transacional no IndexedDB (isolada por navegador).
 const backupDb=()=>new Promise((resolve,reject)=>{
@@ -71,7 +87,7 @@ async function recoverBackup(){
  }finally{db.close();}}catch{}
  return saved('shinobi-autobackup','');
 }
-function freeze(){if($('editor')){$('editor').contentEditable=busy?'false':'true';$('editor').setAttribute('aria-disabled',String(busy));}document.querySelectorAll('button,input,select,textarea').forEach(b=>{if(!b.hasAttribute('data-keep-enabled')&&!['menutoggle','closemenu','backdrop'].includes(b.id))b.disabled=busy||(b.id==='regen'&&(!current||current.messages.length<3||current.introConfirmed===false));});$('chat').setAttribute('aria-busy',String(busy));}
+function freeze(){if($('editor')){$('editor').contentEditable=busy?'false':'true';$('editor').setAttribute('aria-disabled',String(busy));}document.querySelectorAll('button,input,select,textarea').forEach(b=>{if(!b.hasAttribute('data-keep-enabled')&&!['menutoggle','closemenu','backdrop'].includes(b.id))b.disabled=busy||(b.id==='regen'&&!current?.canRegenerate);});$('chat').setAttribute('aria-busy',String(busy));}
 async function run(fn,narrating=false){if(busy)return false;busy=true;notice();$('processing').hidden=!narrating;$('savehint').textContent=narrating?'Aguarde a resposta para iniciar o próximo turno.':'Ações e falas seguem juntas em um turno.';freeze();let ok=false;try{await fn();ok=true;}catch(e){notice(e.message||'Falha no envio. Seu texto foi mantido.');}finally{busy=false;$('processing').hidden=true;$('savehint').textContent='Ações e falas seguem juntas em um turno.';freeze();}return ok;}
 function tab(name){['story','sheet','calendarpage','memory','timeline','library'].forEach(t=>$(t).hidden=t!==name);document.querySelectorAll('[data-tab]').forEach(b=>b.classList.toggle('active',b.dataset.tab===name));if(matchMedia('(max-width:800px)').matches)drawer(false);$('more').open=false;}
 document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>tab(b.dataset.tab));
@@ -245,6 +261,7 @@ async function send(days=null){
  if(busy)return;lastAction='Enviar turno';
  if(!current){notice('Crie e confirme uma ficha primeiro.');return;}
  if(current.introConfirmed===false&&current.messages.length===1){notice('Confirme a introdução antes de começar a jogar.');return;}
+ if(current.messages.at(-1)?.awaitingNarrator){notice('Você já tem um turno salvo aguardando narração. Use Refazer resposta ou Excluir.');return;}
  const hours=timeActive?Number(timeAmount)*Number(timeUnit):0;
  if(!Number.isInteger(hours)||hours<0||hours>87600||(timeActive&&hours<1)){notice('Escolha uma duração válida entre 1 hora e 3650 dias.');return;}
  if(timeActive&&hours>(current.timeMaxHours||24)){notice('Nesta cena, o TEMPO permite até '+(current.timeMaxHours||24)+' horas. Escolha uma duração menor.');return;}
@@ -261,21 +278,32 @@ async function send(days=null){
  await run(async()=>{
   try { current=await api('campaigns/'+id+'/turn',payload); }
   catch(error){
-   if(error.code!=='TRANSPORT')throw error;
-   const state=await api('campaigns/'+id).catch(()=>null);
-   if(!state?.messages.some(m=>m.role==='user'&&m.delivery?.id===delivery.id))throw error;
-   current=state;
+   if(error.code!=='TRANSPORT'&&error.status!==409)throw error;
+   const state=await api('campaigns/'+id,undefined,{startup:true}).catch(()=>null);
+   if(state?.messages.some(m=>m.role==='user'&&m.delivery?.id===delivery.id))current=state;
+   else{
+    if(state&&state.revision!==current.revision){
+     parts=editorParts();
+     current=state;
+     render();
+     throw Error('A campanha mudou em outra aba. Seu texto foi mantido. Confira a cena e envie novamente.');
+    }
+    throw error;
+   }
   }
   pendingDelivery=null;
-  parts=[{type:'AGIR',text:''}];timeActive=false;timeText='';timeAmount=1;timeUnit=24;editorMode='AGIR';savedCaret=null;clearDraft(id);render();},true);
+  parts=[{type:'AGIR',text:''}];timeActive=false;timeText='';timeAmount=1;timeUnit=24;editorMode='AGIR';savedCaret=null;clearDraft(id);render();
+  if(current.messages.at(-1)?.awaitingNarrator)notice('Turno salvo. Toque em Refazer resposta quando quiser tentar de novo.');
+  if(current.messages.at(-1)?.missingSpeech)notice('O combate foi registrado. A fala do adversário está pendente e pode ser refeita.');
+ },true);
 }
 $('send').onclick=()=>send();
-$('regen').onclick=()=>{if(current&&!busy&&current.messages.length>=3&&current.introConfirmed!==false){lastAction='Regenerar última resposta';run(async()=>{current=await api(`campaigns/${current.id}/regenerate`,{revision:current.revision});render();},true);}};
+$('regen').onclick=()=>{if(current&&!busy&&current.canRegenerate){lastAction='Regenerar última resposta';run(async()=>{current=await api(`campaigns/${current.id}/regenerate`,{revision:current.revision});render();},true);}};
 $('copyerror').onclick=async()=>{const data={version:serverVersion||'desconhecida',page:location.pathname,operation:lastAction,issue:$('turnnotice').textContent||$('notice').textContent||'Sem erro recente',engine:$('connection').textContent};try{await navigator.clipboard.writeText(JSON.stringify(data,null,2));notice('Diagnóstico copiado. Compartilhe este texto para facilitar a correção.');}catch{notice('Não foi possível copiar o diagnóstico neste navegador.');}};
 $('restorelocal').onclick=()=>{if(busy)return;lastAction='Recuperar backup local';run(async()=>{if(current)throw Error('Encerre a campanha atual antes de restaurar.');const content=await recoverBackup();if(!content)throw Error('Não há backup local neste aparelho. Tente importar um arquivo.');const data=JSON.parse(content);const restored=await api('import',data);await list(restored.id);tab('story');notice('Campanha recuperada do backup local.');});};
 $('closecampaign').onclick=()=>{if(!current||busy)return;lastAction='Encerrar campanha';run(async()=>{const original={id:current.id,revision:current.revision};const backup=await api('campaigns/'+original.id+'/export');const raw=JSON.stringify(backup);let copied=false;try{await storeBackup(raw);copied=true;}catch{try{if(raw.length<=2500000){localStorage.setItem('shinobi-autobackup',raw);copied=true;}}catch{}}if(!copied&&!window.confirm('Não foi possível salvar um backup local. Antes de continuar, você já exportou o arquivo JSON da campanha?'))return;if(!window.confirm('Encerrar a campanha atual? Ela será apagada do servidor, mas o backup local poderá recuperá-la.'))return;if(window.prompt('Digite ENCERRAR para confirmar a exclusão:')!=='ENCERRAR')return;await api('campaigns/'+original.id+'/close',{revision:original.revision,confirm:'ENCERRAR'});clearDraft(original.id);try{localStorage.removeItem('shinobi-active');}catch{}location.reload();});};
 $('restorebackup').onclick=()=>{if(!busy)$('backupfile').click();};
-$('backupfile').onchange=e=>{const file=e.target.files?.[0];if(!file)return;lastAction='Restaurar campanha';run(async()=>{if(file.size>4000000)throw Error('O backup é grande demais para importar.');const data=JSON.parse(await file.text());const restored=await api('import',data);await list(restored.id);tab('story');notice('Campanha restaurada neste aparelho. Exporte backups periodicamente para maior segurança.');});e.target.value='';};
+$('backupfile').onchange=e=>{const file=e.target.files?.[0];if(!file)return;lastAction='Restaurar campanha';run(async()=>{if(file.size>8000000)throw Error('O backup é grande demais para importar.');const data=JSON.parse(await file.text());const restored=await api('import',data);await list(restored.id);tab('story');notice('Campanha restaurada neste aparelho. Exporte backups periodicamente para maior segurança.');});e.target.value='';};
 $('export').onclick=()=>{if(current&&!busy)window.location.href=`/api/campaigns/${current.id}/export`;else if(!busy)notice('Crie uma campanha para exportar.');};
 async function rewindMessage(index){if(!current||busy)return;const shown=current.messages[index-(current.messageOffset||0)];if(!shown||shown.role!=='user')return;const later=current.messages.length+Number(current.messageOffset||0)-index-1;const question=later>1?'Excluir esta mensagem e voltar a narrativa até antes dela? Todas as respostas e turnos posteriores também serão desfeitos.':'Excluir sua última mensagem e a resposta do narrador, voltando ao estado anterior?';if(!window.confirm(question))return;const campaign=current.id,revision=current.revision;await run(async()=>{current=await api('campaigns/'+campaign+'/rewind',{revision,messageIndex:index});render();notice('Narrativa restaurada para antes da mensagem excluída.');});}
 function timeUntilEra(days){const years=Math.floor(days/365),months=Math.floor((days%365)/30),rest=(days%365)%30;return [years?years+' ano'+(years!==1?'s':''):'',months?months+' mês'+(months!==1?'es':''):'',!years&&!months?rest+' dia'+(rest!==1?'s':''):''].filter(Boolean).join(' e ');}

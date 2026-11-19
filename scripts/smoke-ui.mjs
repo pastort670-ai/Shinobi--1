@@ -160,6 +160,13 @@ try{
  await page.locator('#more summary').click();
  await page.locator('#restorelocal').click();
  await page.waitForFunction(()=>document.getElementById('hero')?.textContent==='Akira Sarutobi',null,{timeout:15000});
+ await page.waitForFunction(()=>!document.getElementById('regen').disabled);
+ const restoreRegen=page.waitForResponse(r=>r.url().endsWith('/regenerate')&&r.ok());
+ await page.locator('#regen').click();
+ await restoreRegen;
+ const restoreUndo=page.waitForResponse(r=>r.url().endsWith('/rewind')&&r.ok());
+ await page.locator('[data-undo-message]').last().click();
+ await restoreUndo;
  assert.deepEqual(errors,[],'Nenhum erro JavaScript no navegador');
  // Uma sessão isolada verifica a ficha de genin e o objetivo, pelo fluxo visível no celular.
  const teamPage = await browser.newPage({viewport:{width:360,height:780},isMobile:true,hasTouch:true});
