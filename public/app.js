@@ -4,19 +4,27 @@ const saved=(key,fallback)=>{try{return localStorage.getItem(key)||fallback;}cat
 const remember=(key,value)=>{try{localStorage.setItem(key,value);}catch{}};
 // Rascunhos por campanha ficam no próprio aparelho. Não são enviados ao narrador até o usuário clicar em Enviar.
 const draftKey=id=>'shinobi-draft-'+id;
-function saveDraft(){
+let pendingDelivery = null, serverVersion = '';
+function saveDraft(delivery=null){
+ pendingDelivery=delivery;
  if(!current?.id)return;
  try{
-  const draft={parts:editorParts(),editorMode,timeActive,timeText,timeAmount,timeUnit};
+  const draft={parts:editorParts(),editorMode,timeActive,timeText,timeAmount,timeUnit,delivery};
   localStorage.setItem(draftKey(current.id),JSON.stringify(draft));
  }catch{}
 }
 function loadDraft(){
+ pendingDelivery=null;
  try{
   const state=JSON.parse(localStorage.getItem(draftKey(current.id))||'null');
   if(!state||!Array.isArray(state.parts)||state.parts.length>8)return;
   const valid=state.parts.every(p=>p&&['AGIR','FALAR'].includes(p.type)&&typeof p.text==='string'&&p.text.length<=2000);
   if(!valid)return;
+  if(state.delivery?.id && current.messages.some(m=>m.role==='user'&&m.delivery?.id===state.delivery.id)){
+   clearDraft(current.id);
+   return;
+  }
+  pendingDelivery=state.delivery||null;
   parts=state.parts.length?state.parts:[{type:'AGIR',text:''}];
   editorMode=['AGIR','FALAR'].includes(state.editorMode)?state.editorMode:'AGIR';
   timeActive=Boolean(state.timeActive)&&current.timeAvailable===true;
@@ -41,7 +49,7 @@ function drawer(open){document.body.classList.toggle('sidebar-open',open);$('men
 $('menutoggle').onclick=()=>drawer(!document.body.classList.contains('sidebar-open'));$('closemenu').onclick=() =>drawer(false);$('backdrop').onclick=()=>drawer(false);window.addEventListener('resize',()=>drawer(document.body.classList.contains('sidebar-open')));document.addEventListener('keydown',e=>{if(e.key==='Escape'){drawer(false);$('more').open=false;}});
 if(matchMedia('(min-width:1000px)').matches)drawer(true);
 function notice(s=''){for(const id of ['notice','turnnotice']){const el=$(id);if(el){el.textContent=s;el.hidden=!s;}}}
-async function api(path,body,{startup=false}={}){let r;try{r=await fetch('/api/'+path,{method:body?'POST':'GET',credentials:'same-origin',cache:'no-store',signal:startup?AbortSignal.timeout(20000):undefined,headers:body?{'Content-Type':'application/json'}:{},body:body?JSON.stringify(body):undefined});}catch(e){if(e?.name==='TimeoutError'||e?.name==='AbortError')throw Error('O servidor demorou para responder. Tente conectar novamente.');throw Error('Sem comunicação com o servidor. Verifique a conexão e tente novamente.');}let data;try{data=await r.json();}catch{throw Error('O servidor devolveu uma resposta inesperada. Aguarde e tente novamente.');}if(r.status===401)throw Object.assign(Error('A sessão expirou ou o navegador bloqueou os cookies. Entre com a senha novamente.'),{code:'AUTH'});if(!r.ok)throw Error(data.error||'Falha na comunicação (HTTP '+r.status+').');return data;}
+async function api(path,body,{startup=false}={}){let r;try{r=await fetch('/api/'+path,{method:body?'POST':'GET',credentials:'same-origin',cache:'no-store',signal:startup?AbortSignal.timeout(20000):undefined,headers:body?{'Content-Type':'application/json'}:{},body:body?JSON.stringify(body):undefined});}catch(e){if(e?.name==='TimeoutError'||e?.name==='AbortError')throw Error('O servidor demorou para responder. Tente conectar novamente.');throw Object.assign(Error('Sem comunicação com o servidor. Verifique a conexão e tente novamente.'),{code:'TRANSPORT'});}let data;try{data=await r.json();}catch{throw Object.assign(Error('O servidor devolveu uma resposta inesperada. Aguarde e tente novamente.'),{code:'TRANSPORT'});}if(r.status===401)throw Object.assign(Error('A sessão expirou ou o navegador bloqueou os cookies. Entre com a senha novamente.'),{code:'AUTH'});if(!r.ok)throw Error(data.error||'Falha na comunicação (HTTP '+r.status+').');return data;}
 async function backupCurrent(){if(!current?.id)return;const id=current.id,revision=current.revision;try{const r=await fetch('/api/campaigns/'+id+'/export');if(!r.ok)return;const t=await r.text();if(current?.id!==id||current.revision!==revision)return;try{await storeBackup(t);}catch{if(t.length<2500000)remember('shinobi-autobackup',t);}}catch{}}
 // Cópia local maior e transacional no IndexedDB (isolada por navegador).
 const backupDb=()=>new Promise((resolve,reject)=>{
@@ -224,6 +232,15 @@ function renderDrafts(){
  root.addEventListener('focus',()=>{if(!root.querySelector('span')){const el=document.createElement('span');el.dataset.kind='AGIR';el.className='inline-narrate';el.textContent='\u200b';root.appendChild(el);}});
  renderTime();checkReview();updateMode();freeze();
 }
+function newTurnId(){
+ if(crypto.randomUUID)return crypto.randomUUID();
+ // O Chrome no endereço HTTP da rede local também oferece getRandomValues.
+ const bytes=crypto.getRandomValues(new Uint8Array(16));
+ bytes[6]=(bytes[6]&15)|64;
+ bytes[8]=(bytes[8]&63)|128;
+ const hex=Array.from(bytes,n=>n.toString(16).padStart(2,'0')).join('');
+ return [hex.slice(0,8),hex.slice(8,12),hex.slice(12,16),hex.slice(16,20),hex.slice(20)].join('-');
+}
 async function send(days=null){
  if(busy)return;lastAction='Enviar turno';
  if(!current){notice('Crie e confirme uma ficha primeiro.');return;}
@@ -237,11 +254,24 @@ async function send(days=null){
  if(segments.length>8||segments.some(s=>s.text.length>2000)){notice('Use até oito trechos com no máximo 2000 caracteres cada.');return;}
  if(!segments.length&&!days){notice('Escreva uma ação ou fala para começar.');focusPart();return;}
  const payload={segments,days:0,hours,revision:current.revision},id=current.id;
- await run(async()=>{current=await api('campaigns/'+id+'/turn',payload);parts=[{type:'AGIR',text:''}];timeActive=false;timeText='';timeAmount=1;timeUnit=24;editorMode='AGIR';savedCaret=null;clearDraft(id);render();},true);
+ const signature=JSON.stringify(payload);
+ const delivery=pendingDelivery?.signature===signature?pendingDelivery:{id:newTurnId(),signature};
+ payload.requestId=delivery.id;
+ saveDraft(delivery);
+ await run(async()=>{
+  try { current=await api('campaigns/'+id+'/turn',payload); }
+  catch(error){
+   if(error.code!=='TRANSPORT')throw error;
+   const state=await api('campaigns/'+id).catch(()=>null);
+   if(!state?.messages.some(m=>m.role==='user'&&m.delivery?.id===delivery.id))throw error;
+   current=state;
+  }
+  pendingDelivery=null;
+  parts=[{type:'AGIR',text:''}];timeActive=false;timeText='';timeAmount=1;timeUnit=24;editorMode='AGIR';savedCaret=null;clearDraft(id);render();},true);
 }
 $('send').onclick=()=>send();
 $('regen').onclick=()=>{if(current&&!busy&&current.messages.length>=3&&current.introConfirmed!==false){lastAction='Regenerar última resposta';run(async()=>{current=await api(`campaigns/${current.id}/regenerate`,{revision:current.revision});render();},true);}};
-$('copyerror').onclick=async()=>{const data={version:'1.4.0',page:location.pathname,operation:lastAction,issue:$('turnnotice').textContent||$('notice').textContent||'Sem erro recente',engine:$('connection').textContent};try{await navigator.clipboard.writeText(JSON.stringify(data,null,2));notice('Diagnóstico copiado. Compartilhe este texto para facilitar a correção.');}catch{notice('Não foi possível copiar o diagnóstico neste navegador.');}};
+$('copyerror').onclick=async()=>{const data={version:serverVersion||'desconhecida',page:location.pathname,operation:lastAction,issue:$('turnnotice').textContent||$('notice').textContent||'Sem erro recente',engine:$('connection').textContent};try{await navigator.clipboard.writeText(JSON.stringify(data,null,2));notice('Diagnóstico copiado. Compartilhe este texto para facilitar a correção.');}catch{notice('Não foi possível copiar o diagnóstico neste navegador.');}};
 $('restorelocal').onclick=()=>{if(busy)return;lastAction='Recuperar backup local';run(async()=>{if(current)throw Error('Encerre a campanha atual antes de restaurar.');const content=await recoverBackup();if(!content)throw Error('Não há backup local neste aparelho. Tente importar um arquivo.');const data=JSON.parse(content);const restored=await api('import',data);await list(restored.id);tab('story');notice('Campanha recuperada do backup local.');});};
 $('closecampaign').onclick=()=>{if(!current||busy)return;lastAction='Encerrar campanha';run(async()=>{const original={id:current.id,revision:current.revision};const backup=await api('campaigns/'+original.id+'/export');const raw=JSON.stringify(backup);let copied=false;try{await storeBackup(raw);copied=true;}catch{try{if(raw.length<=2500000){localStorage.setItem('shinobi-autobackup',raw);copied=true;}}catch{}}if(!copied&&!window.confirm('Não foi possível salvar um backup local. Antes de continuar, você já exportou o arquivo JSON da campanha?'))return;if(!window.confirm('Encerrar a campanha atual? Ela será apagada do servidor, mas o backup local poderá recuperá-la.'))return;if(window.prompt('Digite ENCERRAR para confirmar a exclusão:')!=='ENCERRAR')return;await api('campaigns/'+original.id+'/close',{revision:original.revision,confirm:'ENCERRAR'});clearDraft(original.id);try{localStorage.removeItem('shinobi-active');}catch{}location.reload();});};
 $('restorebackup').onclick=()=>{if(!busy)$('backupfile').click();};
@@ -398,7 +428,49 @@ function compactRecords(items,toCard,visible=3){
  const older=list.slice(visible);
  return initial+(older.length?'<details class="compact-more"><summary>Ver mais '+older.length+' registro'+(older.length===1?'':'s')+'</summary><div class="compact-more-content">'+older.map(card).join('')+'</div></details>':'');
 }
+async function setPersonalGoal(text) {
+ if (!current || busy) return;
+ const ok = await run(async () => {
+  current = await api('campaigns/'+current.id+'/goal', {revision:current.revision, text});
+  render();
+ });
+ if (ok) $('goal-feedback').textContent = text.trim() ? 'Objetivo salvo.' : 'Objetivo retirado.';
+}
+$('goal-form').onsubmit = event => {
+ event.preventDefault();
+ void setPersonalGoal($('goal-text').value);
+};
+$('clear-goal').onclick = () => setPersonalGoal('');
+
+function renderTeam(c) {
+ const panel = $('sheet-team'), content = $('team-content'), team = c.team;
+ panel.hidden = !team;
+ content.replaceChildren();
+ if (!team) return;
+ if (team.status === 'pending') {
+  content.textContent = 'A formação da equipe aguarda confirmação na história.';
+  return;
+ }
+ const add = (role, name) => {
+  const row = document.createElement('div'), title = document.createElement('b');
+  row.className = 'fact';
+  title.textContent = role;
+  const value = document.createElement('p');
+  value.textContent = name;
+  row.append(title, value);
+  content.append(row);
+ };
+ if (team.status === 'disbanded') add('Situação', 'Formação encerrada');
+ add('Jōnin responsável', team.leader);
+ add('Integrantes', team.members.join(' · '));
+ for (const change of team.history.slice(-3)) add('Registro da equipe', change.evidence);
+}
+
 function renderDatabook(c){
+ $('goal-text').value = c.personalGoal || '';
+ $('clear-goal').hidden = !c.personalGoal;
+ $('goal-feedback').textContent = '';
+ renderTeam(c);
  const data=c.databook||{},container=$('db-graphic'),stats=Array.isArray(data.attributes)?data.attributes:[];
  if(!container||!stats.length)return;
  const toggle=$('db-show-numbers'),numbers=saved('shinobi-databook-numbers','off')==='on';
@@ -449,7 +521,7 @@ function renderDatabook(c){
   title:'Avaliação atualizada',subtitle:'Ano '+(1+Math.floor(item.day/365))+' · Dia '+item.day,text:item.reason||'Evolução registrada'
  }),3);
 }
-function render(){const c=current;if(!c)return;const stop=$('timestatus');stop.hidden=!c.lastTimeInterruption;stop.textContent=c.lastTimeInterruption?'⏳ O avanço foi interrompido: '+c.lastTimeInterruption.reason:'';updateVillageSymbol(c.character?.village);const date=c.calendar;$('calendar').firstElementChild.textContent=`${String(date.day).padStart(2,'0')}/${String(date.month).padStart(2,'0')} · Ano ${date.year} · ${c.clockTime||'08:00'}`;updateEraUI(date);drawCalendar();$('hero').textContent=c.character.name;$('origin').textContent=`${c.age} anos · ${c.character.village||'Origem livre'}`;$('conditions').innerHTML=`<div class="condition">Energia<b>${esc(c.conditions.energy)}</b></div><div class="condition">Chakra<b>${esc(c.conditions.chakra)}</b></div>${c.chakraActivity?`<p class="chakra-feedback" role="status">${esc(c.chakraActivity)}</p>`:''}`;$('abilities').innerHTML=Object.entries(c.abilities).map(([k,v])=>`<div class="condition">${esc(k)}<b>${esc(v)}</b></div>`).join('');$('chat').innerHTML=c.messages.map((m,localIndex)=>`<article class="bubble ${m.role==='user'?'user':'ai'} ${localIndex>=c.messages.length-2?(m.sceneType==='combat'?'combat-glow':m.sceneType==='time'?'time-glow':''):''} ${m.memoryCandidate?'has-memory':''}"><div class="who">${m.role==='user'?esc(c.character.name):'忍 SHINOBI'}${m.role==='user'&&c.undoableMessages?.includes(localIndex+(c.messageOffset||0))?`<button class="undo-message" data-undo-message="${localIndex+(c.messageOffset||0)}" aria-label="Excluir mensagem e voltar a história" title="Excluir mensagem e voltar a história">✕ Excluir</button>`:''}</div><div class="message-text">${esc(m.role==='user'?m.text.replace(/^AGIR:/gm,'NARRAR:'):m.text)}</div>${m.memoryCandidate?`<div class="memory-proposal"><strong>✦ Memória Marcante: ${esc(m.memoryCandidate.title)}</strong><p>${esc(m.memoryCandidate.description)}</p><button type="button" data-memory-save="${esc(m.memoryCandidate.id)}">Salvar na ficha</button><button type="button" data-memory-dismiss="${esc(m.memoryCandidate.id)}">Ignorar</button></div>`:''}${m.sources?.length?`<div class="sources">Referências: ${m.sources.map(s=>`<a href="${esc(s.url)}" target="_blank" rel="noopener noreferrer">${esc(s.title)}</a>`).join('')}</div>`:''}</article>`).join('')+(c.introConfirmed===false&&c.messages.length===1?'<div class="intro-choices"><strong>Introdução personalizada</strong><p>Aceite esta abertura ou gere outra antes de iniciar.</p><button type="button" id="acceptintro">✓ Aceitar abertura</button><button type="button" id="retryintro">↻ Gerar outra introdução</button></div>':'');$('chat').querySelectorAll('[data-undo-message]').forEach(btn=>btn.onclick=()=>rewindMessage(Number(btn.dataset.undoMessage)));$('chat').querySelectorAll('[data-memory-save],[data-memory-dismiss]').forEach(b=>b.onclick=()=>run(async()=>{current=await api('campaigns/'+current.id+'/memory',{revision:current.revision,candidateId:b.dataset.memorySave||b.dataset.memoryDismiss,decision:b.dataset.memorySave?'saved':'dismissed'});render();if(b.dataset.memorySave)await auditCurrentMemories();}));if($('acceptintro'))$('acceptintro').onclick=()=>run(async()=>{current=await api('campaigns/'+current.id+'/intro-confirm',{revision:current.revision});render();});if($('retryintro'))$('retryintro').onclick=()=>run(async()=>{current=await api('campaigns/'+current.id+'/intro',{revision:current.revision});calendarSelected=current.day;render();},true);$('chat').scrollTop=$('chat').scrollHeight;renderDatabook(c);$('sheetcontent').innerHTML=['name','age','village','clan','affiliation','appearance','personality','skills','history'].map(k=>`<div class="fact"><b>${esc(({name:'Nome',age:'Idade inicial',village:'Vila de origem',clan:'Clã',appearance:'Aparência',personality:'Personalidade',skills:'Aptidões',history:'História',affiliation:'Afiliação atual'})[k])}</b><p>${esc(k==='age'?c.age:(c.profile?.[k]||c.character[k]||'Não definido'))}</p></div>`).join('');$('jutsus').innerHTML=(c.jutsus||[]).map(j=>`<div class="fact"><b>${esc(j.name)}</b><p>${esc(j.description||'Técnica aprendida')}</p></div>`).join('')||'<p class="caption">Nenhum jutsu aprendido foi registrado ainda.</p>';const bonds=Object.entries(c.relations||{});
+function render(){const c=current;if(!c)return;const stop=$('timestatus');stop.hidden=!c.lastTimeInterruption;stop.textContent=c.lastTimeInterruption?'⏳ O avanço foi interrompido: '+c.lastTimeInterruption.reason:'';updateVillageSymbol(c.character?.village);const date=c.calendar;$('calendar').firstElementChild.textContent=`${String(date.day).padStart(2,'0')}/${String(date.month).padStart(2,'0')} · Ano ${date.year} · ${c.clockTime||'08:00'}`;updateEraUI(date);drawCalendar();$('hero').textContent=c.character.name;$('origin').textContent=`${c.age} anos · ${c.character.village||'Origem livre'}`;$('conditions').innerHTML=`<div class="condition">Energia<b>${esc(c.conditions.energy)}</b></div><div class="condition">Chakra<b>${esc(c.conditions.chakra)}</b></div>${c.chakraActivity?`<p class="chakra-feedback" role="status">${esc(c.chakraActivity)}</p>`:''}`;$('abilities').innerHTML=Object.entries(c.abilities).map(([k,v])=>`<div class="condition">${esc(k)}<b>${esc(v)}</b></div>`).join('');$('chat').innerHTML=c.messages.map((m,localIndex)=>`<article class="bubble ${m.role==='user'?'user':'ai'} ${localIndex>=c.messages.length-2?(m.sceneType==='combat'?'combat-glow':m.sceneType==='time'?'time-glow':''):''} ${m.memoryCandidate?'has-memory':''}"><div class="who">${m.role==='user'?esc(c.character.name):'忍 SHINOBI'}${m.role==='user'&&c.undoableMessages?.includes(localIndex+(c.messageOffset||0))?`<button class="undo-message" data-undo-message="${localIndex+(c.messageOffset||0)}" aria-label="Excluir mensagem e voltar a história" title="Excluir mensagem e voltar a história">✕ Excluir</button>`:''}</div><div class="message-text">${esc(m.role==='user'?m.text.replace(/^AGIR:/gm,'NARRAR:'):m.text)}</div>${m.memoryCandidate?`<div class="memory-proposal"><strong>✦ Memória Marcante: ${esc(m.memoryCandidate.title)}</strong><p>${esc(m.memoryCandidate.description)}</p><button type="button" data-memory-save="${esc(m.memoryCandidate.id)}">Salvar na ficha</button><button type="button" data-memory-dismiss="${esc(m.memoryCandidate.id)}">Ignorar</button></div>`:''}${m.sources?.length?`<div class="sources">Referências: ${m.sources.map(s=>`<a href="${esc(s.url)}" target="_blank" rel="noopener noreferrer">${esc(s.title)}</a>`).join('')}</div>`:''}</article>`).join('')+(c.introConfirmed===false&&c.messages.length===1?'<div class="intro-choices"><strong>Introdução personalizada</strong><p>Aceite esta abertura ou gere outra antes de iniciar.</p><button type="button" id="acceptintro">✓ Aceitar abertura</button><button type="button" id="retryintro">↻ Gerar outra introdução</button></div>':'');$('chat').querySelectorAll('[data-undo-message]').forEach(btn=>btn.onclick=()=>rewindMessage(Number(btn.dataset.undoMessage)));$('chat').querySelectorAll('[data-memory-save],[data-memory-dismiss]').forEach(b=>b.onclick=()=>run(async()=>{current=await api('campaigns/'+current.id+'/memory',{revision:current.revision,candidateId:b.dataset.memorySave||b.dataset.memoryDismiss,decision:b.dataset.memorySave?'saved':'dismissed'});render();if(b.dataset.memorySave)await auditCurrentMemories();}));if($('acceptintro'))$('acceptintro').onclick=()=>run(async()=>{current=await api('campaigns/'+current.id+'/intro-confirm',{revision:current.revision});render();});if($('retryintro'))$('retryintro').onclick=()=>run(async()=>{current=await api('campaigns/'+current.id+'/intro',{revision:current.revision});calendarSelected=current.day;render();},true);$('chat').scrollTop=$('chat').scrollHeight;renderDatabook(c);$('sheetcontent').innerHTML=['name','age','village','clan','affiliation','appearance','personality','skills','history'].map(k=>`<div class="fact"><b>${esc(({name:'Nome',age:'Idade inicial',village:'Vila de origem',clan:'Clã',appearance:'Aparência',personality:'Personalidade',skills:'Aptidões',history:'História',affiliation:'Afiliação atual'})[k])}</b><p>${esc(k==='age'?c.character.age:(c.profile?.[k]||c.character[k]||'Não definido'))}</p></div>`).join('');$('jutsus').innerHTML=(c.jutsus||[]).map(j=>`<div class="fact"><b>${esc(j.name)}</b><p>${esc(j.description||'Técnica aprendida')}</p></div>`).join('')||'<p class="caption">Nenhum jutsu aprendido foi registrado ainda.</p>';const bonds=Object.entries(c.relations||{});
  $('relations-count').textContent=String(bonds.length);
  $('relations').innerHTML=compactRecords(bonds,([name,description])=>({title:name,text:description}),4);
  const moments=(c.memories||[]).filter(m=>m.status==='saved'||!m.status).slice().reverse();
@@ -476,6 +548,7 @@ async function startConnection(){
    try{s=await api('status',undefined,{startup:true});break;}
    catch(error){if(error.code==='AUTH')throw error;if(attempt===2)throw error;$('connection').textContent='Aguardando o servidor iniciar…';await new Promise(resolve=>setTimeout(resolve,1200));}
   }
+  serverVersion=s.version;
   $('connection').textContent=s.configured?'● Servidor e Gemini disponíveis':'○ Servidor conectado · Gemini não configurado';
   $('libraryStatus').textContent=s.externalLore?'Consultas externas ativadas para tópicos selecionados.':'Consulta externa desativada pelo servidor; biblioteca interna disponível.';
   await list();if(s.ephemeral)$('storagewarning').hidden=false;

@@ -8,7 +8,9 @@ import {create,input,apply,view,fail} from './engine.js';
 import {canUseTime,timeMaxHours} from './time-engine.js';
 import {provider,milestoneAuditor} from './gemini.js';
 import {milestoneSources,needsMilestoneAudit,verifiedMilestones} from './milestone-audit.js';
+import {validTeam} from './team-engine.js';
 import {accessControl} from './access.js';
+import metadata from '../package.json' with {type:'json'};
 const root=resolve(dirname(fileURLToPath(import.meta.url)),'..');
 export function app({dbPath=process.env.DB_PATH||resolve(root,'data/shinobi.sqlite'),generate=provider(),auditMilestones=milestoneAuditor(),configured=!!process.env.GEMINI_API_KEY,secure=process.env.COOKIE_SECURE==='true',rateMs=15000,access={required:process.env.REQUIRE_INVITE==='true',passwordHash:process.env.SHINOBI_PASSWORD_HASH,secret:process.env.ACCESS_SESSION_SECRET}}={}){
  if(dbPath!==':memory:')mkdirSync(dirname(dbPath),{recursive:true});const db=new DatabaseSync(dbPath);db.exec('PRAGMA journal_mode=WAL; CREATE TABLE IF NOT EXISTS campaigns(id TEXT PRIMARY KEY, owner TEXT NOT NULL, state TEXT NOT NULL, previous TEXT); CREATE TABLE IF NOT EXISTS usage(owner TEXT PRIMARY KEY, last INTEGER, day TEXT, count INTEGER); CREATE TABLE IF NOT EXISTS checkpoints(campaign TEXT NOT NULL, owner TEXT NOT NULL, message_index INTEGER NOT NULL, state TEXT NOT NULL, PRIMARY KEY(campaign,owner,message_index));');
@@ -22,7 +24,7 @@ export function app({dbPath=process.env.DB_PATH||resolve(root,'data/shinobi.sqli
  const server=http.createServer(async(req,res)=>{res.setHeader('X-Content-Type-Options','nosniff');res.setHeader('Referrer-Policy','no-referrer');res.setHeader('Content-Security-Policy',"default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'");res.setHeader('Cache-Control','no-store');
  const json=(data,status=200)=>{res.writeHead(status,{'Content-Type':'application/json; charset=utf-8'});res.end(JSON.stringify(data));};let lock;
  try{const url=new URL(req.url,'http://localhost');
- if(url.pathname==='/healthz'&&req.method==='GET')return json({ok:true});
+ if(url.pathname==='/healthz'&&req.method==='GET')return json({ok:true,version:metadata.version});
  if(await gate.route(req,res,url,json))return;
  if(req.method==='GET'&&['/entrar','/access.js'].includes(url.pathname)){const name=url.pathname==='/entrar'?'access.html':'access.js';res.writeHead(200,{'Content-Type':name.endsWith('.js')?'text/javascript; charset=utf-8':'text/html; charset=utf-8'});res.end(readFileSync(resolve(root,'public',name)));return;}
  const visitor=gate.identify(req);
@@ -33,7 +35,7 @@ export function app({dbPath=process.env.DB_PATH||resolve(root,'data/shinobi.sqli
  if(!url.pathname.startsWith('/api/')){if(req.method!=='GET')fail('Método não permitido.',405);const assets={'/':['index.html','text/html'],'/app.js':['app.js','text/javascript'],'/style.css':['style.css','text/css'],'/village-icons.svg':['village-icons.svg','image/svg+xml']};const a=assets[url.pathname];if(!a)fail('Não encontrado.',404);res.writeHead(200,{'Content-Type':a[1]+'; charset=utf-8'});res.end(readFileSync(resolve(root,'public',a[0])));return;}
  if(req.headers.origin){const o=new URL(req.headers.origin);if(o.host!==req.headers.host)fail('Origem não permitida.',403);}if(req.headers['sec-fetch-site']==='cross-site')fail('Origem não permitida.',403);
  let token=req.headers.cookie?.match(/(?:^|; )shinobi=([a-f0-9]{64})(?:;|$)/)?.[1];if(!token){token=randomBytes(32).toString('hex');res.setHeader('Set-Cookie',`shinobi=${token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=31536000${secure?'; Secure':''}`);}const owner=hash(token);
- if(url.pathname==='/api/status'&&req.method==='GET')return json({configured,version:'2.9.2',externalLore:process.env.EXTERNAL_LORE_ENABLED!=='false',admin:!!visitor?.admin,ephemeral:process.env.EPHEMERAL_STORAGE==='true'||(process.env.RENDER==='true'&&!process.env.DB_PATH)});
+ if(url.pathname==='/api/status'&&req.method==='GET')return json({configured,version:metadata.version,externalLore:process.env.EXTERNAL_LORE_ENABLED!=='false',admin:!!visitor?.admin,ephemeral:process.env.EPHEMERAL_STORAGE==='true'||(process.env.RENDER==='true'&&!process.env.DB_PATH)});
  const read=async(maxBytes=25000)=>{let n=0,chunks=[];for await(const chunk of req){n+=chunk.length;if(n>maxBytes)fail('Requisição muito grande.',413);chunks.push(chunk);}try{return JSON.parse(Buffer.concat(chunks).toString()||'{}');}catch{fail('JSON inválido.');}};
  if(url.pathname==='/api/import'){
   if(req.method!=='POST')fail('Método não permitido.',405);
@@ -48,6 +50,8 @@ export function app({dbPath=process.env.DB_PATH||resolve(root,'data/shinobi.sqli
   if(data.title!==undefined&&(typeof data.title!=='string'||data.title.length>100))fail('Título inválido no backup.');
   if(data.facts.some(x=>!x||typeof x.text!=='string'||x.text.length>2400)||data.development.some(x=>!x||typeof x.text!=='string'||x.text.length>500))fail('Dados narrativos inválidos no backup.');
 
+  if(data.personalGoal!==undefined&&(typeof data.personalGoal!=='string'||data.personalGoal.length>240))fail('Objetivo pessoal inválido no backup.');
+  if(!validTeam(data.team,data.character))fail('Registro de equipe inválido no backup.');
   const safeNum=x=>Number.isInteger(x)&&x>=0&&x<=100;
   if(!safeNum(data.energy)||!safeNum(data.chakra)||!data.progress||!['taijutsu','ninjutsu','genjutsu'].every(k=>safeNum(data.progress[k])))fail('Condições inválidas no backup.');
   const c={...data,id:randomUUID(),locked:true,revision:0,lastInput:null,regenerationHistory:[],
@@ -66,11 +70,29 @@ export function app({dbPath=process.env.DB_PATH||resolve(root,'data/shinobi.sqli
  if(url.pathname==='/api/campaigns'){
  if(req.method==='GET')return json(db.prepare('SELECT state FROM campaigns WHERE owner=?').all(owner).map(r=>{let c=JSON.parse(r.state);return {id:c.id,title:c.title,name:c.character.name,day:c.day};}));
  if(req.method==='POST'){const raw=await read();if(db.prepare('SELECT 1 FROM campaigns WHERE owner=? LIMIT 1').get(owner))fail('Já existe uma campanha neste navegador. Exporte sua campanha antes de começar outra.',409);const c=create(raw.title,raw.character??{});db.prepare('INSERT INTO campaigns VALUES(?,?,?,NULL)').run(c.id,owner,JSON.stringify(c));return json(view(c),201);}}
- const m=url.pathname.match(/^\/api\/campaigns\/([a-f0-9-]+)(?:\/(turn|regenerate|export|rewind|intro|intro-confirm|memory|audit|close))?$/);if(!m)fail('Rota não encontrada.',404);const [,id,action]=m;let row=get(id,owner),c=JSON.parse(row.state);
+ const m=url.pathname.match(/^\/api\/campaigns\/([a-f0-9-]+)(?:\/(turn|regenerate|export|rewind|goal|intro|intro-confirm|memory|audit|close))?$/);if(!m)fail('Rota não encontrada.',404);const [,id,action]=m;let row=get(id,owner),c=JSON.parse(row.state);
  if(req.method==='GET'&&!action)return json({...view(c),undoableMessages:canUndo(id,owner,c,row)});
  if(req.method==='GET'&&action==='export'){res.setHeader('Content-Disposition','attachment; filename="shinobi-campanha.json"');return json({format:'shinobi-backup-v1',campaign:c});}
- if(req.method!=='POST'||!['turn','regenerate','rewind','intro','intro-confirm','memory','audit','close'].includes(action))fail('A ficha é imutável. Operação não permitida.',405);
- if(busy.has(id))fail('Já existe um turno em andamento.',409);busy.add(id);lock=id;const raw=await read();if(raw.revision!==c.revision)fail('Campanha atualizada em outra aba. Recarregue antes de enviar.',409);
+ if(req.method!=='POST'||!['turn','regenerate','rewind','goal','intro','intro-confirm','memory','audit','close'].includes(action))fail('A ficha é imutável. Operação não permitida.',405);
+ if(busy.has(id))fail('Já existe um turno em andamento.',409);busy.add(id);lock=id;const raw=await read();
+ let delivery=null;
+ if(action==='turn' && raw.requestId!==undefined){
+  if(typeof raw.requestId!=='string'||!/^[a-f0-9-]{36}$/i.test(raw.requestId))fail('Identificador de turno inválido.');
+  delivery={id:raw.requestId,key:hash(JSON.stringify(input(raw)))};
+  const accepted=c.messages.findLast(message=>message.role==='user'&&message.delivery?.id===delivery.id);
+  if(accepted){
+   if(accepted.delivery.key!==delivery.key)fail('O identificador pertence a outro turno.',409);
+   return json({...view(c),undoableMessages:canUndo(id,owner,c,row)});
+  }
+ }
+ if(raw.revision!==c.revision)fail('Campanha atualizada em outra aba. Recarregue antes de enviar.',409);
+ if(action==='goal'){
+  if(typeof raw.text!=='string'||raw.text.length>240)fail('Escreva um objetivo de até 240 caracteres.');
+  c.personalGoal=raw.text.trim();
+  c.revision++;
+  db.prepare('UPDATE campaigns SET state=? WHERE id=? AND owner=?').run(JSON.stringify(c),id,owner);
+  return json({...view(c),undoableMessages:canUndo(id,owner,c,row)});
+ }
  if(action==='close'){
   if(raw.confirm!=='ENCERRAR')fail('Confirme o encerramento para proteger sua campanha.');
   db.exec('BEGIN IMMEDIATE');
@@ -120,6 +142,7 @@ export function app({dbPath=process.env.DB_PATH||resolve(root,'data/shinobi.sqli
   if(!saved)fail('Esse trecho da campanha não tem um ponto de retorno salvo. Só é possível excluir mensagens com histórico de retorno disponível.',409);
   const restored=JSON.parse(saved);
   if(restored.id!==c.id||restored.messages.length!==index)fail('Ponto de retorno inconsistente; nenhuma mensagem foi apagada.',409);
+  restored.personalGoal=c.personalGoal||'';
   restored.revision=c.revision+1;
   db.exec('BEGIN IMMEDIATE');
   try{db.prepare('UPDATE campaigns SET state=?,previous=NULL WHERE id=? AND owner=?').run(JSON.stringify(restored),id,owner);
@@ -127,7 +150,7 @@ export function app({dbPath=process.env.DB_PATH||resolve(root,'data/shinobi.sqli
       db.exec('COMMIT');}catch(error){db.exec('ROLLBACK');throw error;}
   return json({...view(restored),undoableMessages:canUndo(id,owner,restored,{previous:null})});
  }
- let i,base;if(action==='regenerate'){const prior=row.previous||((c.messages.length>=3&&c.messages.at(-2)?.role==='user')?db.prepare('SELECT state FROM checkpoints WHERE campaign=? AND owner=? AND message_index=?').get(id,owner,c.messages.length-2)?.state:null);if(!prior||!c.lastInput)fail('Nenhum turno para regenerar.');base=JSON.parse(prior);if(base.id!==c.id||base.messages.length!==c.messages.length-2)fail('Ponto anterior inconsistente; nenhuma alteração foi feita.',409);i=c.lastInput;
+ let i,base;if(action==='regenerate'){const prior=row.previous||((c.messages.length>=3&&c.messages.at(-2)?.role==='user')?db.prepare('SELECT state FROM checkpoints WHERE campaign=? AND owner=? AND message_index=?').get(id,owner,c.messages.length-2)?.state:null);if(!prior||!c.lastInput)fail('Nenhum turno para regenerar.');base=JSON.parse(prior);base.personalGoal=c.personalGoal||'';if(base.id!==c.id||base.messages.length!==c.messages.length-2)fail('Ponto anterior inconsistente; nenhuma alteração foi feita.',409);i=c.lastInput;
  const rejected=[...(Array.isArray(c.regenerationHistory)?c.regenerationHistory.slice(-4):[]),c.messages.at(-1)?.text].filter(x=>typeof x==='string'&&x.trim()).slice(-5);
  const words=t=>new Set(t.toLowerCase().match(/[\p{L}\p{N}]+/gu)||[]);
  const a=words(rejected.at(-1)||''),b=words(rejected.at(-2)||'');
@@ -135,7 +158,10 @@ export function app({dbPath=process.env.DB_PATH||resolve(root,'data/shinobi.sqli
  i={...i,regeneration:{rejected:rejected.slice(-2).map(v=>v.slice(0,1000)),attempt:rejected.length,requireDifferentApproach:rejected.length>=2&&(similarity>=0.4||rejected.length>=3),constraint:'Mudar a narração dentro da mesma cena, sem adicionar acontecimentos aleatórios nem transformar respostas descartadas em fatos.'}};
  }else{base=c;i=input(raw);if(i.hours>0&&!canUseTime(base))fail('TEMPO indisponível nesta cena. Aguarde uma oportunidade segura para avançar.',409);if(i.hours>timeMaxHours(base))fail('A duração excede o intervalo seguro disponível nesta cena.',409);}
  const now=Date.now(),day=new Date().toISOString().slice(0,10);let u=db.prepare('SELECT * FROM usage WHERE owner=?').get(owner);if(u&&now-u.last<rateMs)fail('Aguarde alguns segundos antes de enviar outro turno.',429);if(u?.day===day&&u.count>=Number(process.env.DAILY_LIMIT||100))fail('Limite diário local atingido.',429);db.prepare('INSERT OR REPLACE INTO usage VALUES(?,?,?,?)').run(owner,now,day,u?.day===day?u.count+1:1);
- const r=await generate(base,i);const next=apply(base,i,r);next.revision=c.revision+1;next.regenerationHistory=action==='regenerate'?i.regeneration.rejected:[];if(Array.isArray(r.sources)){next.messages.at(-1).sources=r.sources.filter(s=>typeof s.title==='string'&&typeof s.url==='string'&&/^https:\/\/(pt\.wikipedia\.org|naruto\.fandom\.com)\/wiki\//.test(s.url)).slice(0,2).map(s=>({title:s.title.slice(0,120),url:s.url.slice(0,500)}));}next.messages.at(-1).lookupStatus=['consulted','filtered','unavailable','not-needed','disabled'].includes(r.lookupStatus)?r.lookupStatus:'not-needed';db.exec('BEGIN IMMEDIATE');try{db.prepare('UPDATE campaigns SET state=?,previous=? WHERE id=? AND owner=?').run(JSON.stringify(next),JSON.stringify(base),id,owner);
+ const r=await generate(base,i);const next=apply(base,i,r);
+ const receipt=action==='regenerate'?c.messages.at(-2)?.delivery:delivery;
+ if(receipt)next.messages.at(-2).delivery=receipt;
+ next.revision=c.revision+1;next.regenerationHistory=action==='regenerate'?i.regeneration.rejected:[];if(Array.isArray(r.sources)){next.messages.at(-1).sources=r.sources.filter(s=>typeof s.title==='string'&&typeof s.url==='string'&&/^https:\/\/(pt\.wikipedia\.org|naruto\.fandom\.com)\/wiki\//.test(s.url)).slice(0,2).map(s=>({title:s.title.slice(0,120),url:s.url.slice(0,500)}));}next.messages.at(-1).lookupStatus=['consulted','filtered','unavailable','not-needed','disabled'].includes(r.lookupStatus)?r.lookupStatus:'not-needed';db.exec('BEGIN IMMEDIATE');try{db.prepare('UPDATE campaigns SET state=?,previous=? WHERE id=? AND owner=?').run(JSON.stringify(next),JSON.stringify(base),id,owner);
   db.prepare('INSERT OR REPLACE INTO checkpoints(campaign,owner,message_index,state) VALUES(?,?,?,?)').run(id,owner,base.messages.length,JSON.stringify(base));
   db.exec('COMMIT');}catch(error){db.exec('ROLLBACK');throw error;}
  return json({...view(next),undoableMessages:canUndo(id,owner,next,{previous:JSON.stringify(base)})});
