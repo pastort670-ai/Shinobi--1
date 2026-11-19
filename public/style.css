@@ -186,6 +186,9 @@ body,.workspace{height:var(--visible-height,100dvh)}
 .review-warning{display:inline-block;max-width:100%;padding:5px 9px;color:#916a04;background:rgba(249,213,83,.14);border:1px solid #cda12f;border-radius:6px;font-size:11px;animation:review-flash .9s ease-out 1}
 @keyframes review-flash{40%{box-shadow:0 0 0 3px rgba(237,192,56,.38),0 0 15px rgba(237,192,56,.4)}100%{box-shadow:none}}
 .bubble.combat-glow{border-left:3px solid var(--combat)!important;animation:battle-aura 1.2s ease-in-out 1}
+.combat-status:not([hidden]){display:grid;gap:3px;padding:7px 11px;margin-bottom:6px;font-size:.8rem;background:var(--surface);border-left:3px solid var(--combat);border-radius:6px}
+.combat-status strong{font-size:.86rem}
+.combat-status small{font-size:.76rem}
 .bubble.time-glow{border-left:3px solid var(--time)!important;animation:temporal-aura 1.2s ease-in-out 1}
 .bubble.has-memory .memory-proposal{animation:memory-aura 1.2s ease-out 1;animation-delay:1.3s;border:1px solid var(--moment)}
 @keyframes battle-aura{30%{box-shadow:0 0 0 2px rgba(220,40,51,.5),0 0 16px rgba(220,40,51,.36)}100%{box-shadow:none}}

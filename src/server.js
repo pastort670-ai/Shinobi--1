@@ -5,6 +5,7 @@ import {mkdirSync,readFileSync} from 'node:fs';
 import {resolve,dirname} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {create,input,apply,view,fail} from './engine.js';
+import {encounterPlan} from './encounter.js';
 import {canUseTime,timeMaxHours} from './time-engine.js';
 import {provider,milestoneAuditor} from './gemini.js';
 import {milestoneSources,needsMilestoneAudit,verifiedMilestones} from './milestone-audit.js';
@@ -158,7 +159,10 @@ export function app({dbPath=process.env.DB_PATH||resolve(root,'data/shinobi.sqli
  i={...i,regeneration:{rejected:rejected.slice(-2).map(v=>v.slice(0,1000)),attempt:rejected.length,requireDifferentApproach:rejected.length>=2&&(similarity>=0.4||rejected.length>=3),constraint:'Mudar a narração dentro da mesma cena, sem adicionar acontecimentos aleatórios nem transformar respostas descartadas em fatos.'}};
  }else{base=c;i=input(raw);if(i.hours>0&&!canUseTime(base))fail('TEMPO indisponível nesta cena. Aguarde uma oportunidade segura para avançar.',409);if(i.hours>timeMaxHours(base))fail('A duração excede o intervalo seguro disponível nesta cena.',409);}
  const now=Date.now(),day=new Date().toISOString().slice(0,10);let u=db.prepare('SELECT * FROM usage WHERE owner=?').get(owner);if(u&&now-u.last<rateMs)fail('Aguarde alguns segundos antes de enviar outro turno.',429);if(u?.day===day&&u.count>=Number(process.env.DAILY_LIMIT||100))fail('Limite diário local atingido.',429);db.prepare('INSERT OR REPLACE INTO usage VALUES(?,?,?,?)').run(owner,now,day,u?.day===day?u.count+1:1);
- const r=await generate(base,i);const next=apply(base,i,r);
+ const exchange=encounterPlan(base,i);
+ const speech=i.segments.some(segment=>segment.type==='FALAR');
+ const r=exchange&&!speech?{}:await generate(base,i);
+ const next=apply(base,i,r,exchange);
  const receipt=action==='regenerate'?c.messages.at(-2)?.delivery:delivery;
  if(receipt)next.messages.at(-2).delivery=receipt;
  next.revision=c.revision+1;next.regenerationHistory=action==='regenerate'?i.regeneration.rejected:[];if(Array.isArray(r.sources)){next.messages.at(-1).sources=r.sources.filter(s=>typeof s.title==='string'&&typeof s.url==='string'&&/^https:\/\/(pt\.wikipedia\.org|naruto\.fandom\.com)\/wiki\//.test(s.url)).slice(0,2).map(s=>({title:s.title.slice(0,120),url:s.url.slice(0,500)}));}next.messages.at(-1).lookupStatus=['consulted','filtered','unavailable','not-needed','disabled'].includes(r.lookupStatus)?r.lookupStatus:'not-needed';db.exec('BEGIN IMMEDIATE');try{db.prepare('UPDATE campaigns SET state=?,previous=? WHERE id=? AND owner=?').run(JSON.stringify(next),JSON.stringify(base),id,owner);
