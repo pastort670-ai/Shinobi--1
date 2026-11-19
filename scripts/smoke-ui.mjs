@@ -129,7 +129,16 @@ try{
  await page.locator('#chat .bubble.ai').last().getByText(/conversa se encerrou/).waitFor({timeout:15000});
  assert.equal(await page.locator('#time').isVisible(),true,'TEMPO só aparece após o encerramento da conversa');
  await page.locator('#time').click();
+ assert.equal(await page.locator('[data-time-choice]').count(),2,'Sugestões naturais do narrador continuam disponíveis');
+ assert.equal(await page.locator('#timeactivity').inputValue(),'','Abrir TEMPO não impõe uma ação ao personagem');
+ await page.locator('[data-time-choice]').filter({hasText:'Descansar um dia'}).click();
+ assert.equal(await page.locator('#timeactivity').inputValue(),'Descansar um dia','Tocar sugestão preenche o texto da ação');
+ assert.equal(await page.locator('#timeamount').inputValue(),'1');
+ assert.equal(await page.locator('#timeunit').inputValue(),'24');
+ assert.equal(await page.locator('[data-time-choice][aria-pressed="true"]').count(),1,'Sugestão escolhida fica indicada');
+ assert.match(await page.locator('#calendar').innerText(),/13\/10.*Ano 1/s,'Só tocar na sugestão não avança o calendário');
  await page.locator('#timeactivity').fill('Descanso por um dia.');
+ assert.equal(await page.locator('[data-time-choice][aria-pressed="true"]').count(),0,'Editar livremente não mantém sugestão selecionada');
  await page.locator('#timeamount').fill('1');
  assert.equal(await page.locator('#timeunit').inputValue(),'24','Unidade padrão é dias, não horas');
  await page.locator('#send').click();
