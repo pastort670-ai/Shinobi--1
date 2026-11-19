@@ -6,9 +6,9 @@ const normalize=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'')
 const numbers={um:1,uma:1,dois:2,duas:2,tres:3,quatro:4,cinco:5,seis:6,sete:7,oito:8,nove:9,dez:10,onze:11,doze:12,quinze:15,vinte:20,trinta:30,quarenta:40,cinquenta:50,cento:100};
 const activity=/\b(?:trein\w*|estud\w*|pesquis\w*|investig\w*|aprend\w*|aprendiz\w*|pratic\w*|prepar\w*|aperfeico\w*|recuper\w*|reabilit\w*|tratament\w*|repous\w*|descans\w*|constru\w*|fabric\w*|produ\w*|projet\w*|trabalh\w*|expedic\w*|viaj\w*|travess\w*|jornad\w*|aguard\w*|esper\w*|servic\w*|disciplin\w*|formac\w*)\b/u;
 const acceptance=/\b(?:aceit\w*|concord\w*|confirm\w*|compromet\w*|promet\w*|combinad\w*|acertad\w*|permit\w*|autoriz\w*|aprov\w*|ficou combinado|esta combinado|esta decidido|esta bem|fechado|certamente|de acordo|dispost\w* a|inici\w*|comec\w*|parti\w*|treinaremos|treinarei|treinarao|estudaremos|prepararemos|vamos treinar|vamos estudar|sera seu mestre|sera seu instrutor|sera sua instrutora)\b/u;
-const declined=/\b(?:recus\w*|rejeit\w*|negou|adiou indefinidamente|cancel\w*|desist\w*|nao aceitou|nao concordou|nao autorizou|nao permitiu|nao podera|nao vai aceitar|sem acordo|ainda nao aceitou|talvez aceite|considerara|se aceitar)\b/u;
+const declined=/\b(?:sem (?:aceitar|concordar|confirmar|autorizar)|recus\w*|rejeit\w*|negou|adiou indefinidamente|cancel\w*|desist\w*|nao aceitou|nao concordou|nao autorizou|nao permitiu|nao podera|nao vai aceitar|sem acordo|ainda nao aceitou|talvez aceite|considerara|se aceitar)\b/u;
 const ended=/\b(?:treinamento|treino|estudo|pesquisa|projeto|expedicao|viagem|tratamento|obra|contrato|aprendizado|aprendizagem|compromisso)\b.{0,62}\b(?:foi cancelad\w*|foi encerrad\w*|terminou|acabou|concluiu-se|foi concluid\w*|foi interrompid\w* definitivamente|foi suspens\w*)\b|\b(?:cancelou|encerrou|abandonou|desistiu)\b.{0,40}\b(?:treinamento|treino|estudo|projeto|expedicao|viagem|tratamento|obra|contrato)\b/u;
-const durationRe=/(?:\b(?:por|durante|pelos?|pelas?|ao longo de|nos proximos|nas proximas|pelos proximos|pelas proximas|cerca de|aproximadamente|ate completar)\s+)?(?:(?:os|as|proximos|proximas)\s+)?(\d{1,4}|um|uma|dois|duas|tres|quatro|cinco|seis|sete|oito|nove|dez|onze|doze|quinze|vinte|trinta|quarenta|cinquenta)\s+(anos?|meses?|semanas?|dias?)\b/gu;
+const durationRe=/(?:\b(?:por|durante|pelos?|pelas?|ao longo de|nos proximos|nas proximas|pelos proximos|pelas proximas|cerca de|aproximadamente|ate completar)\s+)?(?:(?:os|as|proximos|proximas)\s+)?(\d{1,4}|um|uma|dois|duas|tres|quatro|cinco|seis|sete|oito|nove|dez|onze|doze|quinze|vinte|trinta|quarenta|cinquenta)\s+(anos?|mes(?:es)?|semanas?|dias?)\b/gu;
 const indefinite=/\b(?:por anos|durante anos|varios anos|muitos anos|quantos anos|tempo indeterminado|tempo indefinido|tempo que for necessario|pelo tempo que precisar|pelo tempo que quiser|ate quando quiser)\b/u;
 const kindOf=text=>{
  if(/\b(?:trein\w*|pratic\w*|taijutsu|ninjutsu|genjutsu|sensei|instrutor|mestre|disciplina)\b/u.test(text))return 'treino';
@@ -35,12 +35,20 @@ function period(text){
  if(/\b(?:ano inteiro|ano completo)\b/u.test(s))return {days:365,indefinite:false};
  return null;
 }
-function referenceText(scene,index,all){
+function referenceText(scene,index,all,protagonist=''){
  const prev=all[index-1]?.role==='user'?normalize(all[index-1].text):'';
  const current=normalize(scene.text),confirmed=acceptance.test(current)&&!declined.test(current);
  if(!confirmed)return null;
  const combined=current+' '+prev;
  if(!activity.test(combined))return null;
+ const first=normalize(protagonist).split(/\s+/)[0];
+ const protagonistInScene=first&&new RegExp('\\b'+first+'\\b','u').test(current);
+ const addressed=/\b(?:voce|seu personagem|sua equipe|seu grupo|te treinar|treinar voce|instruir voce)\b/u.test(current);
+ const firstPersonRequest=/\b(?:me|mim|eu|quero|posso|poderia me|gostaria|preciso|queria|vou|meu|minha|aceito)\b/u.test(prev);
+ if(!protagonistInScene&&!addressed&&!firstPersonRequest)return null;
+ // Evita liberar o treinamento de Naruto ou de outro NPC porque Kaien estava perto.
+ const otherTrainee=current.match(/\b(?:treinar|instruir|ensinar|orientar)\s+(?:o\s+|a\s+)?([a-z]{3,})\b/u)?.[1];
+ if(otherTrainee&&!['kaien',first,'voce','me','mim','com','por','durante'].includes(otherTrainee))return null;
  const promise=period(current)||period(prev);
  if(!promise)return null;
  // "Se" e outras possibilidades não constituem aceitação confirmada.
@@ -72,7 +80,7 @@ export function longTermTimeOpportunity(c){
  for(let index=messages.length-1;index>=from;index--){
   const m=messages[index];
   if(m?.role!=='ai'||typeof m.text!=='string')continue;
-  const offer=referenceText(m,index,messages);
+  const offer=referenceText(m,index,messages,c.character?.name);
   if(!offer)continue;
   const later=messages.slice(index+1).filter(x=>x?.role==='ai'&&typeof x.text==='string');
   // Encerramento explícito em uma cena aceita cancela a janela antiga.
