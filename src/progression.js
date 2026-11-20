@@ -1,5 +1,7 @@
 // Recupera conquistas antigas de fontes aceitas, sem confiar em tentativas do jogador.
 // A origem do personagem fica intocada; only dynamic profile and jutsu repertoire evolve.
+import {recoverNarratedJutsus} from './jutsu-evidence.js';
+
 const normalize=s=>String(s||'').normalize('NFC').toLocaleLowerCase('pt-BR');
 const clauses=s=>String(s||'').split(/[.!?\n;]+/).map(x=>x.trim()).filter(Boolean);
 const negative=/\b(?:não|nunca|jamais|sem|ainda não|falhou|fracassou|tentou|tentativa|pretende|planeja|deseja|quer|precisa|não conseguiu|incapaz)\b/iu;
@@ -59,7 +61,7 @@ export function reconcileProgress(c){
    }
   }
  }
- return {profile,jutsus};
+ return {profile,jutsus:[...jutsus,...recoverNarratedJutsus({...c,jutsus})]};
 }
 export function hasExceptionalTalent(c){
  return /\b(?:g[eê]nio|(?:prod[ií]gio|prodigio)|talento excepcional|aprendi[sz]agem acelerada|aptid[aã]o extraordin[aá]ria)\b/iu.test([c.character?.skills,c.character?.history,c.profile?.skills].join(' '));
