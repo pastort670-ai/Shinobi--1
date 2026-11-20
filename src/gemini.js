@@ -93,8 +93,9 @@ export function provider({key=process.env.GEMINI_API_KEY,model=process.env.GEMIN
   const rewritePayload=rewrite?makePayload(rewriteInstructions,{...rewrite,itachiStage:ctx.itachiStage}, {
    type:'OBJECT',properties:{narrative:{type:'STRING'}},required:['narrative']
   },2600):null;
-  const payload=rewritePayload||makePayload(agePolicy+directionPolicy+(extended?system:compactSystem),ctx,extended?schema:flexibleSchema,complexTurn?4000:2400);
-  const recoveryPayload=error=>rewritePayload||makePayload(directionPolicy+compactSystem+' '+(error?.repair||[]).join(' '),compactContext(ctx),flexibleSchema,1400);
+  const techniqueReward='Quando o protagonista concluir a criação ou o aprendizado de um jutsu, inclusive original, use o mesmo nome escolhido pelo jogador na descrição da conquista e em learnedJutsus. Atribua apenas conquistas confirmadas, preservando a diferença entre tentativa, protótipo e domínio. ';
+  const payload=rewritePayload||makePayload(agePolicy+directionPolicy+techniqueReward+(extended?system:compactSystem),ctx,extended?schema:flexibleSchema,complexTurn?4000:2400);
+  const recoveryPayload=error=>rewritePayload||makePayload(directionPolicy+techniqueReward+compactSystem+' '+(error?.repair||[]).join(' '),compactContext(ctx),flexibleSchema,1400);
   let result,usable;
   try{
    result=await recoverGeminiResponse(fetcher,`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,

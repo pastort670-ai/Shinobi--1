@@ -2,6 +2,7 @@ import {combatForecast} from './combat-difficulty.js';
 import {chakraExperience,chakraOf} from './chakra-engine.js';
 import {itachiStage} from './itachi-stage.js';
 import {energyOf} from './energy-engine.js';
+import {recoverNarratedJutsus} from './jutsu-evidence.js';
 
 const plain = value => String(value || '').normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
 const tokens = value => plain(value).replace(/[^a-z0-9]+/g,' ').trim();
@@ -54,14 +55,16 @@ function findOpponent(c, moves, latest, forecast, previous){
 }
 
 function castOptions(c, clauses){
- const known=[...(c.jutsus||[]).map(j=>j?.name),c.character?.skills,c.profile?.skills].filter(s=>typeof s==='string');
+ const casts=clauses.filter(clause=>castVerb.test(clause)&&!imagined.test(clause));
+ if(!casts.length)return [];
+ const repertoire=[...(c.jutsus||[]),...recoverNarratedJutsus(c)];
+ const known=[...repertoire.map(j=>j?.name),c.character?.skills,c.profile?.skills].filter(s=>typeof s==='string');
  const learned=(name)=>known.some(s=>has(s,name));
  const named=/\b(?:kage bunshin|bunshin|rasengan|chidori|katon|suiton|doton|raiton|futon|sharingan|byakugan|invocacao)\b/u;
  const spells=[];
- for(const clause of clauses){
-  if(!castVerb.test(clause)||imagined.test(clause))continue;
+ for(const clause of casts){
   const alias=clause.match(named)?.[0];
-  const custom=(c.jutsus||[]).map(j=>plain(j?.name)).find(n=>n.length>=4&&has(clause,n));
+  const custom=repertoire.map(j=>plain(j?.name)).find(n=>n.length>=2&&has(clause,n));
   if(!alias&&!custom&&!techniqueWord.test(clause))continue;
   const knownTechnique=custom||(!alias&&/\b(?:chakra|jutsu de distracao|jutsu basico)\b/.test(clause))||
    (alias&&(learned(alias)||(alias==='bunshin'&&/genin|chunin|jonin|hokage/.test(plain(c.profile?.affiliation||c.character?.affiliation)))));
