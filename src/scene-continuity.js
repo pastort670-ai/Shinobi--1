@@ -10,7 +10,8 @@ const signature=text=>words(text).filter(w=>w.length>=3&&!stop.has(w));
 const protectedLanguage=/\b(?:segredo|somente (?:voce|tu)|so (?:voce|tu)|pode saber|em particular|em sigilo|sussurr\w*|cochich\w*|so entre nos)\b/u;
 const tells=/\b(?:conto|digo|falo|revelo|explico|sussurro|cochicho|informo)\b/u;
 const acknowledges=/\b(?:ouve|ouviu|ao ouvir|escuta|escutou|assente|assentiu|acena|acenou|responde|respondeu|murmura|diz|pergunta|confirma|repete|reage|faz que sim|guarda|inclina a cabeca)\b/u;
-const explicitHearing=/^ao (?:captar|ouvir|escutar) (?:as palavras|o sussurro|o segredo|a confidencia)\s*,/u;
+const explicitHearing=/\b(?:ao (?:captar|ouvir|escutar)|ouvindo|escutando|capta|captou|pondera|ponderou|considera|considerou|reflete sobre|refletiu sobre|assimila|assimilou|reage a|reagiu a)\s+(?:as palavras|o sussurro|o segredo|a confidencia|a confissao|a revelacao)\b/u;
+const hypotheticalHearing=/\b(?:nao|ainda nao|talvez|se (?:ele|ela)|quando (?:ele|ela))\s+(?:capt\w*|ouv\w*|escut\w*|ponder\w*|consider\w*|reflet\w*|assimil\w*|reag\w*)\b/u;
 const blocked=/\b(?:nao (?:ouve|ouviu|escuta|escutou|chegou|conseguiu|conta|contou|revela|revelou)|nao chegou a (?:falar|ouvir)|sem (?:ouvir|escutar)|antes (?:de ouvir|que pudesse (?:falar|ouvir))|nao esta presente|longe demais)\b/u;
 const invitation=/^(?:[—–“"]\s*)?(?:fale|pode falar)(?:[,.!:]|$)/u;
 const waitingForSpeech=/^(?:[—–“"]\s*)?(?:fale|pode falar)(?:[,.!:]|$)|\b(?:aguard\w*|esper\w*) (?:a revelacao|a confidencia|que (?:kaien|o garoto|a garota|o protagonista) (?:fale|conte|revele)|o que (?:ele|ela) tem a dizer)\b|\bpara ouvir (?:com atencao )?a confidencia\b/u;
@@ -241,7 +242,7 @@ export function commitDisclosures(previous,next,i,r,continuity=sceneContinuity(p
    const line=normalize(part);
    if(blocked.test(line)||waitingForSpeech.test(line)||hearingObstructed.test(line))return false;
    if(startsActor(part,name)&&acknowledges.test(line))return true;
-   return explicitHearing.test(line)&&hasName(part,name)&&
+   return explicitHearing.test(line)&&!hypotheticalHearing.test(line)&&hasName(part,name)&&
     !continuity.names.some(other=>!sameName(other,name)&&hasName(part,other));
   }));
   const index=confirmed.findIndex(item=>mentionsDisclosure(item.text,record.text));
