@@ -215,3 +215,24 @@ test('perguntar sobre uma conversa anterior em particular não cria um segredo n
  const next=apply(n,talk('Itachi, você ouviu o que contei em particular ao Hiruzen?'),{narrative:'Itachi balança a cabeça. — Eu estava do outro lado do pátio.'});
  assert.deepEqual(next.disclosures,n.disclosures);
 });
+
+test('uma reação ao conteúdo confirma a escuta mesmo sem um verbo de audição na resposta',()=>{
+ const examples=[
+  'Hiruzen afasta-se ligeiramente do tumulto, abaixando o olhar para ouvir a confissão de Kaien. O som dos estrondos ecoa pelas telhas enquanto o Terceiro Hokage pondera as palavras. — A prudência é necessária nesta noite.',
+  'A alguns passos da janela, o Terceiro Hokage reflete sobre a confidência por um instante.',
+  'Ao fundo, Hiruzen permanece em silêncio, escutando o sussurro.'
+ ];
+ for(const narrative of examples){
+  const n=apply(created(),tell,{narrative});
+  assert.deepEqual(n.disclosures[0].audience,['Hiruzen'],narrative);
+ }
+ for(const narrative of [
+  'Hiruzen abaixa o olhar para ouvir a confissão. Um estrondo impede a conversa.',
+  'Ao fundo, talvez Hiruzen escute o sussurro quando não houver mais barulho.',
+  'Quem pondera as palavras é Itachi, ao lado de Hiruzen.',
+  'Ao fundo, talvez escute o sussurro o Terceiro Hokage, quando tiver tempo.'
+ ]){
+  const n=apply(created(),tell,{narrative});
+  assert.deepEqual(n.disclosures[0].audience,[],narrative);
+ }
+});
