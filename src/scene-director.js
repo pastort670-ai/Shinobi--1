@@ -2,6 +2,8 @@ import {narrationQuality} from './narrator-guard.js';
 import {itachiAgeConflict,itachiStage} from './itachi-stage.js';
 import {searchSpecialistKnowledge} from './shinobi-specialist.js';
 import {chakraCondition} from './chakra-engine.js';
+import {cleanPrivateKnowledge,correctKinship,disclosureConflict,mentionsActor,sceneContinuity} from './scene-continuity.js';
+import {unavailableCast} from './turn-direction.js';
 
 const normalize=value=>String(value??'').normalize('NFD').replace(/\p{M}/gu,'').toLowerCase();
 const tokens=value=>normalize(value).match(/[\p{L}\p{N}]+/gu)||[];
@@ -109,6 +111,17 @@ function unauthorizedSpeech(c,text){
 
 function duplicate(a,b){return tokens(a).join(' ')===tokens(b).join(' ');}
 
+function unansweredQuestion(i,text,continuity){
+ if(i.opening||i.legacyRewrite||i.hours||i.days||spoken.test(text))return false;
+ const normalized=normalize(text);
+ if(endsConversation.test(normalized)||deliveredInstruction.test(normalized)||
+    /\b(?:responde\w* que|diz que|afirma que|nega que|explica por que|arrisc\w* uma resposta|faz sinal|aponta|indica|acena|confirm\w*|corta a conversa|interromp\w*)\b/u.test(normalized))return false;
+ if(!/\b(?:diant[ea] da (?:pergunta|proposta)|ao ouvir (?:a pergunta|o chamado)|a pergunta (?:o|a) (?:surpreendeu|pegou)|reag\w* a pergunta|em resposta a pergunta|antes de responder|ponder\w* a proposta)\b/u.test(normalized))return false;
+ const candidates=continuity.addressed.length?continuity.addressed:continuity.participants;
+ if(candidates.length>1&&!candidates.some(name=>mentionsActor(text,name)))return false;
+ return !!candidates.length&&(i.segments||[]).some(segment=>segment.type==='FALAR'&&segment.text.includes('?'));
+}
+
 function localDialogue(c,intent,text){
  if(!intent.speech||spoken.test(text)||tokens(text).length>54)return '';
  const normalized=normalize(text);
@@ -159,15 +172,19 @@ const withheld={
  elapsedDays:0,elapsedHours:0,clockHour:null,timeInterruption:null
 };
 
-export function directScene(c,i,proposal,{fixedCombat=false}={}){
+export function directScene(c,i,proposal,{fixedCombat=false,continuity=sceneContinuity(c,i)}={}){
  const draft=cleanDraft(proposal.narrative||'');
  const originalParts=split(draft);
  const issues=[];
  const parts=[];
  let contradicted=false;
- for(const part of originalParts){
+ for(const [index,source] of originalParts.entries()){
+  const part=fixedCombat?source:correctKinship(c,source);
+  if(part!==source)issues.push('parentesco');
   if(!fixedCombat&&!i.days&&!i.hours&&canonIssue(c,part)){contradicted=true;issues.push('cronologia');continue;}
   if(!fixedCombat&&unauthorizedSpeech(c,part)){contradicted=true;issues.push('fala-do-jogador');continue;}
+  if(!fixedCombat&&disclosureConflict(c,continuity,part,originalParts[index-1])){contradicted=true;issues.push('conhecimento-do-npc');continue;}
+  if(!fixedCombat&&unavailableCast(c,i,part)){contradicted=true;issues.push('reserva-esgotada');continue;}
   if(parts.some(v=>duplicate(v,part))){issues.push('repetição');continue;}
   parts.push(part);
  }
@@ -180,10 +197,11 @@ export function directScene(c,i,proposal,{fixedCombat=false}={}){
   const intent=readIntent(c,i);
   const extra=localDialogue(c,intent,narrative);
   if(extra&&!narrationQuality(c,i,extra).echoes){narrative+='\n\n'+extra;issues.push('orientação-contextual');}
+  if(unansweredQuestion(i,narrative,continuity))issues.push('pergunta-sem-resposta');
  }
  return {
   narrative,
-  proposal:contradicted?{...proposal,...withheld,narrative}: {...proposal,narrative},
+  proposal:cleanPrivateKnowledge(contradicted?{...proposal,...withheld,narrative}: {...proposal,narrative},continuity),
   issues:[...new Set(issues)]
  };
 }
@@ -208,5 +226,6 @@ export function directCombatSpeech(c,i,plan,speech){
  const draft=cleanDraft(speech.slice(0,500));
  const changesResult=/\b(?:voce (?:venceu|perdeu|me derrotou|foi derrotad[oa])|acertou (?:o ultimo golpe|em cheio)|suas reservas voltaram|o combate terminou|nao posso mais lutar)\b/u;
  if(canonIssue(c,draft)||unauthorizedSpeech(c,draft)||!plan.finished&&changesResult.test(normalize(draft)))return null;
+ if(disclosureConflict(c,sceneContinuity(c,i),draft,plan.state?.opponent||''))return null;
  return narrationQuality(c,i,draft).narrative||null;
 }

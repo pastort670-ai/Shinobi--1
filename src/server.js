@@ -6,6 +6,7 @@ import {resolve,dirname} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {create,input,apply,view,validate,fail} from './engine.js';
 import {directScene} from './scene-director.js';
+import {sanitizeDisclosures} from './scene-continuity.js';
 import {encounterPlan} from './encounter.js';
 import {canUseTime,timeMaxHours} from './time-engine.js';
 import {provider,milestoneAuditor} from './gemini.js';
@@ -77,6 +78,7 @@ export function app({dbPath=process.env.DB_PATH||resolve(root,'data/shinobi.sqli
   if(!safeNum(data.energy)||!safeNum(data.chakra)||!data.progress||!['taijutsu','ninjutsu','genjutsu'].every(k=>safeNum(data.progress[k])))fail('Condições inválidas no backup.');
   const c={...data,id:randomUUID(),locked:true,revision:0,lastInput:readSavedInput(data.lastInput),regenerationHistory:[],
    introConfirmed:data.messages.length>1?true:data.introConfirmed===true,
+   disclosures:sanitizeDisclosures(data.disclosures,data.day),
    memories:Array.isArray(data.memories)?data.memories.slice(-1000):[],
    pendingTasks:Array.isArray(data.pendingTasks)?data.pendingTasks.slice(-200):[],
    personalityTraits:Array.isArray(data.personalityTraits)?data.personalityTraits.slice(-30):[],

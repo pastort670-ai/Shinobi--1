@@ -34,10 +34,11 @@ export async function recoverGeminiResponse(fetcher,url,headers,payload,{primary
  let lastError;
  for(let attempt=0;attempt<2;attempt++){
   const shorter=attempt>0;
-  const body=shorter?(recoveryPayload||{...payload,generationConfig:{...payload.generationConfig,maxOutputTokens:Math.min(2400,payload.generationConfig.maxOutputTokens||2400)}}):payload;
+  const replacement=shorter&&typeof recoveryPayload==='function'?recoveryPayload(lastError):recoveryPayload;
+  const body=shorter?(replacement||{...payload,generationConfig:{...payload.generationConfig,maxOutputTokens:Math.min(2400,payload.generationConfig.maxOutputTokens||2400)}}):payload;
   try{
    const response=await fetcher(url,{method:'POST',headers,signal:AbortSignal.timeout(shorter?recoveryTimeoutMs:primaryTimeoutMs),body:JSON.stringify(body)});
-   if(response.ok&&check){try{return await check(response);}catch(error){if(shorter)throw error;lastError=error;continue;}}
+   if(response.ok&&check){try{return await check(response,attempt);}catch(error){if(shorter)throw error;lastError=error;continue;}}
    if(response.ok||![408,500,502,503,504].includes(response.status)||shorter)return response;
   }catch(error){
    lastError=error;
@@ -49,7 +50,7 @@ export async function recoverGeminiResponse(fetcher,url,headers,payload,{primary
 
 const compactSystem=`Você é o narrador do SHINOBI em português. Responda ao último turno com consequências claras e concretas, sem repetir a fala do jogador ou decidir por ele. Use o parecer do especialista local como referência, mantendo o narrador no controle da história. Respeite a data, as fichas, a campanha e a idade e repertório de Itachi em itachiStage. Se uma memória contradisser o estágio, corrija a interpretação na próxima narração. Preserve combatExchange e responda à fala do NPC em combatSpeech quando houver. Aplique só o tempo permitido pelo plano. Não invente avanços, conquistas, respostas a diálogos futuros ou novas técnicas. Proponha tempo contextual somente quando houver uma oportunidade real. Informe fatos e mudanças de ficha apenas se confirmados na própria narrativa. Use sceneDirection para escolher detalhes novos da cena. Quando couber, escreva de dois a quatro parágrafos com uma reação específica, uma consequência perceptível ou uma escolha aberta. Em diálogo, escreva o que o NPC responde, em vez de só afirmar que respondeu. Retorne JSON no esquema e listas vazias quando não houver mudanças.`;
 function compactContext(ctx){
- const keys=['sceneDirection','itachiStage','character','age','day','era','clockTime','conditions','abilities','profile','team','jutsus','input','combatExchange','combatDifficulty','timePlan','requestedTimeNarration','timeOpportunity','priorityInstruction','pending','divergences','chronologyRules','relations','lore','memory','missionStatus','npcKnowledge'];
+ const keys=['sceneDirection','turnDirection','sceneActors','scopedDisclosures','itachiStage','character','age','day','era','clockTime','conditions','abilities','profile','team','jutsus','input','combatExchange','combatDifficulty','timePlan','requestedTimeNarration','timeOpportunity','priorityInstruction','pending','divergences','chronologyRules','relations','lore','memory','missionStatus','npcKnowledge'];
  const small=Object.fromEntries(keys.map(k=>[k,ctx[k]]));
  small.recent=ctx.recent.slice(-4).map(m=>({...m,text:m.text.slice(-850)}));
  small.memory=ctx.memory.slice(0,6);
@@ -58,6 +59,15 @@ function compactContext(ctx){
  return small;
 }
 const transientError=(message,status=502)=>Object.assign(new Error(message),{status,code:'NARRATOR_UNAVAILABLE'});
+const directionPolicy='Use turnDirection para respeitar a ordem dos trechos, as condições e os resultados mecânicos. Use sceneActors para dar a cada NPC sua própria voz, seus conhecimentos e compromissos. Um nome mencionado não confirma presença. Quando um NPC disponível ouvir uma pergunta direta, escreva uma fala nova dele em travessão, uma resposta concreta por gesto ou uma recusa com causa na cena. Descreva a escolha ou o que mudou, antes de acrescentar atmosfera. Em scopedDisclosures, só os nomes em knownOnlyBy podem saber o fato. Se awaitingPrivateExchange estiver ativo, o fato é uma fala confidencial pretendida e o destinatário só passa a sabê-la se ouvir na cena. Narre a reação sem repetir a fala e nunca repasse fatos de um destinatário a outro sem um turno que estabeleça a descoberta. Metadados de NPC não devem repetir o segredo. ';
+const repairs={
+ cronologia:'A versão anterior tinha idade, patente ou técnica incompatível com a data. Respeite itachiStage e os marcos desta campanha.',
+ 'fala-do-jogador':'A versão anterior falou ou decidiu pelo protagonista. Comece pela reação alheia ou por consequências, deixando suas falas e decisões com o jogador.',
+ 'conhecimento-do-npc':'A versão anterior atribuiu informação privada ao NPC errado. Aplique scopedDisclosures e mostre somente o que cada personagem pode saber.',
+ 'reserva-esgotada':'A versão anterior confirmou uma técnica apesar da reserva esgotada. Mostre uma tentativa sem efeito ou o que a cena permite, sem escolher pelo jogador.',
+ 'pergunta-sem-resposta':'O NPC já reagiu à pergunta, mas ainda falta responder ou explicar por que não pode. Dê uma resposta, um gesto informativo ou uma recusa deliberada, conforme o que ele sabe, sem repetir a pergunta.',
+ 'sem-cena':'A versão anterior ficou sem consequência legível. Complete as reações e resultados permitidos pelo turno.'
+};
 export function provider({key=process.env.GEMINI_API_KEY,model=process.env.GEMINI_MODEL||'gemini-3.5-flash-lite',fetcher=fetch,external=process.env.EXTERNAL_LORE_ENABLED!=='false',retrieve=retrieveExternal}={}){
  const apiKey=typeof key==='string'?key.trim():'';
  return async(c,i)=>{
@@ -66,7 +76,7 @@ export function provider({key=process.env.GEMINI_API_KEY,model=process.env.GEMIN
   const ctx=context(c,i);
   const complexTurn=(i.segments||[]).reduce((n,part)=>n+String(part.text||'').length,0)>4000;
   ctx.narrationRule='É proibido repetir falas do jogador ou parafrasear suas ações. Narre consequências novas.';
-  const references=external?await retrieve(c,i):{snippets:[],sources:[],status:'disabled'};
+  const references=external?await retrieve(c,ctx.input):{snippets:[],sources:[],status:'disabled'};
   if(i.days>0||i.hours>0)ctx.priorityInstruction=temporalPriority(ctx);
   ctx.externalReferences=references.snippets;
   const makePayload=(instructions,data,responseSchema,maxOutputTokens)=>({
@@ -82,29 +92,38 @@ export function provider({key=process.env.GEMINI_API_KEY,model=process.env.GEMIN
   const rewritePayload=rewrite?makePayload(rewriteInstructions,{...rewrite,itachiStage:ctx.itachiStage}, {
    type:'OBJECT',properties:{narrative:{type:'STRING'}},required:['narrative']
   },2600):null;
-  const payload=rewritePayload||makePayload(agePolicy+(extended?system:compactSystem),ctx,extended?schema:flexibleSchema,complexTurn?4000:2400);
-  const fallback=rewritePayload||makePayload(compactSystem,compactContext(ctx),flexibleSchema,1400);
-  let result;
+  const payload=rewritePayload||makePayload(agePolicy+directionPolicy+(extended?system:compactSystem),ctx,extended?schema:flexibleSchema,complexTurn?4000:2400);
+  const recoveryPayload=error=>rewritePayload||makePayload(directionPolicy+compactSystem+' '+(error?.repair||[]).join(' '),compactContext(ctx),flexibleSchema,1400);
+  let result,usable;
   try{
    result=await recoverGeminiResponse(fetcher,`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
     {'Content-Type':'application/json','x-goog-api-key':apiKey},payload,{
-     recoveryPayload:fallback,
-     check:async response=>{
+     recoveryPayload,
+     check:async (response,attempt)=>{
       const data=await response.json();
       const candidate=data.candidates?.[0];
       if(candidate?.finishReason!=='STOP')throw new Error('incomplete');
       const narration=validateDraft(JSON.parse((candidate.content?.parts||[]).filter(part=>!part.thought).map(part=>part.text||'').join('')),validate);
       const review=i.opening||rewrite||ctx.combatExchange?null:directScene(c,i,narration);
+      const hints=review?.issues.map(issue=>repairs[issue]).filter(Boolean)||[];
+      if(hints.length&&attempt===0){
+       if(review.narrative)usable=narration;
+       throw Object.assign(new Error('scene-review'),{repair:hints});
+      }
       if(review&&!review.narrative)throw new Error('invalid-scene');
       if(itachiAgeConflict(review?.narrative??narration.narrative,ctx.itachiStage)||itachiAgeConflict(narration.combatSpeech,ctx.itachiStage))throw new Error('itachi-stage');
       return narration;
      }
     });
   }catch(error){
-   const code=String(error?.name||'UNKNOWN').replace(/[^A-Za-z0-9_]/g,'').slice(0,60);
-   console.warn('GEMINI_RESPONSE',code);
-   throw transientError('O Gemini demorou ou devolveu uma resposta inválida.');
+   if(!usable){
+    const code=String(error?.name||'UNKNOWN').replace(/[^A-Za-z0-9_]/g,'').slice(0,60);
+    console.warn('GEMINI_RESPONSE',code);
+    throw transientError('O Gemini demorou ou devolveu uma resposta inválida.');
+   }
+   result=usable;
   }
+  if(result instanceof Response&&usable)result=usable;
   if(result instanceof Response){
    if([408,429,500,502,503,504].includes(result.status))throw transientError('O Gemini está indisponível neste momento.',result.status===429?429:502);
    fail(`Gemini indisponível (HTTP ${result.status}). Verifique chave e modelo no servidor.`,502);
