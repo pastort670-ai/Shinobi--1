@@ -2,7 +2,7 @@ import {narrationQuality} from './narrator-guard.js';
 import {itachiAgeConflict,itachiStage} from './itachi-stage.js';
 import {searchSpecialistKnowledge} from './shinobi-specialist.js';
 import {chakraCondition} from './chakra-engine.js';
-import {cleanPrivateKnowledge,correctKinship,disclosureConflict,mentionsActor,sceneContinuity} from './scene-continuity.js';
+import {cleanPrivateKnowledge,correctKinship,disclosureConflict,mentionsActor,postponedDisclosure,sceneContinuity} from './scene-continuity.js';
 import {unavailableCast} from './turn-direction.js';
 
 const normalize=value=>String(value??'').normalize('NFD').replace(/\p{M}/gu,'').toLowerCase();
@@ -111,6 +111,12 @@ function unauthorizedSpeech(c,text){
 
 function duplicate(a,b){return tokens(a).join(' ')===tokens(b).join(' ');}
 
+function dropEmptyAttribution(c,text){
+ const name=tokens(c.character?.name)[0];
+ return text.split('\n').filter(line=>!name||!/^\s*[—–“”"\s]+(?:pergunta|perguntou|diz|disse|sussurra|sussurrou|fala|falou|responde|respondeu)\b/u.test(normalize(line))||
+  !nameIn(line,name)).join('\n').replace(/\n{3,}/gu,'\n\n').trim();
+}
+
 function unansweredQuestion(i,text,continuity){
  if(i.opening||i.legacyRewrite||i.hours||i.days||spoken.test(text))return false;
  const normalized=normalize(text);
@@ -179,7 +185,8 @@ export function directScene(c,i,proposal,{fixedCombat=false,continuity=sceneCont
  const parts=[];
  let contradicted=false;
  for(const [index,source] of originalParts.entries()){
-  const part=fixedCombat?source:correctKinship(c,source);
+  const nearby=originalParts.slice(Math.max(0,index-2),index+3).join(' ');
+  const part=fixedCombat?source:correctKinship(c,source,nearby);
   if(part!==source)issues.push('parentesco');
   if(!fixedCombat&&!i.days&&!i.hours&&canonIssue(c,part)){contradicted=true;issues.push('cronologia');continue;}
   if(!fixedCombat&&unauthorizedSpeech(c,part)){contradicted=true;issues.push('fala-do-jogador');continue;}
@@ -192,12 +199,14 @@ export function directScene(c,i,proposal,{fixedCombat=false,continuity=sceneCont
  const quality=narrationQuality(c,i,text);
  if(!quality.narrative)return {narrative:'',issues:[...issues,'sem-cena']};
  if(quality.removed)issues.push('eco');
- let narrative=quality.narrative;
+ let narrative=quality.removed?dropEmptyAttribution(c,quality.narrative):quality.narrative;
+ if(!narrative)return {narrative:'',issues:[...issues,'sem-cena']};
  if(!fixedCombat&&!contradicted&&!i.opening&&!i.legacyRewrite&&!i.hours&&!i.days&&proposal.sceneType!=='combat'){
   const intent=readIntent(c,i);
   const extra=localDialogue(c,intent,narrative);
   if(extra&&!narrationQuality(c,i,extra).echoes){narrative+='\n\n'+extra;issues.push('orientação-contextual');}
   if(unansweredQuestion(i,narrative,continuity))issues.push('pergunta-sem-resposta');
+  if(postponedDisclosure(continuity,narrative))issues.push('fala-confidencial-adiada');
  }
  return {
   narrative,

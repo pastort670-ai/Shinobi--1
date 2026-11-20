@@ -143,3 +143,29 @@ test('API preserva as testemunhas no backup e ao desfazer uma nova revelação',
   await new Promise(resolve=>server.close(resolve));
  }
 });
+
+test('corrige parentesco implícito por frases vizinhas e remove a atribuição vazia do eco',()=>{
+ const c=created();
+ const i=talk('Tem alguém que ainda precisa de abrigo?');
+ const n=apply(c,i,{narrative:'Kaien olha para o avô. Hiruzen abre espaço junto ao portão. O idoso inclina-se para ouvir o neto.\n\n— Tem alguém que ainda precisa de abrigo? — pergunta Kaien em voz alta.\n\nUma mulher avança e aponta para o abrigo lotado.'});
+ const text=n.messages.at(-1).text;
+ assert.match(text,/pai adotivo/u);
+ assert.match(text,/filho adotivo/u);
+ assert.match(text,/Uma mulher avança/u);
+ assert.doesNotMatch(text,/pergunta Kaien|precisa de abrigo|\bneto\b/u);
+});
+
+test('Gemini trata a fala privada como o trecho já enviado e corrige uma revelação adiada',async()=>{
+ const c=created();
+ const turn=input({segments:[{type:'AGIR',text:'Vou para perto de Hiruzen.'},{type:'FALAR',text:'Hiruzen, só você pode saber: '+secret+'.'}]});
+ const payloads=[];
+ const generate=provider({key:'teste',external:false,fetcher:async(_url,request)=>{
+  payloads.push(JSON.parse(request.body));
+  return payloads.length===1?reply({narrative:'Hiruzen aguarda a revelação.'}):reply(recognized);
+ }});
+ const n=apply(c,turn,await generate(c,turn));
+ assert.equal(payloads.length,2);
+ assert.equal(JSON.parse(payloads[0].contents[0].parts[0].text).scopedDisclosures[0].utteranceAt,2);
+ assert.match(payloads[1].systemInstruction.parts[0].text,/fala privada já foi enviada/u);
+ assert.deepEqual(n.disclosures[0].audience,['Hiruzen']);
+});
