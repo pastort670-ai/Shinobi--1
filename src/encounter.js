@@ -70,7 +70,7 @@ function castOptions(c, clauses){
   const copies=repetition?(Number(repetition)||counts[repetition]):/em sequencia|repetidamente|varias vezes/.test(clause)?2:1;
   const kind=alias||custom||'chakra';
   const price=Math.max(2,Math.round((highCost.test(kind)?12:kind==='chakra'?4:7)*(1-chakraExperience(c).efficiency)));
-  for(let n=0;n<copies&&spells.length<8;n++)spells.push({price,known:Boolean(knownTechnique)});
+  for(let n=0;n<copies&&spells.length<8;n++)spells.push({name:kind,price,known:Boolean(knownTechnique)});
  }
  return spells;
 }
@@ -83,13 +83,19 @@ function currentEncounter(c){
  return e;
 }
 
+function actionClauses(i){
+ const raw=(i.segments||[]).filter(s=>s.type==='AGIR').map(s=>plain(s.text));
+ return raw.flatMap(s=>s.split(/[.!?;,\n]+|\s+(?:e depois|e entao|em seguida|e (?=uso|lanco|executo|disparo|ativo|aplico|ataco))\s*/u))
+  .filter(s=>!imagined.test(s));
+}
+
+export function techniquesInTurn(c,i){return castOptions(c,actionClauses(i));}
+
 export function encounterPlan(c,i){
  if(i.days||i.hours)return null;
  const last=(c.messages||[]).at(-1);
  const previous=currentEncounter(c);
- const raw=(i.segments||[]).filter(s=>s.type==='AGIR').map(s=>plain(s.text));
- const clauses=raw.flatMap(s=>s.split(/[.!?;,\n]+|\s+(?:e depois|e entao|em seguida|e (?=uso|lanco|executo|disparo|ativo|aplico|ataco))\s*/u))
-  .filter(s=>!imagined.test(s));
+ const clauses=actionClauses(i);
  const moves=clauses.join(' ');
  const forecast=combatForecast(c,i);
  const named=forecast.namedOpponent;
