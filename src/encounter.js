@@ -1,5 +1,5 @@
 import {combatForecast} from './combat-difficulty.js';
-import {chakraExperience} from './chakra-engine.js';
+import {chakraExperience,chakraOf} from './chakra-engine.js';
 import {itachiStage} from './itachi-stage.js';
 import {energyOf} from './energy-engine.js';
 
@@ -108,7 +108,7 @@ export function encounterPlan(c,i){
  const round=same?previous.exchange:0;
  const intent=same?previous.intent:foe.technique?'technique':'press';
  let cost=0,fired=0,unknown=false,short=false;
- const available=c.chakra??100;
+ const available=chakraOf(c);
  for(const j of jutsus){
   if(!j.known){unknown=true;continue;}
   if(cost+j.price>available){short=true;break;}
