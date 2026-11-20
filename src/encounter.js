@@ -1,6 +1,7 @@
 import {combatForecast} from './combat-difficulty.js';
 import {chakraExperience} from './chakra-engine.js';
 import {itachiStage} from './itachi-stage.js';
+import {energyOf} from './energy-engine.js';
 
 const plain = value => String(value || '').normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
 const tokens = value => plain(value).replace(/[^a-z0-9]+/g,' ').trim();
@@ -137,8 +138,9 @@ export function encounterPlan(c,i){
    :foe.name+' usa '+foe.technique+' e força uma resposta antes que a distância volte a aumentar.';
  }else response=foe.name+' '+labels[intent].response+'.';
  const escaped=leaving&&evades;
- if(!winning&&!escaped)fatigue=Math.min(c.energy??100,read||hadOpening?1:3+pressure+(streak>1?2:0));
- const exhausted=!winning&&!escaped&&(c.energy??100)-fatigue<=0;
+ const energy=energyOf(c);
+ if(!winning&&!escaped)fatigue=Math.min(energy,read||hadOpening?1:3+pressure+(streak>1?2:0));
+ const exhausted=!winning&&!escaped&&energy-fatigue<=0;
  if(exhausted)response+=' O cansaço impede que a troca continue.';
  else if(!winning&&!escaped&&(read||hadOpening))response+=' A reação chega atrasada e não anula o que você conseguiu.';
  const finished=winning||escaped||exhausted;
