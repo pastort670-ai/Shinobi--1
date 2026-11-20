@@ -72,12 +72,15 @@ function adoptedByHiruzen(c){
 const addressesFather=text=>/^pai\s*[,!:]/u.test(normalize(text).trim());
 const directAddressee=(c,text,names)=>directRecipient(text,names,false)||(adoptedByHiruzen(c)&&addressesFather(text)?'Hiruzen':null);
 
-export function correctKinship(c,text){
- if(!adoptedByHiruzen(c)||!hasName(text,'Hiruzen'))return text;
- if(!hasName(text,c.character?.name||'')&&!includes(text,words(c.character?.name)[0]||'')&&
-    (!/\b(?:olha|olhou|olhando|aponta|apontou|se volta|se voltou)\s+para\s+(?:o|a|seu|sua) net[oa] adotiv[oa]\b/u.test(normalize(text))||
-     /\b(?:konohamaru|outro|outr[oa] menin[oa])\b/u.test(normalize(text))))return text;
- return text.replace(/\bnet([oa]) adotiv([oa])\b/giu,'filh$1 adotiv$2').replace(/\bavô adotivo\b/giu,'pai adotivo');
+export function correctKinship(c,text,nearby=''){
+ const normalized=normalize(text),firstName=words(c.character?.name)[0];
+ if(!firstName||!adoptedByHiruzen(c)||!hasName(text+' '+nearby,'Hiruzen')||
+    /\b(?:konohamaru|outr[oa] menin[oa]|net[oa] de)\b/u.test(normalized))return text;
+ const linked=includes(text+' '+nearby,firstName)||hasName(text,'Hiruzen')&&
+  /\b(?:olha|olhou|olhando|aponta|apontou|se volta|se voltou)\s+para\s+(?:o|a|seu|sua) net[oa] adotiv[oa]\b/u.test(normalized)||
+  /^(?:o idoso|terceiro hokage|o terceiro hokage|hiruzen)\b[^.!?]{0,130}\b(?:ouve|ouvir|observa|observou|ouvindo|mede|medindo)\s+(?:o|a|seu|sua) net[oa]\b/u.test(normalized);
+ if(!linked)return text;
+ return text.replace(/\bnet([oa])(?: adotiv[oa])?\b/giu,'filh$1 adotiv$1').replace(/\bavô(?: adotivo)?(?=$|[^\p{L}])/giu,'pai adotivo');
 }
 
 function directRecipient(text,names,action){
@@ -95,7 +98,7 @@ function directRecipient(text,names,action){
 function playerDisclosures(c,i,names,ledger){
  let recipient=null,isPrivate=false;
  const disclosures=[];
- for(const segment of i.segments||[]){
+ for(const [index,segment] of (i.segments||[]).entries()){
   const normalized=normalize(segment.text);
   if(segment.type==='AGIR'){
    recipient=null;
@@ -113,7 +116,7 @@ function playerDisclosures(c,i,names,ledger){
   if(signature(text).length<3||text.length>600)continue;
   const existing=ledger.find(record=>mentionsDisclosure(text,record.text));
   const privateTurn=protectedLanguage.test(normalized)||isPrivate;
-  if(privateTurn||existing)disclosures.push({text:existing?.text||text,audience:[addressed],pending:true});
+  if(privateTurn||existing)disclosures.push({text:existing?.text||text,audience:[addressed],pending:true,utteranceAt:index+1});
  }
  return disclosures;
 }
@@ -165,7 +168,13 @@ export function continuityBrief(c,continuity,day=c.day||0){
 export function scopedDisclosures(continuity){
  const candidates=continuity.addressees.length?continuity.addressees:continuity.participants;
  const relevant=continuity.ledger.filter(record=>record.audience.some(name=>candidates.some(other=>sameName(name,other))));
- return [...relevant.slice(-8),...continuity.pending.slice(0,8)].map(({text,audience,pending})=>({text,knownOnlyBy:audience,awaitingPrivateExchange:!!pending}));
+ return [...relevant.slice(-8),...continuity.pending.slice(0,8)].map(({text,audience,pending,utteranceAt})=>({text,knownOnlyBy:audience,awaitingPrivateExchange:!!pending,...(pending?{utteranceAt}:{})}));
+}
+
+export function postponedDisclosure(continuity,text){
+ if(!continuity.pending.length)return false;
+ const planned=/\b(?:aguard\w*|esper\w*) (?:a revelacao|a confidencia|que (?:kaien|o garoto|a garota|o protagonista) (?:fale|conte|revele)|o que (?:ele|ela) tem a dizer)\b/u;
+ return split(text).some(part=>planned.test(normalize(part))&&!blocked.test(normalize(part)));
 }
 
 export function maskDisclosures(value,records){
