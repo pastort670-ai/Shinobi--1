@@ -7,6 +7,39 @@ const clamp=(v,max=100)=>Math.max(0,Math.min(max,Number.isFinite(v)?v:0));
 const norm=v=>String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLocaleLowerCase('pt-BR');
 const words=s=>norm(s);
 const namedCast=/\b(?:rasengan|chidori|bunshin|katon|suiton|doton|raiton|futon)\b/u;
+const practice=/\b(?:trein\w*|pratic\w*|exercit\w*|aperfeico\w*|repet\w*)\b/u;
+const chakraTechnique=/\b(?:ninjutsu|genjutsu|fuu?injutsu|chakra|estilo (?:raio|relampago|fogo|vento|terra|agua)|jutsu|rasengan|chidori|bunshin|katon|suiton|doton|raiton|futon)\b/u;
+
+function trainingWithChakra(c,r){
+ const story=norm(r.narrative);
+ const first=norm(c.character?.name).split(/\s+/u)[0]?.replace(/[^a-z0-9]/g,'');
+ const player=first?first+'|voce|o protagonista|a protagonista':'voce|o protagonista|a protagonista';
+ const actor=new RegExp('\\b(?:'+player+')\\b','u');
+ if(!actor.test(story)||!practice.test(story)||!chakraTechnique.test(story))return false;
+ if(/\b(?:nao (?:treinou|praticou|usou|moldou|canalizou)|apenas (?:assistiu|observou|estudou)|treino (?:foi adiado|nao comecou)|sem (?:usar|gastar|moldar) chakra|so na teoria)\b/u.test(story))return false;
+ const performed='(?:treinou|treina|praticou|pratica|exercitou|aperfeicoou|repetiu|executou|canalizou|moldou|usou)';
+ const confirmed=story.split(/[.!?;\n]+/u).some(clause=>
+  new RegExp('\\b(?:'+player+')\\b(?:\\s+[a-z]+){0,3}\\s+'+performed+'\\b','u').test(clause)&&
+  chakraTechnique.test(clause)&&!/\b(?:pretendia|poderia|queria|nao|se |observou|assistiu)\b/u.test(clause));
+ const practicalResult=/\b(?:fluxo eletrico|canalizacao de chakra|moldou o chakra|moldagem de chakra|dominio do fluxo|dispersao de energia|cortes desferidos)\b/u.test(story);
+ const resumed=new RegExp('\\b(?:'+player+')\\b[^.!?]{0,150}\\b(?:retomou|retoma|retomar|iniciou|inicia|comecou|comeca)\\b[^.!?]{0,45}\\b(?:treinos?|pratica|treinamento)\\b','u').test(story);
+ return confirmed||practicalResult&&resumed;
+}
+
+function fullRecovery(c,r,tick){
+ return restingInNarration(c,{segments:[]},r,tick)&&
+  /\b(?:chakra (?:se recomp[oô]s|foi restaurado|foi recuperado|voltou ao normal)|reservas? (?:completas?|totalmente recuperadas?)|recuperou (?:todo o|completamente o) chakra)\b/u.test(norm(r.narrative));
+}
+
+export function chakraOf(c){
+ const reserve=clamp(c.chakra);
+ const accepted=c.messages?.findLast(m=>m.role==='ai'&&!m.awaitingNarrator);
+ if(reserve<100||!accepted||accepted.chakraReconciled)return reserve;
+ const result={narrative:accepted.text};
+ if(!trainingWithChakra(c,result)||fullRecovery(c,result,{hours:0}))return reserve;
+ // Um save antigo não registra quanto foi gasto. Aplica só a estimativa mínima.
+ return reserve-4;
+}
 
 export function chakraExperience(c){
  const p=c.progress||{},controlText=words([c.character?.skills,c.character?.history,c.profile?.skills,...(c.development||[]).slice(-12).map(x=>x.text)].join(' '));
@@ -58,7 +91,7 @@ function confirmedChakraUse(c,i,r){
 }
 
 export function chakraBalance(c,i,r,tick){
- const before=clamp(c.chakra),previousStrain=clamp(c.chakraStrain,20);
+ const before=chakraOf(c),previousStrain=clamp(c.chakraStrain,20);
  if(r.encounterResolved===true){
   const spent=Math.min(before,clamp(r.combatChakraSpent));
   const strain=Math.min(20,previousStrain+(spent>=14?5:spent>=8?3:spent>=5?1:0));
@@ -66,7 +99,10 @@ export function chakraBalance(c,i,r,tick){
  }
  const used=confirmedChakraUse(c,i,r);
  const proposed=used?clamp(-Math.min(0,r.chakraDelta||0),20):0;
- const costProposed=Math.max(proposed,used&&r.sceneType==='combat'?combatCastCost(i,r):0);
+ const hours=Math.max(0,Number.isFinite(tick.hours)?tick.hours:0);
+ const trained=trainingWithChakra(c,r);
+ const practiceCost=trained?Math.min(32,6+Math.ceil(Math.min(hours,12)*2)):0;
+ const costProposed=Math.max(proposed,practiceCost,used&&r.sceneType==='combat'?combatCastCost(i,r):0);
  const experience=chakraExperience(c);
  // Mesmo com reservas especiais, ataques grandes continuam custosos.
  const heavy=costProposed>=14;
@@ -74,9 +110,9 @@ export function chakraBalance(c,i,r,tick){
  const spent=costProposed?Math.min(before,Math.max(1,Math.round(costProposed*(1-adjustment)))):0;
  const strainGain=spent>=14?5:spent>=8?3:spent>=5?1:0;
  const strain=Math.min(20,previousStrain+strainGain);
- const rest=r.sceneType!=='combat'&&restingInNarration(c,i,r,tick);
+ const recoveredAfterPractice=trained&&fullRecovery(c,r,tick);
+ const rest=r.sceneType!=='combat'&&(!trained||recoveredAfterPractice)&&restingInNarration(c,i,r,tick);
  const active=activeInterval(i,r);
- const hours=Math.max(0,Number.isFinite(tick.hours)?tick.hours:0);
  let gained=0,mode='none';
  if(rest){
   // O custo do esforço anterior importa: descanso leve recupera rapidamente;
@@ -84,7 +120,7 @@ export function chakraBalance(c,i,r,tick){
   const rate=strain>=10?4:strain>=5?6:9;
   gained=hours>0?Math.ceil(Math.min(hours,72)*rate):2;
   mode='rest';
- }else if(r.sceneType!=='combat'&&hours>0){
+ }else if(r.sceneType!=='combat'&&!trained&&hours>0){
   // Passagem tranquila regenera lentamente, mesmo sem o Gemini declarar chakraDelta>0.
   const rate=active?.65:1.6;
   gained=Math.floor(Math.min(hours,240)*rate*(strain>=10?.65:1));

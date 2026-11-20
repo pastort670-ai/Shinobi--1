@@ -121,6 +121,29 @@ test('NPC dormir não recupera o chakra do jogador',()=>{
  assert.equal(n.chakra,32);
 });
 
+test('ninjutsu praticado cobra chakra mesmo sem delta explícito e pausas curtas não reabastecem a reserva',()=>{
+ const old=create('Estilo Raio',{...baseCharacter,name:'Kaien Sarutobi'});
+ const i=input({hours:8,segments:[{type:'AGIR',text:'Retomo o treino prático do estilo Raio.'}]});
+ const r=narration('Kaien se dirige ao pátio para retomar os treinos práticos com o estilo Raio. Durante oito horas, o esforço se concentra em refinar o fluxo elétrico na lâmina. O desgaste exige pausas para recuperar o fôlego e o equilíbrio do chakra.');
+ const after=apply(old,i,r);
+ assert.ok(after.chakra<100);
+ assert.equal(view(after).conditions.chakra,'reserva disponível');
+ const legacy=structuredClone(old);
+ legacy.messages.push({role:'ai',text:r.narrative});
+ assert.equal(view(legacy).conditions.chakra,'reserva disponível');
+ const next=apply(legacy,action('Escuto Hiruzen.'),narration('Hiruzen explica a próxima tarefa.'));
+ assert.equal(next.chakra,96);
+ assert.equal(apply(next,action('Continuo ouvindo.'),narration('Hiruzen apresenta o cronograma.')).chakra,96);
+});
+
+test('observar o ninjutsu do instrutor e estudar sem prática não cobram chakra',()=>{
+ const old=create('Aula',baseCharacter);
+ const i=action('Observo a aula de ninjutsu.');
+ const r=narration('Akira apenas observou. Hiruzen praticou ninjutsu e aperfeiçoou o fluxo elétrico na demonstração.');
+ assert.equal(apply(old,i,r).chakra,100);
+ assert.equal(apply(old,i,narration('Akira estudou ninjutsu no livro, sem usar chakra.')).chakra,100);
+});
+
 test('pedido de descanso e delta positivo sem confirmação não gera recuperação',()=>{
  const c=create('Plano',baseCharacter);c.chakra=34;
  const i=action('Quero dormir em breve.');
