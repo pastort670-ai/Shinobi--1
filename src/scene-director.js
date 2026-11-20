@@ -2,7 +2,7 @@ import {narrationQuality} from './narrator-guard.js';
 import {itachiAgeConflict,itachiStage} from './itachi-stage.js';
 import {searchSpecialistKnowledge} from './shinobi-specialist.js';
 import {chakraCondition} from './chakra-engine.js';
-import {cleanPrivateKnowledge,correctKinship,disclosureConflict,mentionsActor,postponedDisclosure,sceneContinuity} from './scene-continuity.js';
+import {cleanPrivateKnowledge,correctKinship,disclosureConflict,mentionsActor,postponedDisclosure,resolveHeardDisclosure,sceneContinuity} from './scene-continuity.js';
 import {unavailableCast} from './turn-direction.js';
 
 const normalize=value=>String(value??'').normalize('NFD').replace(/\p{M}/gu,'').toLowerCase();
@@ -206,7 +206,9 @@ export function directScene(c,i,proposal,{fixedCombat=false,continuity=sceneCont
   const extra=localDialogue(c,intent,narrative);
   if(extra&&!narrationQuality(c,i,extra).echoes){narrative+='\n\n'+extra;issues.push('orientação-contextual');}
   if(unansweredQuestion(i,narrative,continuity))issues.push('pergunta-sem-resposta');
-  if(postponedDisclosure(continuity,narrative))issues.push('fala-confidencial-adiada');
+  const heard=resolveHeardDisclosure(continuity,narrative);
+  if(heard){narrative=heard;issues.push('confidencia-resolvida');}
+  else if(postponedDisclosure(continuity,narrative))issues.push('fala-confidencial-adiada');
  }
  return {
   narrative,

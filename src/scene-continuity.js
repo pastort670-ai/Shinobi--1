@@ -11,6 +11,9 @@ const protectedLanguage=/\b(?:segredo|somente (?:voce|tu)|so (?:voce|tu)|pode sa
 const tells=/\b(?:conto|digo|falo|revelo|explico|sussurro|cochicho|informo)\b/u;
 const acknowledges=/\b(?:ouve|ouviu|ao ouvir|escuta|escutou|assente|assentiu|acena|acenou|responde|respondeu|murmura|diz|pergunta|confirma|repete|reage|faz que sim|guarda|inclina a cabeca)\b/u;
 const blocked=/\b(?:nao (?:ouve|ouviu|escuta|escutou|chegou|conseguiu|conta|contou|revela|revelou)|nao chegou a (?:falar|ouvir)|sem (?:ouvir|escutar)|antes (?:de ouvir|que pudesse (?:falar|ouvir))|nao esta presente|longe demais)\b/u;
+const invitation=/^(?:[—–“"]\s*)?(?:fale|pode falar)(?:[,.!:]|$)/u;
+const waitingForSpeech=/^(?:[—–“"]\s*)?(?:fale|pode falar)(?:[,.!:]|$)|\b(?:aguard\w*|esper\w*) (?:a revelacao|a confidencia|que (?:kaien|o garoto|a garota|o protagonista) (?:fale|conte|revele)|o que (?:ele|ela) tem a dizer)\b|\bpara ouvir (?:com atencao )?a confidencia\b/u;
+const hearingObstructed=/\b(?:abaf\w* (?:o|seu) sussurro|abaf\w* (?:a|sua) voz|impede\w* (?:a conversa|que .*? ouca)|interromp\w* antes)\b/u;
 const split=text=>String(text??'').split(/(?<=[.!?…])\s+(?=[\p{Lu}“"—])|\n+/u).map(s=>s.trim()).filter(Boolean);
 
 const canon={
@@ -32,6 +35,8 @@ const sameName=(a,b)=>{const ak=canonName(a),bk=canonName(b);return ak&&bk?ak===
 export const mentionsActor=(text,name)=>includes(text,name)||(canonName(name)&&includes(text,canonName(name)))||
  canonName(name)==='Hiruzen'&&/\b(?:terceiro hokage|sandaime)\b/u.test(normalize(text));
 const hasName=mentionsActor;
+const startsActor=(value,name)=>startsWithName(value,canonName(name)||name)||
+ canonName(name)==='Hiruzen'&&/^(?:o\s+)?(?:terceiro hokage|sandaime)\b/u.test(normalize(value).trim());
 function uniqueNames(list){
  const distinct=new Map();
  for(const name of list){
@@ -48,8 +53,7 @@ export function sanitizeDisclosures(raw,day){
  if(!Array.isArray(raw))return [];
  return raw.slice(-ledgerLimit).filter(record=>record&&typeof record.text==='string'&&record.text.length<=600&&signature(record.text).length>=3&&
   Number.isInteger(record.day)&&record.day>=0&&record.day<=day&&Array.isArray(record.audience)&&record.audience.length<=12&&record.audience.every(nameValid))
-  .map(({text,day,audience})=>({text:text.trim(),day,audience:uniqueNames(audience)}))
-  .filter(record=>record.audience.length);
+  .map(({text,day,audience})=>({text:text.trim(),day,audience:uniqueNames(audience)}));
 }
 
 function namesFor(c,i){
@@ -173,8 +177,19 @@ export function scopedDisclosures(continuity){
 
 export function postponedDisclosure(continuity,text){
  if(!continuity.pending.length)return false;
- const planned=/\b(?:aguard\w*|esper\w*) (?:a revelacao|a confidencia|que (?:kaien|o garoto|a garota|o protagonista) (?:fale|conte|revele)|o que (?:ele|ela) tem a dizer)\b/u;
- return split(text).some(part=>planned.test(normalize(part))&&!blocked.test(normalize(part)));
+ return split(text).some(part=>waitingForSpeech.test(normalize(part))&&!blocked.test(normalize(part)));
+}
+
+export function resolveHeardDisclosure(continuity,text){
+ if(continuity.pending.length!==1||!postponedDisclosure(continuity,text)||blocked.test(normalize(text))||hearingObstructed.test(normalize(text)))return null;
+ const [name]=continuity.pending[0].audience;
+ const parts=split(text);
+ const proximity=/\b(?:se aproxim\w*|aproxima-se|chega perto|se inclina|inclina-se|inclina\w*-se|fica (?:bem )?perto|fica ao lado|se coloca ao lado|ao alcance do sussurro)\b/u;
+ if(!parts.some(part=>startsActor(part,name)&&proximity.test(normalize(part))))return null;
+ const keep=text.split(/\n{2,}/u).filter(paragraph=>!invitation.test(normalize(paragraph.trim())))
+  .map(paragraph=>split(paragraph).filter(part=>!waitingForSpeech.test(normalize(part))).join(' ')).filter(Boolean);
+ const reaction=name+' ouve a confidência de perto e mantém a voz baixa.';
+ return [...keep,reaction].join('\n\n');
 }
 
 export function maskDisclosures(value,records){
@@ -203,7 +218,7 @@ export function disclosureConflict(c,continuity,part,preceding=''){
   if(!mentionsDisclosure(part,record.text))return false;
   const audience=audienceOf(record,continuity);
   if(!candidates.length)return !audience.some(name=>continuity.participants.some(actor=>sameName(actor,name)));
-  const speaker=candidates.find(name=>startsWithName(clause,canonName(name)||name))||candidates[0];
+  const speaker=candidates.find(name=>startsActor(clause,name))||candidates[0];
   return !audience.some(actor=>sameName(actor,speaker));
  });
 }
@@ -211,23 +226,22 @@ export function disclosureConflict(c,continuity,part,preceding=''){
 export function commitDisclosures(previous,next,i,r,continuity=sceneContinuity(previous,i)){
  const parts=split(r.narrative);
  const confirmed=continuity.ledger.map(record=>{
-  const disclosed=parts.filter(part=>record.audience.some(name=>startsWithName(part,canonName(name)||name))&&
+  const disclosed=parts.filter(part=>record.audience.some(name=>startsActor(part,name))&&
    mentionsDisclosure(part,record.text)&&!blocked.test(normalize(part)))
    .flatMap(part=>{
     const receiver=normalize(part).match(/\b(?:conta|contou|revela|revelou|sussurra|sussurrou|informa|informou)\s+(?:a|ao|para|pra)\s+([^.!?:;,]+)/u)?.[1];
-    return receiver?continuity.names.filter(name=>startsWithName(receiver,canonName(name)||name)):[];
+    return receiver?continuity.names.filter(name=>startsActor(receiver,name)):[];
    });
   return disclosed.length?{...record,audience:uniqueNames([...record.audience,...disclosed]).slice(0,12)}:record;
  });
  for(const record of continuity.pending){
   const spoken=record.audience.filter(name=>parts.some(part=>{
-   const subject=startsWithName(part,canonName(name)||name);
-   return subject&&acknowledges.test(normalize(part))&&!blocked.test(normalize(part));
+   const line=normalize(part);
+   return startsActor(part,name)&&acknowledges.test(line)&&!blocked.test(line)&&!waitingForSpeech.test(line)&&!hearingObstructed.test(line);
   }));
-  if(!spoken.length)continue;
   const index=confirmed.findIndex(item=>mentionsDisclosure(item.text,record.text));
   if(index<0)confirmed.push({text:record.text,day:next.day,audience:spoken});
-  else confirmed[index]={...confirmed[index],audience:uniqueNames([...confirmed[index].audience,...spoken]).slice(0,12)};
+  else if(spoken.length)confirmed[index]={...confirmed[index],audience:uniqueNames([...confirmed[index].audience,...spoken]).slice(0,12)};
  }
  if(confirmed.length)next.disclosures=confirmed.slice(-ledgerLimit);
  return next;

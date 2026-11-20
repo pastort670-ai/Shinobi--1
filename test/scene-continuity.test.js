@@ -34,7 +34,10 @@ test('conversa individual delimita a memória, sem vazar o fato no contexto gera
 
 test('um destinatário que saiu antes de ouvir ainda não sabe o segredo',()=>{
  const n=apply(created(),tell,{narrative:'Hiruzen não ouviu o sussurro. O mensageiro bate no portão.'});
- assert.equal(n.disclosures,undefined);
+ assert.deepEqual(n.disclosures,[{text:secret+'.',day:0,audience:[]}]);
+ const recalled=context(n,talk('Hiruzen, você ouviu o que eu disse?'));
+ assert.deepEqual(recalled.scopedDisclosures,[]);
+ assert.doesNotMatch(JSON.stringify(recalled),/mapa de cobre/u);
 });
 
 test('outro NPC só passa a saber após uma fala ou uma transferência narrada e aceita',()=>{
@@ -167,5 +170,28 @@ test('Gemini trata a fala privada como o trecho já enviado e corrige uma revela
  assert.equal(payloads.length,2);
  assert.equal(JSON.parse(payloads[0].contents[0].parts[0].text).scopedDisclosures[0].utteranceAt,2);
  assert.match(payloads[1].systemInstruction.parts[0].text,/fala privada já foi enviada/u);
+ assert.deepEqual(n.disclosures[0].audience,['Hiruzen']);
+});
+
+test('uma confidência já dita é ouvida quando a cena confirma que o destinatário se aproximou',async()=>{
+ const c=created();
+ const turn=input({segments:[{type:'AGIR',text:'Procuro um canto onde apenas Hiruzen possa me ouvir.'},{type:'FALAR',text:'Hiruzen, só você pode saber: '+secret+'.'}]});
+ const flawed='Kaien acha um canto reservado. Hiruzen percebe a aproximação discreta e se aproxima com passos firmes.\n\n— Fale, Kaien. O que pesa em sua mente? — pergunta o Terceiro Hokage, inclinando-se para ouvir com atenção a confidência.';
+ let calls=0;
+ const generate=provider({key:'teste',external:false,fetcher:async()=>{calls++;return reply({narrative:flawed});}});
+ const n=apply(c,turn,await generate(c,turn));
+ assert.equal(calls,1);
+ assert.match(n.messages.at(-1).text,/Hiruzen ouve a confidência de perto/u);
+ assert.doesNotMatch(n.messages.at(-1).text,/Fale, Kaien|mapa de cobre|O que pesa/u);
+ assert.deepEqual(n.disclosures[0].audience,['Hiruzen']);
+ assert.deepEqual(context(n,talk('Hiruzen, onde escondi o mapa?')).scopedDisclosures[0].knownOnlyBy,['Hiruzen']);
+ assert.deepEqual(context(n,talk('Itachi, você viu alguém?')).scopedDisclosures,[]);
+ const blocked=apply(c,turn,{narrative:'Hiruzen se aproxima perto da parede. Um estrondo abafou o sussurro. — Fale, Kaien.'});
+ assert.deepEqual(blocked.disclosures[0].audience,[]);
+ assert.doesNotMatch(blocked.messages.at(-1).text,/ouve a confidência/u);
+});
+
+test('o destinatário pode ser identificado pelo cargo específico na frase que confirma que ouviu',()=>{
+ const n=apply(created(),tell,{narrative:'O Terceiro Hokage ouve o sussurro e fecha a porta.'});
  assert.deepEqual(n.disclosures[0].audience,['Hiruzen']);
 });
