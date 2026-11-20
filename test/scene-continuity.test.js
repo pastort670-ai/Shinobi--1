@@ -195,3 +195,23 @@ test('o destinatário pode ser identificado pelo cargo específico na frase que 
  const n=apply(created(),tell,{narrative:'O Terceiro Hokage ouve o sussurro e fecha a porta.'});
  assert.deepEqual(n.disclosures[0].audience,['Hiruzen']);
 });
+
+test('registra a escuta explícita que o Gemini narrou antes de citar o nome do ouvinte',()=>{
+ const n=apply(created(),tell,{narrative:[
+  'Hiruzen acompanha o movimento com o canto do olho.',
+  'O Terceiro inclina levemente o tronco para a frente, ouvindo com atenção o que o garoto traz em sussurro.',
+  'Ao captar as palavras, as rugas ao redor dos olhos de Hiruzen se aprofundam, e ele responde em tom baixo.'
+ ].join('\n\n')});
+ const restored=JSON.parse(JSON.stringify(n));
+ assert.deepEqual(restored.disclosures,[{text:secret+'.',day:0,audience:['Hiruzen']}]);
+ assert.equal(context(restored,talk('Hiruzen, você lembra do que eu disse?')).scopedDisclosures.length,1);
+ assert.deepEqual(context(restored,talk('Itachi, você lembra do que eu disse?')).scopedDisclosures,[]);
+ const ambiguous=apply(created(),tell,{narrative:'Ao captar as palavras, Itachi vira o rosto na direção de Hiruzen.'});
+ assert.deepEqual(ambiguous.disclosures[0].audience,[]);
+});
+
+test('perguntar sobre uma conversa anterior em particular não cria um segredo novo',()=>{
+ const n=known();
+ const next=apply(n,talk('Itachi, você ouviu o que contei em particular ao Hiruzen?'),{narrative:'Itachi balança a cabeça. — Eu estava do outro lado do pátio.'});
+ assert.deepEqual(next.disclosures,n.disclosures);
+});
