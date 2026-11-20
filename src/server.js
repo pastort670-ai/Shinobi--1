@@ -5,7 +5,7 @@ import {mkdirSync,readFileSync} from 'node:fs';
 import {resolve,dirname} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {create,input,apply,view,validate,fail} from './engine.js';
-import {narrationQuality} from './narrator-guard.js';
+import {directScene} from './scene-director.js';
 import {encounterPlan} from './encounter.js';
 import {canUseTime,timeMaxHours} from './time-engine.js';
 import {provider,milestoneAuditor} from './gemini.js';
@@ -171,8 +171,9 @@ export function app({dbPath=process.env.DB_PATH||resolve(root,'data/shinobi.sqli
   if(c.messages.length!==1||c.introConfirmed)fail('A introdução já foi confirmada ou a campanha começou.',409);
   const oldIntros=(c.introHistory||[]).concat(c.messages[0]?.text||'').filter(Boolean).slice(-4);const introInput={segments:[],days:0,opening:true,regeneration:{rejected:oldIntros,attempt:oldIntros.length,requireDifferentApproach:oldIntros.length>=2}};
   const now=Date.now(),today=new Date().toISOString().slice(0,10);const usage=db.prepare('SELECT * FROM usage WHERE owner=?').get(owner);if(usage&&now-usage.last<rateMs)fail('Aguarde alguns segundos antes de gerar outra introdução.',429);if(usage?.day===today&&usage.count>=Number(process.env.DAILY_LIMIT||100))fail('Limite diário local atingido.',429);db.prepare('INSERT OR REPLACE INTO usage VALUES(?,?,?,?)').run(owner,now,today,usage?.day===today?usage.count+1:1);
-  const result=await generate(c,introInput);
-  if(!result?.narrative||typeof result.narrative!=='string')fail('Introdução inválida. Tente novamente.',502);
+  const directed=directScene(c,introInput,validate(await generate(c,introInput)));
+  if(!directed.narrative)fail('Introdução inválida. Tente novamente.',502);
+  const result=directed.proposal;
   c.introHistory=oldIntros;c.day=Number.isInteger(result.openingDay)&&result.openingDay>=0&&result.openingDay<=6?result.openingDay:0;c.clockMinutes=c.day>0?8*60:20*60;c.messages[0]={role:'ai',text:result.narrative.slice(0,12000),day:c.day,sceneType:'normal'};
   c.revision++;
   db.prepare('UPDATE campaigns SET state=? WHERE id=? AND owner=?').run(JSON.stringify(c),id,owner);
@@ -238,8 +239,7 @@ export function app({dbPath=process.env.DB_PATH||resolve(root,'data/shinobi.sqli
   }
  }
  if(rewriteOnly){
-  const proposed=validate(r).narrative;
-  const quality=narrationQuality(base,i,proposed);
+  const quality=directScene(base,i,validate(r));
   const message=c.messages.at(-1);
   if(!quality.narrative||quality.narrative.trim()===(message.rewriteText||message.text).trim()){
    fail('O narrador não produziu uma versão diferente. A resposta anterior foi mantida.',502);
