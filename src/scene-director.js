@@ -4,6 +4,7 @@ import {searchSpecialistKnowledge} from './shinobi-specialist.js';
 import {chakraCondition} from './chakra-engine.js';
 import {cleanPrivateKnowledge,correctKinship,disclosureConflict,mentionsActor,postponedDisclosure,resolveHeardDisclosure,sceneContinuity} from './scene-continuity.js';
 import {unavailableCast} from './turn-direction.js';
+import {correctAcademyClaim,protagonistStatus,protectsAcademyGraduation} from './rank-continuity.js';
 
 const normalize=value=>String(value??'').normalize('NFD').replace(/\p{M}/gu,'').toLowerCase();
 const tokens=value=>normalize(value).match(/[\p{L}\p{N}]+/gu)||[];
@@ -179,6 +180,7 @@ const withheld={
 };
 
 export function directScene(c,i,proposal,{fixedCombat=false,continuity=sceneContinuity(c,i)}={}){
+ const status=protagonistStatus(c);
  const draft=cleanDraft(proposal.narrative||'');
  const originalParts=split(draft);
  const issues=[];
@@ -186,8 +188,10 @@ export function directScene(c,i,proposal,{fixedCombat=false,continuity=sceneCont
  let contradicted=false;
  for(const [index,source] of originalParts.entries()){
   const nearby=originalParts.slice(Math.max(0,index-2),index+3).join(' ');
-  const part=fixedCombat?source:correctKinship(c,source,nearby);
-  if(part!==source)issues.push('parentesco');
+  const kinship=fixedCombat?source:correctKinship(c,source,nearby);
+  if(kinship!==source)issues.push('parentesco');
+  const part=correctAcademyClaim(c,status,kinship);
+  if(part!==kinship)issues.push('graduacao-protagonista');
   if(!fixedCombat&&!i.days&&!i.hours&&canonIssue(c,part)){contradicted=true;issues.push('cronologia');continue;}
   if(!fixedCombat&&unauthorizedSpeech(c,part)){contradicted=true;issues.push('fala-do-jogador');continue;}
   if(!fixedCombat&&disclosureConflict(c,continuity,part,originalParts[index-1])){contradicted=true;issues.push('conhecimento-do-npc');continue;}
@@ -210,9 +214,19 @@ export function directScene(c,i,proposal,{fixedCombat=false,continuity=sceneCont
   if(heard){narrative=heard;issues.push('confidencia-resolvida');}
   else if(postponedDisclosure(continuity,narrative))issues.push('fala-confidencial-adiada');
  }
+ const revised=contradicted?{...proposal,...withheld,narrative}:{...proposal,narrative};
+ const updates=revised.profileUpdates||[];
+ revised.profileUpdates=updates.filter(update=>update.field!=='affiliation'||!protectsAcademyGraduation(status,update.value));
+ if(revised.profileUpdates.length!==updates.length)issues.push('graduacao-protagonista');
+ if(status.academyGraduated){
+  const consistent=text=>correctAcademyClaim(c,status,text)===text;
+  revised.facts=(revised.facts||[]).filter(consistent);
+  revised.development=(revised.development||[]).filter(consistent);
+  revised.npcKnowledge=(revised.npcKnowledge||[]).filter(item=>consistent(item.fact));
+ }
  return {
   narrative,
-  proposal:cleanPrivateKnowledge(contradicted?{...proposal,...withheld,narrative}: {...proposal,narrative},continuity),
+  proposal:cleanPrivateKnowledge(revised,continuity),
   issues:[...new Set(issues)]
  };
 }
@@ -234,7 +248,7 @@ export function describeExertion(narrative,{energyBefore,energyAfter,chakraBefor
 
 export function directCombatSpeech(c,i,plan,speech){
  if(typeof speech!=='string')return null;
- const draft=cleanDraft(speech.slice(0,500));
+ const draft=correctAcademyClaim(c,protagonistStatus(c),cleanDraft(speech.slice(0,500)));
  const changesResult=/\b(?:voce (?:venceu|perdeu|me derrotou|foi derrotad[oa])|acertou (?:o ultimo golpe|em cheio)|suas reservas voltaram|o combate terminou|nao posso mais lutar)\b/u;
  if(canonIssue(c,draft)||unauthorizedSpeech(c,draft)||!plan.finished&&changesResult.test(normalize(draft)))return null;
  if(disclosureConflict(c,sceneContinuity(c,i),draft,plan.state?.opponent||''))return null;
