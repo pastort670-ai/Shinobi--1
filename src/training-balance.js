@@ -57,3 +57,19 @@ export function verifiedLongTrainingJutsus(r,i,tick){
  // Só técnicas explicitamente aprendidas na cena, sem aceitar meras tentativas.
  return list.filter(j=>j?.name&&clauses.some(clause=>clause.includes(norm(j.name))&&attained.test(clause)&&!failed.test(clause))).slice(0,2);
 }
+
+// O registro acompanha o turno aceito e usa apenas o desfecho verificado.
+export function trainingSummary(i,tick,progress,learned,focused=false){
+ if(!(i.hours||i.days)||!tick.hours)return '';
+ const action=(i.segments||[]).filter(segment=>segment.type==='AGIR').map(segment=>segment.text).join(' ');
+ const text=norm(action);
+ const practice=/\b(?:trein\w*|pratic\w*|exercit\w*|aperfeico\w*|(?:aprend\w*|domin\w*|desenvolv\w*)\s+(?:(?:o|a|uma?|meu|minha)\s+)?(?:jutsu|tecnica))\b/u;
+ if(!practice.test(text)&&!(focused&&!action))return '';
+ const days=Math.floor(tick.hours/24),hours=tick.hours%24;
+ const duration=[days&&days+(days===1?' dia':' dias'),hours&&hours+(hours===1?' hora':' horas')].filter(Boolean).join(' e ');
+ const results=[];
+ if(learned.length)results.push('Técnica registrada na ficha: '+learned.map(j=>j.name).join(', ')+'.');
+ if(progress?.gain>0)results.push('Houve avanço em '+progress.skill+'.');
+ if(!results.length)results.push('Nenhum avanço foi registrado neste período.');
+ return 'Resultado do treino após '+duration+'. '+results.join(' ');
+}

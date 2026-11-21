@@ -164,3 +164,30 @@ test('o motor só conta o tempo efetivamente transcorrido quando há interrupç�
  assert.ok(n.progress.taijutsu<20);
  assert.equal(view(n).timeMaxHours,700*24);
 });
+
+test('TEMPO salva um desfecho para treino inconclusivo sem alterar a perícia',()=>{
+ const c=accepted('Hiruzen aceitou treinar Kaien por um mês.');
+ const next=apply(c,jump(30),outcome('O movimento continuou instável.'));
+ const summary=view(next).messages.at(-1).trainingSummary;
+ assert.match(summary,/30 dias.*Nenhum avanço/);
+ assert.equal(next.progress.taijutsu,0);
+ assert.ok(next.facts.some(f=>f.text===summary));
+});
+
+test('TEMPO registra a perícia e a técnica confirmadas na ficha',()=>{
+ const c=accepted('Hiruzen aceitou treinar Kaien por um mês.');
+ const next=apply(c,jump(30,'Treino a técnica Rasengan.'),outcome(
+  'Kaien praticou ninjutsu sob supervisão. Kaien aprendeu o Rasengan.',
+  {skill:'ninjutsu',gain:4},
+  {learnedJutsus:[{name:'Rasengan',description:'Aprendizado confirmado.'}]}
+ ));
+ assert.match(view(next).messages.at(-1).trainingSummary,/Rasengan.*avanço em ninjutsu/);
+ assert.ok(next.progress.ninjutsu>0);
+ assert.ok(view(next).jutsus.some(j=>j.name==='Rasengan'));
+});
+
+test('TEMPO sem treino dispensa registro de treinamento',()=>{
+ const c=start();
+ const next=apply(c,jump(1,'Aguardo o mensageiro.'),outcome('O portão amanhece fechado.'));
+ assert.equal(view(next).messages.at(-1).trainingSummary,undefined);
+});
